@@ -19,6 +19,7 @@ interface DepreciationSettings {
   default_salvage_percentage: number;
   auto_calculate_depreciation: boolean;
   monthly_calculation_day: number;
+  journal_processing_day: number;
   include_partial_months: boolean;
   round_to_nearest_dollar: boolean;
   fiscal_year_start_month: number;
@@ -34,6 +35,7 @@ export function DepreciationSettings() {
     default_salvage_percentage: 10,
     auto_calculate_depreciation: true,
     monthly_calculation_day: 1,
+    journal_processing_day: 5,
     include_partial_months: true,
     round_to_nearest_dollar: true,
     fiscal_year_start_month: 1,
@@ -206,7 +208,7 @@ export function DepreciationSettings() {
             <Calendar className="h-4 w-4" />
             Calculation Schedule
           </h4>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="space-y-2">
               <Label htmlFor="calculation-day">Monthly Calculation Day</Label>
               <Select
@@ -222,6 +224,32 @@ export function DepreciationSettings() {
                   <SelectItem value="31">Last day of month</SelectItem>
                 </SelectContent>
               </Select>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="journal-processing-day">Journal Processing Day</Label>
+              <Select
+                value={settings.journal_processing_day.toString()}
+                onValueChange={(value) => handleInputChange('journal_processing_day', parseInt(value))}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="1">1st</SelectItem>
+                  <SelectItem value="2">2nd</SelectItem>
+                  <SelectItem value="3">3rd</SelectItem>
+                  <SelectItem value="4">4th</SelectItem>
+                  <SelectItem value="5">5th</SelectItem>
+                  <SelectItem value="6">6th</SelectItem>
+                  <SelectItem value="7">7th</SelectItem>
+                  <SelectItem value="8">8th</SelectItem>
+                  <SelectItem value="9">9th</SelectItem>
+                  <SelectItem value="10">10th</SelectItem>
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground">
+                Day of month to process previous month's journal entries
+              </p>
             </div>
             <div className="space-y-2">
               <Label htmlFor="fiscal-year-start">Fiscal Year Start Month</Label>

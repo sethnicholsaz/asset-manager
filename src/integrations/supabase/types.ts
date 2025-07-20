@@ -299,6 +299,7 @@ export type Database = {
           fiscal_year_start_month: number
           id: string
           include_partial_months: boolean
+          journal_processing_day: number
           monthly_calculation_day: number
           round_to_nearest_dollar: boolean
           updated_at: string
@@ -313,6 +314,7 @@ export type Database = {
           fiscal_year_start_month?: number
           id?: string
           include_partial_months?: boolean
+          journal_processing_day?: number
           monthly_calculation_day?: number
           round_to_nearest_dollar?: boolean
           updated_at?: string
@@ -327,6 +329,7 @@ export type Database = {
           fiscal_year_start_month?: number
           id?: string
           include_partial_months?: boolean
+          journal_processing_day?: number
           monthly_calculation_day?: number
           round_to_nearest_dollar?: boolean
           updated_at?: string
