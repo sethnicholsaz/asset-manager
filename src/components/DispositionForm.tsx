@@ -10,6 +10,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Cow, CowDisposition, JournalEntry, DispositionType } from '@/types/cow';
 import { DepreciationCalculator } from '@/utils/depreciation';
 import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface DispositionFormProps {
   cow: Cow;
@@ -24,6 +25,7 @@ export function DispositionForm({ cow, onDisposition, onCancel }: DispositionFor
   const [notes, setNotes] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
   const { toast } = useToast();
+  const { currentCompany } = useAuth();
 
   // Calculate current book value
   const currentDate = new Date(dispositionDate);
@@ -40,6 +42,10 @@ export function DispositionForm({ cow, onDisposition, onCancel }: DispositionFor
     setIsProcessing(true);
 
     try {
+      if (!currentCompany) {
+        throw new Error('No company selected');
+      }
+
       // Create disposition record
       const disposition: CowDisposition = {
         id: `disp-${cow.id}-${Date.now()}`,
@@ -165,6 +171,7 @@ export function DispositionForm({ cow, onDisposition, onCancel }: DispositionFor
         .from('cow_dispositions')
         .insert({
           cow_id: disposition.cowId,
+          company_id: currentCompany.id,
           disposition_date: disposition.dispositionDate.toISOString().split('T')[0],
           disposition_type: disposition.dispositionType,
           sale_amount: disposition.saleAmount,
@@ -178,6 +185,7 @@ export function DispositionForm({ cow, onDisposition, onCancel }: DispositionFor
       const { error: journalError } = await supabase
         .from('journal_entries')
         .insert({
+          company_id: currentCompany.id,
           entry_date: journalEntry.entryDate.toISOString().split('T')[0],
           description: journalEntry.description,
           total_amount: journalEntry.totalAmount,
