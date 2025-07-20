@@ -295,9 +295,9 @@ Deno.serve(async (req) => {
             throw new Error(`Invalid birth date format: '${birthDateStr}'. Expected format: MM/DD/YYYY, YYYY-MM-DD, or Excel date number`);
           }
           
-          // For dispositions, don't calculate or update freshen date - use current date
-          // For fresh cows, this would need a proper freshen date from the data
-          const freshenDate = birthDate; // Temporary placeholder - disposition uploads shouldn't update this
+          // For dispositions, we shouldn't update freshen date at all
+          // Only fresh cow uploads should update freshen dates
+          const freshenDate = null; // Will be excluded from cow updates for dispositions
           
           // Validate date ranges
           if (birthDate > new Date()) {
@@ -329,7 +329,8 @@ Deno.serve(async (req) => {
             const matchingDefault = priceDefaults.find(pd => pd.birth_year === birthYear);
             
             if (matchingDefault) {
-              const daysDiff = Math.floor((freshenDate.getTime() - birthDate.getTime()) / (1000 * 60 * 60 * 24));
+              // For dispositions, use zero days diff since we don't have freshen date
+              const daysDiff = freshenDate ? Math.floor((freshenDate.getTime() - birthDate.getTime()) / (1000 * 60 * 60 * 24)) : 0;
               purchasePrice = matchingDefault.default_price + (daysDiff * (matchingDefault.daily_accrual_rate || 0));
             } else {
               purchasePrice = 2000; // Default fallback
@@ -341,7 +342,7 @@ Deno.serve(async (req) => {
             tag_number: rowData.tag_number,
             name: rowData.name || null,
             birth_date: birthDate.toISOString().split('T')[0],
-            freshen_date: freshenDate.toISOString().split('T')[0],
+            freshen_date: birthDate.toISOString().split('T')[0], // Temporary placeholder - will be excluded for dispositions
             purchase_price: purchasePrice,
             salvage_value: parseFloat(rowData.salvage_value) || (purchasePrice * 0.1),
             current_value: purchasePrice,
@@ -363,9 +364,10 @@ Deno.serve(async (req) => {
 
       // Insert batch if we have data
       if (batchCows.length > 0) {
-        // Remove disposition_type and event_date from cow data before inserting to database
+        // Remove disposition_type, event_date, and freshen_date from cow data before inserting to database
+        // For disposition uploads, we don't want to update the freshen_date - only status
         const cowsForInsert = batchCows.map(cow => {
-          const { disposition_type, event_date, ...cowWithoutDispositionFields } = cow;
+          const { disposition_type, event_date, freshen_date, ...cowWithoutDispositionFields } = cow;
           return cowWithoutDispositionFields;
         });
         
