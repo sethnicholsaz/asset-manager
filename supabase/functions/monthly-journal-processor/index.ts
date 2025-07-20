@@ -129,9 +129,6 @@ serve(async (req) => {
         if (!hasDepreciationEntry) {
           console.log(`Creating depreciation entry for ${company.name}`);
           
-          // Fetch all active cows for this company as of the end of the target month
-          const reportDate = new Date(targetYear, targetMonth - 1, 31); // Last day of target month
-          
           // Fetch all cows with pagination to avoid limits
           let allCows: any[] = [];
           let offset = 0;
@@ -157,13 +154,15 @@ serve(async (req) => {
 
           console.log(`Total cows fetched for company: ${allCows.length}`);
 
-          // Include all active cows in depreciation (using actual freshen dates only)
+          // Include only active cows that have freshened by the end of the target month
+          const reportDate = new Date(targetYear, targetMonth, 0); // Last day of target month
           const activeCows = allCows.filter((cow: any) => {
             const isActive = cow.status === 'active';
-            return isActive;
+            const isFreshened = new Date(cow.freshen_date) <= reportDate;
+            return isActive && isFreshened;
           });
 
-          console.log(`ALL active cows (no date filter): ${activeCows.length}`);
+          console.log(`Active cows freshened by ${reportDate.toISOString().split('T')[0]}: ${activeCows.length}`);
 
           if (activeCows && activeCows.length > 0) {
             // Calculate total monthly depreciation
