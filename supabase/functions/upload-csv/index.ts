@@ -160,10 +160,8 @@ Deno.serve(async (req) => {
     const headerMapping = {
       'ID': 'tag_number',
       'BDAT': 'birth_date', 
-      'Date': 'event_date', // This is the disposition/event date
-      'SDATE': 'event_date', // Sale date
-      'DDATE': 'event_date', // Death date
-      'DIM': 'dim', // Days in Milk
+      'Date': 'event_date', // This is the actual event/disposition date
+      'DIM': 'days_in_milk', // Days in Milk - numeric field, not a date
       'Event': 'event',
       'Remark': 'notes'
     };
