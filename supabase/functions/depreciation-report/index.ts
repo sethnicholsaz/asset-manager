@@ -137,8 +137,8 @@ Deno.serve(async (req) => {
     const allActiveCows = allCows.filter((cow: Cow) => cow.status === 'active');
     console.log(`ALL active cows (no date filter): ${allActiveCows.length}`);
 
-    // Filter active cows that should be included in the report
-    const currentDate = new Date(year, month - 1, 1);
+    // Filter active cows that should be included in the report (use end of month)
+    const currentDate = new Date(year, month, 0); // Last day of the selected month
     console.log(`Current date for filtering: ${currentDate.toISOString()}`);
     
     // Now filter by date and log details
