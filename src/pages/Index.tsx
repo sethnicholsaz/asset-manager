@@ -268,6 +268,7 @@ const Index = () => {
       {/* Cow Inventory Table */}
       <CowDataTable 
         cows={cows} 
+        summaryStats={summaryStats}
         onEditCow={handleEditCow}
         onDeleteCow={handleDeleteCow}
       />

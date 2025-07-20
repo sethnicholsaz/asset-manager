@@ -11,11 +11,17 @@ import { Input } from '@/components/ui/input';
 
 interface CowDataTableProps {
   cows: Cow[];
+  summaryStats?: {
+    active_count: number;
+    total_asset_value: number;
+    total_current_value: number;
+    total_depreciation: number;
+  };
   onEditCow?: (cow: Cow) => void;
   onDeleteCow?: (cowId: string) => void;
 }
 
-export function CowDataTable({ cows, onEditCow, onDeleteCow }: CowDataTableProps) {
+export function CowDataTable({ cows, summaryStats, onEditCow, onDeleteCow }: CowDataTableProps) {
   const [sortColumn, setSortColumn] = useState<keyof Cow>('tagNumber');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
   const [searchQuery, setSearchQuery] = useState('');
@@ -83,9 +89,11 @@ export function CowDataTable({ cows, onEditCow, onDeleteCow }: CowDataTableProps
     return DepreciationCalculator.getMonthsSinceStart(freshenDate, now);
   };
 
-  const totalValue = cows.reduce((sum, cow) => sum + cow.purchasePrice, 0);
-  const totalCurrentValue = cows.reduce((sum, cow) => sum + cow.currentValue, 0);
-  const totalDepreciation = totalValue - totalCurrentValue;
+  // Use aggregated stats when available, fallback to calculated from limited dataset
+  const totalCows = summaryStats?.active_count ?? cows.length;
+  const totalValue = summaryStats?.total_asset_value ?? cows.reduce((sum, cow) => sum + cow.purchasePrice, 0);
+  const totalCurrentValue = summaryStats?.total_current_value ?? cows.reduce((sum, cow) => sum + cow.currentValue, 0);
+  const totalDepreciation = summaryStats?.total_depreciation ?? (totalValue - totalCurrentValue);
 
   return (
     <div className="space-y-6">
@@ -99,7 +107,7 @@ export function CowDataTable({ cows, onEditCow, onDeleteCow }: CowDataTableProps
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">Total Cows</p>
-                <p className="text-2xl font-bold">{cows.length.toLocaleString()}</p>
+                <p className="text-2xl font-bold">{totalCows.toLocaleString()}</p>
               </div>
             </div>
           </CardContent>
