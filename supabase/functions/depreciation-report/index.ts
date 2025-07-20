@@ -133,13 +133,13 @@ Deno.serve(async (req) => {
 
     console.log(`Fetched ${allCows.length} total cows`);
 
+    // Count all active cows (no date filter) to verify against your 3691 count
+    const allActiveCows = allCows.filter((cow: Cow) => cow.status === 'active');
+    console.log(`ALL active cows (no date filter): ${allActiveCows.length}`);
+
     // Filter active cows that should be included in the report
     const currentDate = new Date(year, month - 1, 1);
     console.log(`Current date for filtering: ${currentDate.toISOString()}`);
-    
-    // First, let's see how many are actually active
-    const totalActiveCows = allCows.filter((cow: Cow) => cow.status === 'active');
-    console.log(`Total active cows (before date filter): ${totalActiveCows.length}`);
     
     // Now filter by date and log details
     const activeCows = allCows.filter((cow: Cow) => {
