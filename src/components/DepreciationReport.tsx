@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Calendar, Download, FileText, Calculator } from 'lucide-react';
 import { Cow, DepreciationEntry, JournalEntry, JournalLine } from '@/types/cow';
 import { DepreciationCalculator } from '@/utils/depreciation';
@@ -7,14 +7,54 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/contexts/AuthContext';
+import { useToast } from '@/hooks/use-toast';
 
 interface DepreciationReportProps {
   cows: Cow[];
 }
 
+interface BalanceAdjustment {
+  id: string;
+  adjustment_amount: number;
+  description: string;
+  cow_tag?: string;
+  adjustment_type: string;
+  prior_period_month: number;
+  prior_period_year: number;
+}
+
 export function DepreciationReport({ cows }: DepreciationReportProps) {
   const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1);
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
+  const [balanceAdjustments, setBalanceAdjustments] = useState<BalanceAdjustment[]>([]);
+  const { currentCompany } = useAuth();
+  const { toast } = useToast();
+
+  useEffect(() => {
+    if (currentCompany) {
+      fetchBalanceAdjustments();
+    }
+  }, [currentCompany, selectedMonth, selectedYear]);
+
+  const fetchBalanceAdjustments = async () => {
+    if (!currentCompany) return;
+
+    try {
+      const { data, error } = await supabase
+        .from('balance_adjustments')
+        .select('*')
+        .eq('company_id', currentCompany.id)
+        .eq('applied_to_current_month', false);
+
+      if (error) throw error;
+
+      setBalanceAdjustments(data || []);
+    } catch (error) {
+      console.error('Error fetching balance adjustments:', error);
+    }
+  };
 
   const getMonthName = (month: number): string => {
     return new Date(2000, month - 1, 1).toLocaleString('en-US', { month: 'long' });
@@ -49,39 +89,83 @@ export function DepreciationReport({ cows }: DepreciationReportProps) {
     0
   );
 
-  // Generate journal entries
+  // Calculate total balance adjustments
+  const totalBalanceAdjustments = balanceAdjustments.reduce(
+    (sum, adj) => sum + adj.adjustment_amount,
+    0
+  );
+
+  // Generate journal entries including balance adjustments
   const journalEntries: JournalEntry[] = [];
+  
   if (totalMonthlyDepreciation > 0) {
-    const journalEntry: JournalEntry = {
-      id: `je-${selectedYear}-${selectedMonth}`,
-      entryDate: new Date(selectedYear, selectedMonth - 1, 1),
-      description: `Dairy Cow Depreciation - ${getMonthName(selectedMonth)} ${selectedYear}`,
-      totalAmount: totalMonthlyDepreciation,
-      entryType: 'depreciation',
-      lines: [
-        {
-          id: `jl-debit-${selectedYear}-${selectedMonth}`,
+    const journalLines: JournalLine[] = [
+      {
+        id: `jl-debit-${selectedYear}-${selectedMonth}`,
+        journalEntryId: `je-${selectedYear}-${selectedMonth}`,
+        accountCode: '6100',
+        accountName: 'Depreciation Expense',
+        description: 'Monthly depreciation of dairy cows',
+        debitAmount: totalMonthlyDepreciation,
+        creditAmount: 0,
+        lineType: 'debit',
+        createdAt: new Date()
+      },
+      {
+        id: `jl-credit-${selectedYear}-${selectedMonth}`,
+        journalEntryId: `je-${selectedYear}-${selectedMonth}`,
+        accountCode: '1500.1',
+        accountName: 'Accumulated Depreciation - Dairy Cows',
+        description: 'Monthly depreciation of dairy cows',
+        debitAmount: 0,
+        creditAmount: totalMonthlyDepreciation,
+        lineType: 'credit',
+        createdAt: new Date()
+      }
+    ];
+
+    // Add balance adjustment entries if any exist
+    if (balanceAdjustments.length > 0) {
+      balanceAdjustments.forEach((adjustment, index) => {
+        const isDebit = adjustment.adjustment_amount > 0;
+        const adjustmentDescription = `Prior period adjustment: ${adjustment.description}${adjustment.cow_tag ? ` (Cow #${adjustment.cow_tag})` : ''}`;
+        
+        journalLines.push({
+          id: `jl-adjustment-${index}-${selectedYear}-${selectedMonth}`,
+          journalEntryId: `je-${selectedYear}-${selectedMonth}`,
+          accountCode: '1500.1', // Accumulated Depreciation account
+          accountName: 'Accumulated Depreciation - Dairy Cows',
+          description: adjustmentDescription,
+          debitAmount: isDebit ? Math.abs(adjustment.adjustment_amount) : 0,
+          creditAmount: isDebit ? 0 : Math.abs(adjustment.adjustment_amount),
+          lineType: isDebit ? 'debit' : 'credit',
+          createdAt: new Date()
+        });
+
+        // Balancing entry to depreciation expense
+        journalLines.push({
+          id: `jl-adjustment-balance-${index}-${selectedYear}-${selectedMonth}`,
           journalEntryId: `je-${selectedYear}-${selectedMonth}`,
           accountCode: '6100',
           accountName: 'Depreciation Expense',
-          description: 'Monthly depreciation of dairy cows',
-          debitAmount: totalMonthlyDepreciation,
-          creditAmount: 0,
-          lineType: 'debit',
+          description: `Balancing entry: ${adjustmentDescription}`,
+          debitAmount: isDebit ? 0 : Math.abs(adjustment.adjustment_amount),
+          creditAmount: isDebit ? Math.abs(adjustment.adjustment_amount) : 0,
+          lineType: isDebit ? 'credit' : 'debit',
           createdAt: new Date()
-        },
-        {
-          id: `jl-credit-${selectedYear}-${selectedMonth}`,
-          journalEntryId: `je-${selectedYear}-${selectedMonth}`,
-          accountCode: '1500.1',
-          accountName: 'Accumulated Depreciation - Dairy Cows',
-          description: 'Monthly depreciation of dairy cows',
-          debitAmount: 0,
-          creditAmount: totalMonthlyDepreciation,
-          lineType: 'credit',
-          createdAt: new Date()
-        }
-      ],
+        });
+      });
+    }
+
+    const totalJournalAmount = totalMonthlyDepreciation + Math.abs(totalBalanceAdjustments);
+
+    const journalEntry: JournalEntry = {
+      id: `je-${selectedYear}-${selectedMonth}`,
+      entryDate: new Date(selectedYear, selectedMonth - 1, 1),
+      description: `Dairy Cow Depreciation${balanceAdjustments.length > 0 ? ' with Prior Period Adjustments' : ''} - ${getMonthName(selectedMonth)} ${selectedYear}`,
+      totalAmount: totalJournalAmount,
+      entryType: 'depreciation',
+      lines: journalLines,
       createdAt: new Date(),
       updatedAt: new Date()
     };
@@ -138,7 +222,6 @@ export function DepreciationReport({ cows }: DepreciationReportProps) {
     link.download = filename;
     link.click();
   };
-
 
   const months = Array.from({ length: 12 }, (_, i) => ({
     value: i + 1,
@@ -220,7 +303,7 @@ export function DepreciationReport({ cows }: DepreciationReportProps) {
       </Card>
 
       {/* Summary */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <Card>
           <CardContent className="p-4">
             <div className="flex items-center space-x-2">
@@ -244,6 +327,31 @@ export function DepreciationReport({ cows }: DepreciationReportProps) {
               <div>
                 <p className="text-sm text-muted-foreground">Monthly Depreciation</p>
                 <p className="text-2xl font-bold">{DepreciationCalculator.formatCurrency(totalMonthlyDepreciation)}</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex items-center space-x-2">
+              <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${
+                totalBalanceAdjustments === 0 ? 'bg-accent/10' : 
+                totalBalanceAdjustments > 0 ? 'bg-destructive/10' : 'bg-success/10'
+              }`}>
+                <Download className={`h-4 w-4 ${
+                  totalBalanceAdjustments === 0 ? 'text-accent' : 
+                  totalBalanceAdjustments > 0 ? 'text-destructive' : 'text-success'
+                }`} />
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground">Balance Adjustments</p>
+                <p className={`text-2xl font-bold ${
+                  totalBalanceAdjustments === 0 ? '' : 
+                  totalBalanceAdjustments > 0 ? 'text-destructive' : 'text-success'
+                }`}>
+                  {DepreciationCalculator.formatCurrency(totalBalanceAdjustments)}
+                </p>
               </div>
             </div>
           </CardContent>
@@ -331,10 +439,26 @@ export function DepreciationReport({ cows }: DepreciationReportProps) {
             <CardHeader>
               <CardTitle>Journal Entries - {getMonthName(selectedMonth)} {selectedYear}</CardTitle>
               <CardDescription>
-                Accounting entries for monthly depreciation expense
+                Accounting entries for monthly depreciation expense{balanceAdjustments.length > 0 ? ' including prior period adjustments' : ''}
               </CardDescription>
             </CardHeader>
             <CardContent>
+              {balanceAdjustments.length > 0 && (
+                <div className="mb-6 p-4 border rounded-lg bg-muted/30">
+                  <h4 className="font-medium mb-2">Prior Period Adjustments Included:</h4>
+                  <div className="space-y-2">
+                    {balanceAdjustments.map((adj, index) => (
+                      <div key={adj.id} className="text-sm flex justify-between">
+                        <span>{adj.description}{adj.cow_tag ? ` (Cow #${adj.cow_tag})` : ''}</span>
+                        <span className={adj.adjustment_amount >= 0 ? 'text-destructive' : 'text-success'}>
+                          {DepreciationCalculator.formatCurrency(adj.adjustment_amount)}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               {journalEntries.map((entry) => (
                 <div key={entry.id} className="space-y-4 p-4 border rounded-lg">
                   <div className="flex justify-between items-start">
