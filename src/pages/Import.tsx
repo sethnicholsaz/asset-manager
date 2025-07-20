@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import { Cow } from '@/types/cow';
 import { CowUpload } from '@/components/CowUpload';
+import { CowForm } from '@/components/CowForm';
+import { Separator } from '@/components/ui/separator';
 
 export default function Import() {
   const [cows, setCows] = useState<Cow[]>([]);
@@ -9,18 +11,48 @@ export default function Import() {
     setCows(prev => [...prev, ...uploadedCows]);
   };
 
+  const handleAddCow = (cow: Cow) => {
+    setCows(prev => [...prev, cow]);
+  };
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Import Cow Data</h1>
           <p className="text-muted-foreground">
-            Upload CSV files to import your dairy cow inventory
+            Upload CSV files or add cows manually to build your inventory
           </p>
         </div>
       </div>
 
-      <CowUpload onUpload={handleCowUpload} />
+      {/* CSV Upload Section */}
+      <div className="space-y-4">
+        <div>
+          <h2 className="text-xl font-semibold">Bulk Import</h2>
+          <p className="text-sm text-muted-foreground">
+            Upload a CSV file to import multiple cows at once
+          </p>
+        </div>
+        <CowUpload onUpload={handleCowUpload} />
+      </div>
+
+      <div className="flex items-center gap-4">
+        <Separator className="flex-1" />
+        <span className="text-sm text-muted-foreground">OR</span>
+        <Separator className="flex-1" />
+      </div>
+
+      {/* Manual Entry Section */}
+      <div className="space-y-4">
+        <div>
+          <h2 className="text-xl font-semibold">Manual Entry</h2>
+          <p className="text-sm text-muted-foreground">
+            Add individual cows one at a time
+          </p>
+        </div>
+        <CowForm onAddCow={handleAddCow} />
+      </div>
 
       {cows.length > 0 && (
         <div className="mt-8">
