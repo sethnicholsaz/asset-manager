@@ -36,7 +36,7 @@ export default function AutomatedImport() {
 
   const parseCsvData = (csvContent: string): AutomatedCowData[] => {
     const lines = csvContent.trim().split('\n');
-    const headers = lines[0].split('\t').map(h => h.trim()); // Changed to tab delimiter
+    const headers = lines[0].split(',').map(h => h.trim()); // Back to comma delimiter
     
     console.log('Raw headers from CSV:', headers);
     
@@ -56,7 +56,7 @@ export default function AutomatedImport() {
     }
 
     return lines.slice(1).map(line => {
-      const values = line.split('\t').map(v => v.trim()); // Changed to tab delimiter
+      const values = line.split(',').map(v => v.trim()); // Back to comma delimiter
       const row: any = {};
       headers.forEach((header, index) => {
         // Normalize header names to uppercase for consistent access
