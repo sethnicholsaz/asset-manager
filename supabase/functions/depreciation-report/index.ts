@@ -92,9 +92,21 @@ Deno.serve(async (req) => {
 
     console.log(`Generating depreciation report for company ${companyId}, ${month}/${year}`);
 
+    // First, get the total count to verify
+    const { count: totalCount, error: countError } = await supabase
+      .from('cows')
+      .select('*', { count: 'exact', head: true })
+      .eq('company_id', companyId);
+
+    if (countError) {
+      console.error('Error getting count:', countError);
+    } else {
+      console.log(`Total cows in database for company: ${totalCount}`);
+    }
+
     // Fetch all cows for the company using pagination to ensure we get all records
     let allCows: Cow[] = [];
-    let page = 0;
+    let from = 0;
     const pageSize = 1000;
     
     while (true) {
@@ -103,7 +115,7 @@ Deno.serve(async (req) => {
         .select('*')
         .eq('company_id', companyId)
         .order('tag_number')
-        .range(page * pageSize, (page + 1) * pageSize - 1);
+        .range(from, from + pageSize - 1);
 
       if (cowsError) {
         console.error('Error fetching cows:', cowsError);
@@ -113,10 +125,10 @@ Deno.serve(async (req) => {
       if (!cows || cows.length === 0) break;
       
       allCows = allCows.concat(cows);
-      console.log(`Fetched page ${page + 1}: ${cows.length} cows, total so far: ${allCows.length}`);
+      console.log(`Fetched ${cows.length} cows (${from} to ${from + cows.length - 1}), total so far: ${allCows.length}`);
       
       if (cows.length < pageSize) break; // Last page
-      page++;
+      from += pageSize;
     }
 
     console.log(`Fetched ${allCows.length} total cows`);
