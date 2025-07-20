@@ -141,16 +141,33 @@ Deno.serve(async (req) => {
     const headers = lines[0].split(',').map(h => h.trim().replace(/"/g, ''));
     const dataRows = lines.slice(1);
 
-    // Required headers
+    // Map headers to expected format
+    const headerMapping = {
+      'ID': 'tag_number',
+      'BDAT': 'birth_date', 
+      'Date': 'freshen_date',
+      'DIM': 'freshen_date', // fallback if Date is not freshen date
+      'Event': 'event',
+      'Remark': 'notes'
+    };
+
+    // Create mapped headers
+    const mappedHeaders = headers.map(h => headerMapping[h] || h.toLowerCase());
+    
+    console.log('Original headers:', headers);
+    console.log('Mapped headers:', mappedHeaders);
+
+    // Required mapped headers
     const requiredHeaders = ['tag_number', 'birth_date', 'freshen_date'];
-    const missingHeaders = requiredHeaders.filter(h => !headers.includes(h));
+    const missingHeaders = requiredHeaders.filter(h => !mappedHeaders.includes(h));
     
     if (missingHeaders.length > 0) {
       return new Response(
         JSON.stringify({ 
-          error: `Missing required headers: ${missingHeaders.join(', ')}`,
+          error: `Missing required data. Found headers: ${headers.join(', ')}. Please ensure your CSV contains: cow ID, birth date, and freshen date.`,
           required_headers: requiredHeaders,
-          found_headers: headers
+          found_headers: headers,
+          mapped_headers: mappedHeaders
         }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
@@ -171,16 +188,20 @@ Deno.serve(async (req) => {
         const values = dataRows[i].split(',').map(v => v.trim().replace(/"/g, ''));
         const rowData: Record<string, string> = {};
         
+        // Map original headers to data using the mapping
         headers.forEach((header, index) => {
-          rowData[header] = values[index] || '';
+          const mappedHeader = headerMapping[header] || header.toLowerCase();
+          rowData[mappedHeader] = values[index] || '';
         });
 
-        // Parse dates
-        const birthDate = new Date(rowData.birth_date);
-        const freshenDate = new Date(rowData.freshen_date);
+        console.log('Row data:', rowData);
+
+        // Parse dates using mapped headers
+        const birthDate = new Date(rowData['birth_date'] || rowData['BDAT']);
+        const freshenDate = new Date(rowData['freshen_date'] || rowData['Date']);
         
         if (isNaN(birthDate.getTime()) || isNaN(freshenDate.getTime())) {
-          errors.push(`Row ${i + 2}: Invalid date format`);
+          errors.push(`Row ${i + 2}: Invalid date format. Birth: ${rowData['birth_date'] || rowData['BDAT']}, Freshen: ${rowData['freshen_date'] || rowData['Date']}`);
           continue;
         }
 
