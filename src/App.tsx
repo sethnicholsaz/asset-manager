@@ -1,4 +1,10 @@
 import { Toaster } from "@/components/ui/toaster";
+import { useState } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { useToast } from "@/hooks/use-toast";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
@@ -17,6 +23,95 @@ import Help from "./pages/Help";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
+
+function CreateCompanyForm() {
+  const [companyName, setCompanyName] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
+  const { toast } = useToast();
+  const { user } = useAuth();
+
+  const handleCreateCompany = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!user || !companyName.trim()) return;
+    
+    setIsLoading(true);
+    try {
+      // Create company
+      const companySlug = companyName.toLowerCase()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/^-+|-+$/g, '');
+
+      const { data: company, error: companyError } = await supabase
+        .from('companies')
+        .insert({
+          name: companyName.trim(),
+          slug: companySlug
+        })
+        .select()
+        .single();
+
+      if (companyError) throw companyError;
+
+      // Create profile if it doesn't exist
+      const { error: profileError } = await supabase
+        .from('profiles')
+        .upsert({
+          user_id: user.id,
+          email: user.email || '',
+          first_name: user.user_metadata?.first_name || '',
+          last_name: user.user_metadata?.last_name || ''
+        });
+
+      if (profileError) throw profileError;
+
+      // Create company membership
+      const { error: membershipError } = await supabase
+        .from('company_memberships')
+        .insert({
+          company_id: company.id,
+          user_id: user.id,
+          role: 'owner',
+          accepted_at: new Date().toISOString()
+        });
+
+      if (membershipError) throw membershipError;
+
+      toast({
+        title: "Company created!",
+        description: "Your company has been set up successfully.",
+      });
+
+      // Refresh the page to load the new company
+      window.location.reload();
+    } catch (error) {
+      toast({
+        title: "Failed to create company",
+        description: error instanceof Error ? error.message : "An error occurred",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  return (
+    <form onSubmit={handleCreateCompany} className="space-y-4 max-w-sm">
+      <div className="space-y-2">
+        <Label htmlFor="companyName">Company Name</Label>
+        <Input
+          id="companyName"
+          value={companyName}
+          onChange={(e) => setCompanyName(e.target.value)}
+          placeholder="Your Dairy Farm"
+          required
+        />
+      </div>
+      <Button type="submit" disabled={isLoading || !companyName.trim()}>
+        {isLoading ? "Creating..." : "Create Company"}
+      </Button>
+    </form>
+  );
+}
 
 function AppContent() {
   const { user, isLoading, currentCompany } = useAuth();
@@ -46,11 +141,17 @@ function AppContent() {
         
         {/* Main Content */}
         <div className="flex-1 flex items-center justify-center">
-          <div className="text-center space-y-4">
-            <h2 className="text-xl font-semibold">No Company Selected</h2>
-            <p className="text-muted-foreground">
-              You need to be a member of a company to continue.
-            </p>
+          <div className="text-center space-y-6">
+            <div className="space-y-2">
+              <h2 className="text-xl font-semibold">No Company Selected</h2>
+              <p className="text-muted-foreground">
+                You need to be a member of a company to continue.
+              </p>
+            </div>
+            <div className="border-t pt-6">
+              <h3 className="text-lg font-medium mb-4">Create a New Company</h3>
+              <CreateCompanyForm />
+            </div>
           </div>
         </div>
       </div>
