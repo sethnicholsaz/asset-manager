@@ -252,14 +252,17 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Insert into database
+    // Insert or update cows in database using upsert
     const { data: insertedCows, error: insertError } = await supabase
       .from('cows')
-      .insert(processedCows)
+      .upsert(processedCows, {
+        onConflict: 'tag_number,company_id',
+        ignoreDuplicates: false
+      })
       .select();
 
     if (insertError) {
-      console.error('Database insert error:', insertError);
+      console.error('Database upsert error:', insertError);
       return new Response(
         JSON.stringify({ 
           error: 'Failed to save cow data',
