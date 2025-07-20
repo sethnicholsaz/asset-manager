@@ -6,6 +6,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { PurchasePriceDefault } from '@/types/cow';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface CowUploadProps {
   onUpload: (data: any[]) => Promise<void>;
@@ -16,30 +17,49 @@ export function CowUpload({ onUpload }: CowUploadProps) {
   const [uploadStatus, setUploadStatus] = useState<'idle' | 'success' | 'error'>('idle');
   const [errorMessage, setErrorMessage] = useState('');
   const [priceDefaults, setPriceDefaults] = useState<PurchasePriceDefault[]>([]);
+  const [defaultAcquisitionType, setDefaultAcquisitionType] = useState<'purchased' | 'raised'>('purchased');
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
+  const { currentCompany } = useAuth();
 
   useEffect(() => {
-    const fetchPriceDefaults = async () => {
-      const { data, error } = await supabase
+    const fetchData = async () => {
+      if (!currentCompany?.id) return;
+
+      // Fetch price defaults
+      const { data: priceData, error: priceError } = await supabase
         .from('purchase_price_defaults')
         .select('*')
+        .eq('company_id', currentCompany.id)
         .order('birth_year', { ascending: false });
       
-      if (error) {
-        console.error('Error fetching price defaults:', error);
+      if (priceError) {
+        console.error('Error fetching price defaults:', priceError);
       } else {
-        const defaults = (data || []).map(item => ({
+        const defaults = (priceData || []).map(item => ({
           ...item,
           created_at: new Date(item.created_at),
           updated_at: new Date(item.updated_at)
         }));
         setPriceDefaults(defaults);
       }
+
+      // Fetch acquisition settings
+      const { data: acquisitionData, error: acquisitionError } = await supabase
+        .from('acquisition_settings')
+        .select('default_acquisition_type')
+        .eq('company_id', currentCompany.id)
+        .maybeSingle();
+      
+      if (acquisitionError) {
+        console.error('Error fetching acquisition settings:', acquisitionError);
+      } else if (acquisitionData) {
+        setDefaultAcquisitionType(acquisitionData.default_acquisition_type as 'purchased' | 'raised');
+      }
     };
 
-    fetchPriceDefaults();
-  }, []);
+    fetchData();
+  }, [currentCompany?.id]);
 
   const calculatePurchasePrice = (birthDate: Date, freshenDate: Date, birthYear: number) => {
     const defaults = priceDefaults.find(d => d.birth_year === birthYear);
@@ -166,7 +186,7 @@ export function CowUpload({ onUpload }: CowUploadProps) {
             
             // Set default acquisition type if not provided
             if (!cow.acquisitionType) {
-              cow.acquisitionType = 'purchased';
+              cow.acquisitionType = defaultAcquisitionType;
             }
             
             if (!cow.salvageValue && cow.purchasePrice) {
@@ -293,13 +313,13 @@ export function CowUpload({ onUpload }: CowUploadProps) {
             <li>name - Cow name</li>
             <li>purchasePrice - Initial cost/value (auto-calculated if not provided)</li>
             <li>salvageValue - End-of-life value (defaults to 10% of purchase price)</li>
-            <li>acquisitionType - "purchased" or "raised" (defaults to "purchased")</li>
+            <li>acquisitionType - "purchased" or "raised" (defaults to configured setting)</li>
           </ul>
           <p className="text-xs text-muted-foreground mt-2">
             <strong>Auto-calculation:</strong> If purchasePrice is not provided, it will be calculated using birth year defaults plus daily accrual rate from birth to freshen date.
           </p>
           <p className="text-xs text-muted-foreground mt-2">
-            <strong>Acquisition Type:</strong> Use "purchased" for cows bought from external sources, "raised" for cows born and raised on your farm.
+            <strong>Acquisition Type:</strong> Use "purchased" for cows bought from external sources, "raised" for cows born and raised on your farm. Default can be configured in Settings → Acquisition.
           </p>
         </div>
       </CardContent>

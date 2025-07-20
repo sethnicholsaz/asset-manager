@@ -7,6 +7,7 @@ import { PurchasePriceSettings } from '@/components/PurchasePriceSettings';
 import { GLAccountSettings } from '@/components/GLAccountSettings';
 import { BalanceAdjustments } from '@/components/BalanceAdjustments';
 import { UploadTokenManager } from '@/components/UploadTokenManager';
+import { AcquisitionSettings } from '@/components/AcquisitionSettings';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
@@ -44,7 +45,7 @@ export default function Settings() {
       </div>
 
       <Tabs defaultValue="company" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-5">
+        <TabsList className="grid w-full grid-cols-6">
           <TabsTrigger value="company" className="flex items-center gap-2">
             <Building className="h-4 w-4" />
             Company & API
@@ -56,6 +57,10 @@ export default function Settings() {
           <TabsTrigger value="pricing" className="flex items-center gap-2">
             <DollarSign className="h-4 w-4" />
             Pricing
+          </TabsTrigger>
+          <TabsTrigger value="acquisition" className="flex items-center gap-2">
+            <FileText className="h-4 w-4" />
+            Acquisition
           </TabsTrigger>
           <TabsTrigger value="accounts" className="flex items-center gap-2">
             <FileText className="h-4 w-4" />
@@ -149,6 +154,16 @@ export default function Settings() {
             </p>
           </div>
           <PurchasePriceSettings />
+        </TabsContent>
+
+        <TabsContent value="acquisition" className="space-y-6">
+          <div>
+            <h2 className="text-xl font-semibold">Acquisition Type Settings</h2>
+            <p className="text-sm text-muted-foreground mt-1">
+              Configure default acquisition type for cow imports and data entry
+            </p>
+          </div>
+          <AcquisitionSettings />
         </TabsContent>
 
         <TabsContent value="accounts" className="space-y-6">

@@ -14,6 +14,30 @@ export type Database = {
   }
   public: {
     Tables: {
+      acquisition_settings: {
+        Row: {
+          company_id: string
+          created_at: string
+          default_acquisition_type: string
+          id: string
+          updated_at: string
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          default_acquisition_type?: string
+          id?: string
+          updated_at?: string
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          default_acquisition_type?: string
+          id?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       balance_adjustments: {
         Row: {
           adjustment_amount: number
