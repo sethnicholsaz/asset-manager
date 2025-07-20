@@ -338,15 +338,25 @@ serve(async (req) => {
                 accountName = 'Loss on Culled Cows';
               }
               
-              // Always create the gain/loss entry, even if amount is zero, to ensure balance
-              allJournalLines.push({
-                account_code: accountCode,
-                account_name: accountName,
-                description: `${isGain ? 'Gain' : 'Loss'} on ${disposition.disposition_type} of cow #${cow.tag_number} (Sale: ${formatCurrency(saleAmount)}, Book: ${formatCurrency(bookValue)})`,
-                debit_amount: isGain ? 0 : Math.abs(actualGainLoss),
-                credit_amount: isGain ? Math.abs(actualGainLoss) : 0,
-                line_type: isGain ? 'credit' : 'debit'
-              });
+              // Always create the gain/loss entry to ensure balance
+              // The gain/loss amount should be calculated to balance the entry
+              const totalDebitsForThisCow = (saleAmount > 0 ? saleAmount : 0) + accumulatedDepreciation;
+              const totalCreditsForThisCow = cow.purchase_price;
+              const balancingAmount = totalCreditsForThisCow - totalDebitsForThisCow;
+              
+              // Only create gain/loss entry if there's an amount to balance
+              if (Math.abs(balancingAmount) > 0.01) {
+                const isGain = balancingAmount < 0; // If credits > debits, we need a debit (loss)
+                
+                allJournalLines.push({
+                  account_code: accountCode,
+                  account_name: accountName,
+                  description: `${isGain ? 'Gain' : 'Loss'} on ${disposition.disposition_type} of cow #${cow.tag_number} (Sale: ${formatCurrency(saleAmount)}, Book: ${formatCurrency(bookValue)})`,
+                  debit_amount: isGain ? 0 : Math.abs(balancingAmount),
+                  credit_amount: isGain ? Math.abs(balancingAmount) : 0,
+                  line_type: isGain ? 'credit' : 'debit'
+                });
+              }
             });
 
             if (allJournalLines.length > 0) {
