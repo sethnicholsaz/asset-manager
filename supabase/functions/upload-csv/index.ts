@@ -179,17 +179,8 @@ Deno.serve(async (req) => {
       .select('*')
       .eq('company_id', companyId);
 
-    // For large datasets, process in smaller chunks to avoid timeouts
-    const maxRowsPerRequest = 5000;
-    if (dataRows.length > maxRowsPerRequest) {
-      return new Response(
-        JSON.stringify({ 
-          error: `File too large. Maximum ${maxRowsPerRequest} rows per upload. Your file has ${dataRows.length} rows. Please split into smaller files.`,
-          suggested_batches: Math.ceil(dataRows.length / maxRowsPerRequest)
-        }),
-        { status: 413, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
+    // Handle large files by processing in chunks - no file size limit
+    console.log(`Processing ${dataRows.length} total rows automatically in chunks`);
 
     // Process rows in batches for better performance
     const processedCows: CowData[] = [];
