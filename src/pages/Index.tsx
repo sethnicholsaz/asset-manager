@@ -26,13 +26,15 @@ const Index = () => {
     if (!currentCompany) return;
 
     try {
-      const { data, error } = await supabase
+      console.log('Fetching cows for company:', currentCompany.id);
+      const { data, error, count } = await supabase
         .from('cows')
-        .select('*')
+        .select('*', { count: 'exact' })
         .eq('company_id', currentCompany.id)
-        .eq('status', 'active')
-        .limit(50000);
+        .eq('status', 'active');
 
+      console.log('Query result - count:', count, 'data length:', data?.length);
+      
       if (error) throw error;
 
       // Transform database data to match Cow interface
