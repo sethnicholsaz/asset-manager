@@ -208,9 +208,19 @@ const handler = async (req: Request): Promise<Response> => {
 
     // Check for cows in master but not in DB (missing from database)
     masterData.forEach(master => {
-      const key = `${master.id}_${processDate(master.birthdate)}`;
-      if (!dbLookup.has(key)) {
-        console.log(`Cow ${master.id} found in master but not in DB. Master key: ${key}`);
+      const masterKey = `${master.id}_${processDate(master.birthdate)}`;
+      if (!dbLookup.has(masterKey)) {
+        // Special logging for cow #40875 to debug the issue
+        if (master.id === '40875') {
+          console.log(`DEBUG cow #40875:`);
+          console.log(`  Master birthdate: "${master.birthdate}"`);
+          console.log(`  Processed master birthdate: "${processDate(master.birthdate)}"`);
+          console.log(`  Master key: "${masterKey}"`);
+          console.log(`  DB lookup keys containing 40875:`, Array.from(dbLookup).filter(k => k.includes('40875')));
+          console.log(`  All DB keys sample:`, Array.from(dbLookup).slice(0, 5));
+        }
+        
+        console.log(`Cow ${master.id} found in master but not in DB. Master key: ${masterKey}`);
         stagingRecords.push({
           company_id: companyId,
           discrepancy_type: 'missing_from_database',
