@@ -36,21 +36,32 @@ export default function AutomatedImport() {
 
   const parseCsvData = (csvContent: string): AutomatedCowData[] => {
     const lines = csvContent.trim().split('\n');
-    const headers = lines[0].split(',').map(h => h.trim());
+    const headers = lines[0].split('\t').map(h => h.trim()); // Changed to tab delimiter
     
-    // Validate headers
+    console.log('Raw headers from CSV:', headers);
+    
+    // Validate headers (case-insensitive)
     const expectedHeaders = ['ID', 'BDAT', 'EVENT', 'DIM', 'DATE', 'REMARK', 'PROTOCOLS', 'TECHNICIAN'];
-    const hasValidHeaders = expectedHeaders.every(header => headers.includes(header));
+    const normalizedHeaders = headers.map(h => h.toUpperCase());
+    const missingHeaders = expectedHeaders.filter(expected => 
+      !normalizedHeaders.includes(expected)
+    );
     
-    if (!hasValidHeaders) {
-      throw new Error(`Invalid headers. Expected: ${expectedHeaders.join(', ')}`);
+    console.log('Expected headers:', expectedHeaders);
+    console.log('Normalized headers:', normalizedHeaders);
+    console.log('Missing headers:', missingHeaders);
+    
+    if (missingHeaders.length > 0) {
+      throw new Error(`Invalid headers. Expected: ${expectedHeaders.join(', ')}. Found: ${headers.join(', ')}`);
     }
 
     return lines.slice(1).map(line => {
-      const values = line.split(',').map(v => v.trim());
+      const values = line.split('\t').map(v => v.trim()); // Changed to tab delimiter
       const row: any = {};
       headers.forEach((header, index) => {
-        row[header] = values[index] || '';
+        // Normalize header names to uppercase for consistent access
+        const normalizedHeader = header.toUpperCase();
+        row[normalizedHeader] = values[index] || '';
       });
       return row as AutomatedCowData;
     });
