@@ -14,7 +14,7 @@ INSERT INTO cow_dispositions (
 SELECT 
   c.tag_number as cow_id,
   c.company_id,
-  c.freshen_date as disposition_date,
+  CURRENT_DATE - INTERVAL '30 days' as disposition_date,
   CASE 
     WHEN c.status = 'sold' THEN 'sale'
     WHEN c.status = 'deceased' THEN 'death'
