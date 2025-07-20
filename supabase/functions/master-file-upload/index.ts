@@ -59,13 +59,31 @@ const parseCsvData = (csvContent: string): MasterFileData[] => {
 };
 
 const processDate = (dateStr: string): string => {
-  // Handle various date formats
-  const cleanDate = dateStr.replace(/['"]/g, '');
+  // Handle various date formats and clean the input
+  const cleanDate = dateStr.replace(/['"]/g, '').trim();
+  
+  // If already in YYYY-MM-DD format, return as-is
+  if (/^\d{4}-\d{2}-\d{2}$/.test(cleanDate)) {
+    return cleanDate;
+  }
   
   if (cleanDate.includes('/')) {
     const [month, day, year] = cleanDate.split('/');
     const fullYear = year.length === 2 ? '20' + year : year;
     return `${fullYear}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+  }
+  
+  // If in MM-DD-YYYY or DD-MM-YYYY format with dashes
+  if (cleanDate.includes('-') && cleanDate.length === 10) {
+    const parts = cleanDate.split('-');
+    if (parts[0].length === 4) {
+      // Already YYYY-MM-DD
+      return cleanDate;
+    } else {
+      // Assume MM-DD-YYYY format
+      const [month, day, year] = parts;
+      return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+    }
   }
   
   return cleanDate;
