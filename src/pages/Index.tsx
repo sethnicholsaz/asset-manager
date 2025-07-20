@@ -30,7 +30,8 @@ const Index = () => {
         .from('cows')
         .select('*')
         .eq('company_id', currentCompany.id)
-        .eq('status', 'active');
+        .eq('status', 'active')
+        .limit(50000);
 
       if (error) throw error;
 
