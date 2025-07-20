@@ -6,7 +6,8 @@ import {
   FileText, 
   Settings,
   HelpCircle,
-  Beef
+  Beef,
+  Users
 } from "lucide-react";
 import { NavLink, useLocation } from "react-router-dom";
 
@@ -29,6 +30,7 @@ const mainItems = [
   { title: "Import Cows", url: "/import", icon: Upload },
   { title: "Dispositions", url: "/dispositions", icon: TrendingDown },
   { title: "Reports", url: "/reports", icon: FileText },
+  { title: "Team", url: "/users", icon: Users },
 ];
 
 const settingsItems = [

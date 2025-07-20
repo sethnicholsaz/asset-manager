@@ -19,6 +19,7 @@ import Import from "./pages/Import";
 import Dispositions from "./pages/Dispositions";
 import Reports from "./pages/Reports";
 import Settings from "./pages/Settings";
+import UserManagement from "./pages/UserManagement";
 import Help from "./pages/Help";
 import NotFound from "./pages/NotFound";
 
@@ -201,6 +202,7 @@ function AppContent() {
               <Route path="/import" element={<Import />} />
               <Route path="/dispositions" element={<Dispositions />} />
               <Route path="/reports" element={<Reports />} />
+              <Route path="/users" element={<UserManagement />} />
               <Route path="/settings" element={<Settings />} />
               <Route path="/help" element={<Help />} />
               <Route path="*" element={<NotFound />} />

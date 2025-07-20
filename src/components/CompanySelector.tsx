@@ -40,7 +40,7 @@ export function CompanySelector() {
             variant="outline"
             role="combobox"
             aria-expanded={open}
-            className="w-[200px] justify-between"
+            className="w-[250px] justify-between"
           >
             {currentCompany ? (
               <div className="flex items-center gap-2">
@@ -55,12 +55,12 @@ export function CompanySelector() {
             <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
           </Button>
         </PopoverTrigger>
-        <PopoverContent className="w-[200px] p-0">
+        <PopoverContent className="w-[300px] p-0">
           <Command>
-            <CommandInput placeholder="Search companies..." />
-            <CommandList>
+            <CommandInput placeholder="Search companies..." className="h-9" />
+            <CommandList className="max-h-[200px]">
               <CommandEmpty>No companies found.</CommandEmpty>
-              <CommandGroup>
+              <CommandGroup heading="Your Companies">
                 {companies.map((membership) => (
                   <CommandItem
                     key={membership.company.id}
@@ -69,16 +69,25 @@ export function CompanySelector() {
                       setCurrentCompany(membership.company);
                       setOpen(false);
                     }}
+                    className="flex items-center gap-3 p-3"
                   >
-                    <div className="flex items-center gap-2 flex-1">
-                      <div className="w-6 h-6 bg-primary rounded flex items-center justify-center text-xs text-primary-foreground">
-                        {getInitials(membership.company.name)}
-                      </div>
-                      <div className="flex flex-col">
-                        <span className="text-sm">{membership.company.name}</span>
-                        <span className="text-xs text-muted-foreground capitalize">
-                          {membership.role}
-                        </span>
+                    <div className="w-8 h-8 bg-primary rounded flex items-center justify-center text-xs text-primary-foreground">
+                      {getInitials(membership.company.name)}
+                    </div>
+                    <div className="flex flex-col min-w-0 flex-1">
+                      <span className="text-sm font-medium truncate">{membership.company.name}</span>
+                      <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                        <span className="capitalize">{membership.role}</span>
+                        {membership.company.subscription_status === 'trial' && (
+                          <span className="px-1.5 py-0.5 bg-orange-100 text-orange-700 rounded text-xs">
+                            Trial
+                          </span>
+                        )}
+                        {membership.company.subscription_status === 'active' && (
+                          <span className="px-1.5 py-0.5 bg-green-100 text-green-700 rounded text-xs">
+                            Active
+                          </span>
+                        )}
                       </div>
                     </div>
                     <Check
@@ -93,7 +102,7 @@ export function CompanySelector() {
                 ))}
               </CommandGroup>
               <CommandGroup>
-                <CommandItem>
+                <CommandItem className="p-3">
                   <Plus className="mr-2 h-4 w-4" />
                   Create new company
                 </CommandItem>
