@@ -310,24 +310,21 @@ Deno.serve(async (req) => {
           processedDispositions.push(...batchDispositions);
           console.log(`Disposition batch ${Math.floor(batchStart / batchSize) + 1} completed: ${batchDispositions.length} records`);
 
-          // Update cow status to sold/deceased
-          const cowUpdates = batchDispositions.map(d => ({
-            tag_number: d.cow_id,
-            company_id: d.company_id,
-            status: d.disposition_type === 'sale' ? 'sold' : 'deceased',
-            disposition_id: null // Will be updated by trigger if needed
-          }));
+          // Update cow status to sold/deceased for each disposition
+          for (const disposition of batchDispositions) {
+            const { error: updateError } = await supabase
+              .from('cows')
+              .update({
+                status: disposition.disposition_type === 'sale' ? 'sold' : 'deceased',
+                disposition_id: null // Will be updated by trigger if needed
+              })
+              .eq('tag_number', disposition.cow_id)
+              .eq('company_id', disposition.company_id);
 
-          const { error: updateError } = await supabase
-            .from('cows')
-            .upsert(cowUpdates, {
-              onConflict: 'tag_number,company_id',
-              ignoreDuplicates: false
-            });
-
-          if (updateError) {
-            console.error(`Error updating cow status:`, updateError);
-            errors.push(`Error updating cow status: ${updateError.message}`);
+            if (updateError) {
+              console.error(`Error updating cow ${disposition.cow_id} status:`, updateError);
+              errors.push(`Error updating cow ${disposition.cow_id} status: ${updateError.message}`);
+            }
           }
         }
       }
