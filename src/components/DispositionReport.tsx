@@ -321,7 +321,7 @@ export function DispositionReport({ cows }: DispositionReportProps) {
       </Card>
 
       {/* Summary */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <Card>
           <CardContent className="p-4">
             <div className="flex items-center space-x-2">
@@ -367,6 +367,20 @@ export function DispositionReport({ cows }: DispositionReportProps) {
                 }`}>
                   {DepreciationCalculator.formatCurrency(totalGainLoss)}
                 </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex items-center space-x-2">
+              <div className="w-8 h-8 bg-accent/10 rounded-lg flex items-center justify-center">
+                <FileText className="h-4 w-4 text-accent" />
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground">Journal Entries</p>
+                <p className="text-2xl font-bold">{journalEntries.length}</p>
               </div>
             </div>
           </CardContent>
