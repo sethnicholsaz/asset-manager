@@ -123,11 +123,8 @@ serve(async (req) => {
 
           if (cowsError) throw cowsError;
 
-          // Filter active cows that have already freshened (only depreciate productive cows)
-          const activeCows = allCows?.filter((cow: any) => 
-            cow.status === 'active' && 
-            new Date(cow.freshen_date) <= reportDate
-          );
+          // Include all active cows in depreciation (using actual freshen dates only)
+          const activeCows = allCows?.filter((cow: any) => cow.status === 'active');
 
           console.log(`Found ${activeCows?.length || 0} active cows for depreciation`);
 
