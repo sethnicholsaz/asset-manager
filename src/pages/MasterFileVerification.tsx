@@ -269,7 +269,7 @@ export default function MasterFileVerification() {
 
   const getDiscrepancyDescription = (record: StagingRecord) => {
     switch (record.discrepancy_type) {
-      case 'missing_from_master':
+      case 'missing_from_database':
         return `Cow #${record.tag_number} (Born: ${record.birth_date}) is in master file but not in database`;
       case 'needs_disposal':
         return `Cow #${record.tag_number} (Born: ${record.birth_date}) is active in database but not in master file`;
@@ -282,7 +282,7 @@ export default function MasterFileVerification() {
 
   const getActionButtons = (record: StagingRecord) => {
     switch (record.discrepancy_type) {
-      case 'missing_from_master':
+      case 'missing_from_database':
         return (
           <div className="flex gap-2">
             <Button size="sm" onClick={() => openActionDialog(record, 'add_cow')}>
