@@ -10,6 +10,12 @@ import { useToast } from '@/hooks/use-toast';
 
 const Index = () => {
   const [cows, setCows] = useState<Cow[]>([]);
+  const [summaryStats, setSummaryStats] = useState({
+    active_count: 0,
+    total_asset_value: 0,
+    total_current_value: 0,
+    total_depreciation: 0
+  });
   const [isLoading, setIsLoading] = useState(true);
   const [editingCow, setEditingCow] = useState<Cow | null>(null);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
@@ -27,14 +33,51 @@ const Index = () => {
 
     try {
       console.log('Fetching cows for company:', currentCompany.id);
-      const { data, error, count } = await supabase
+      
+      // Get count of active cows
+      const { count: activeCount } = await supabase
         .from('cows')
-        .select('*', { count: 'exact' })
+        .select('*', { count: 'exact', head: true })
+        .eq('company_id', currentCompany.id)
+        .eq('status', 'active');
+
+      console.log('Active cow count:', activeCount);
+
+      // Get sum of asset values for active cows using aggregation
+      const { data: aggregateData } = await supabase
+        .from('cows')
+        .select('purchase_price, current_value, total_depreciation')
+        .eq('company_id', currentCompany.id)
+        .eq('status', 'active');
+
+      // Calculate totals from the aggregated data
+      const totalAssetValue = (aggregateData || []).reduce((sum, cow) => sum + (cow.purchase_price || 0), 0);
+      const totalCurrentValue = (aggregateData || []).reduce((sum, cow) => sum + (cow.current_value || 0), 0);
+      const totalDepreciation = (aggregateData || []).reduce((sum, cow) => sum + (cow.total_depreciation || 0), 0);
+
+      setSummaryStats({
+        active_count: activeCount || 0,
+        total_asset_value: totalAssetValue,
+        total_current_value: totalCurrentValue,
+        total_depreciation: totalDepreciation
+      });
+
+      console.log('Summary stats:', {
+        active_count: activeCount,
+        total_asset_value: totalAssetValue,
+        total_current_value: totalCurrentValue,
+        total_depreciation: totalDepreciation
+      });
+
+      // Get first 1000 active cows for the table display
+      const { data, error } = await supabase
+        .from('cows')
+        .select('*')
         .eq('company_id', currentCompany.id)
         .eq('status', 'active')
-        .range(0, 24999);
+        .limit(1000);
 
-      console.log('Query result - count:', count, 'data length:', data?.length);
+      console.log('Query result - data length:', data?.length);
       
       if (error) throw error;
 
@@ -140,11 +183,11 @@ const Index = () => {
     }
   };
 
-  // Calculate summary statistics
-  const totalAssetValue = cows.reduce((sum, cow) => sum + cow.purchasePrice, 0);
-  const totalCurrentValue = cows.reduce((sum, cow) => sum + cow.currentValue, 0);
-  const totalDepreciation = cows.reduce((sum, cow) => sum + cow.totalDepreciation, 0);
-  const activeCows = cows.filter(cow => cow.status === 'active').length;
+  // Use summary statistics from database queries (not local cow data)
+  const totalAssetValue = summaryStats.total_asset_value;
+  const totalCurrentValue = summaryStats.total_current_value;
+  const totalDepreciation = summaryStats.total_depreciation;
+  const activeCows = summaryStats.active_count;
 
   if (isLoading) {
     return (
