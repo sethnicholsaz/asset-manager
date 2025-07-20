@@ -1,10 +1,24 @@
-import { Settings as SettingsIcon, User, Bell, Lock, Database, DollarSign, TrendingDown } from 'lucide-react';
+import { Settings as SettingsIcon, User, Bell, Lock, Database, DollarSign, TrendingDown, Copy } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { PurchasePriceSettings } from '@/components/PurchasePriceSettings';
 import { DepreciationSettings } from '@/components/DepreciationSettings';
+import { useAuth } from '@/contexts/AuthContext';
+import { toast } from '@/hooks/use-toast';
 
 export default function Settings() {
+  const { currentCompany } = useAuth();
+
+  const copyCompanyId = () => {
+    if (currentCompany?.id) {
+      navigator.clipboard.writeText(currentCompany.id);
+      toast({
+        title: "Copied!",
+        description: "Company UUID copied to clipboard",
+      });
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -85,6 +99,40 @@ export default function Settings() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Company Information Section */}
+      <Card>
+        <CardHeader className="flex flex-row items-center space-y-0 pb-3">
+          <div className="flex items-center space-x-2">
+            <Database className="h-5 w-5" />
+            <CardTitle className="text-lg">Company Information</CardTitle>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <CardDescription className="mb-4">
+            Company details for API integrations and external services
+          </CardDescription>
+          <div className="space-y-3">
+            <div>
+              <label className="text-sm font-medium text-muted-foreground">Company Name</label>
+              <p className="text-sm">{currentCompany?.name || 'Not available'}</p>
+            </div>
+            <div>
+              <label className="text-sm font-medium text-muted-foreground">Company UUID</label>
+              <div className="flex items-center space-x-2 mt-1">
+                <code className="text-xs bg-muted px-2 py-1 rounded font-mono">
+                  {currentCompany?.id || 'Not available'}
+                </code>
+                {currentCompany?.id && (
+                  <Button variant="outline" size="sm" onClick={copyCompanyId}>
+                    <Copy className="h-3 w-3" />
+                  </Button>
+                )}
+              </div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Depreciation Settings Section */}
       <div className="space-y-4">
