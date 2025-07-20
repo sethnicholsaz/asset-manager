@@ -193,6 +193,7 @@ Deno.serve(async (req) => {
           });
 
           console.log(`Disposition row ${i + 2}:`, {
+            raw_values: values,
             tag_number: rowData.tag_number,
             event_date: rowData.event_date,
             event: rowData.event,
