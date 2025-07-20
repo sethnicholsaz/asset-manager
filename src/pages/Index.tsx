@@ -3,6 +3,7 @@ import { Cow } from '@/types/cow';
 import { CowDataTable } from '@/components/CowDataTable';
 import { EditCowDialog } from '@/components/EditCowDialog';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
 import { BarChart3, TrendingUp, DollarSign, Calendar } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -18,6 +19,7 @@ const Index = () => {
   });
   const [isLoading, setIsLoading] = useState(true);
   const [isSearching, setIsSearching] = useState(false);
+  const [isCalculating, setIsCalculating] = useState(false);
   const [currentSearchQuery, setCurrentSearchQuery] = useState('');
   const [editingCow, setEditingCow] = useState<Cow | null>(null);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
@@ -218,6 +220,154 @@ const Index = () => {
     await fetchCows(searchQuery);
   };
 
+  const handleCalculateDepreciation = async () => {
+    if (!currentCompany || activeCows === 0) return;
+
+    setIsCalculating(true);
+    try {
+      // Get depreciation settings
+      const { data: depreciationSettings, error: settingsError } = await supabase
+        .rpc('fetch_depreciation_settings', { p_company_id: currentCompany.id });
+
+      if (settingsError || !depreciationSettings || depreciationSettings.length === 0) {
+        toast({
+          title: "Missing Settings",
+          description: "Please configure depreciation settings first in the Settings page",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      const settings = depreciationSettings[0];
+      const currentDate = new Date();
+      const currentMonth = currentDate.getMonth() + 1;
+      const currentYear = currentDate.getFullYear();
+
+      // Get all active cows for depreciation calculation
+      const { data: allActiveCows, error: cowsError } = await supabase
+        .from('cows')
+        .select('*')
+        .eq('company_id', currentCompany.id)
+        .eq('status', 'active');
+
+      if (cowsError || !allActiveCows) {
+        throw new Error('Failed to fetch cows for depreciation calculation');
+      }
+
+      let totalDepreciationAmount = 0;
+      const depreciationEntries = [];
+      const cowUpdates = [];
+
+      // Calculate depreciation for each cow
+      for (const cow of allActiveCows) {
+        const freshenDate = new Date(cow.freshen_date);
+        const monthsInService = Math.floor(
+          (currentDate.getTime() - freshenDate.getTime()) / (1000 * 60 * 60 * 24 * 30.44)
+        );
+
+        if (monthsInService > 0) {
+          // Calculate monthly depreciation
+          const depreciableAmount = cow.purchase_price - cow.salvage_value;
+          const totalLifeMonths = settings.default_depreciation_years * 12;
+          const monthlyDepreciation = depreciableAmount / totalLifeMonths;
+          
+          // Calculate total depreciation up to current month
+          const totalDepreciationSoFar = Math.min(
+            monthlyDepreciation * monthsInService,
+            depreciableAmount
+          );
+          
+          const currentValue = cow.purchase_price - totalDepreciationSoFar;
+          
+          // Only update if there's a change
+          if (totalDepreciationSoFar !== cow.total_depreciation) {
+            totalDepreciationAmount += (totalDepreciationSoFar - cow.total_depreciation);
+            
+            cowUpdates.push({
+              id: cow.id,
+              total_depreciation: totalDepreciationSoFar,
+              current_value: Math.max(currentValue, cow.salvage_value)
+            });
+          }
+        }
+      }
+
+      if (totalDepreciationAmount > 0) {
+        // Create journal entry
+        const { data: journalEntry, error: journalError } = await supabase
+          .from('journal_entries')
+          .insert({
+            company_id: currentCompany.id,
+            entry_date: currentDate.toISOString().split('T')[0],
+            description: `Monthly Depreciation - ${currentMonth}/${currentYear}`,
+            total_amount: totalDepreciationAmount,
+            entry_type: 'depreciation'
+          })
+          .select()
+          .single();
+
+        if (journalError) throw journalError;
+
+        // Create journal lines
+        await supabase
+          .from('journal_lines')
+          .insert([
+            {
+              journal_entry_id: journalEntry.id,
+              account_code: '6500',
+              account_name: 'Depreciation Expense',
+              description: 'Monthly depreciation expense',
+              debit_amount: totalDepreciationAmount,
+              credit_amount: 0,
+              line_type: 'debit'
+            },
+            {
+              journal_entry_id: journalEntry.id,
+              account_code: '1520',
+              account_name: 'Accumulated Depreciation - Dairy Cows',
+              description: 'Accumulated depreciation',
+              debit_amount: 0,
+              credit_amount: totalDepreciationAmount,
+              line_type: 'credit'
+            }
+          ]);
+
+        // Update cow records
+        for (const update of cowUpdates) {
+          await supabase
+            .from('cows')
+            .update({
+              total_depreciation: update.total_depreciation,
+              current_value: update.current_value
+            })
+            .eq('id', update.id);
+        }
+
+        toast({
+          title: "Success",
+          description: `Depreciation calculated for ${cowUpdates.length} cows. Total depreciation: $${totalDepreciationAmount.toFixed(2)}`,
+        });
+
+        // Refresh the data
+        await fetchCows();
+      } else {
+        toast({
+          title: "No Changes",
+          description: "Depreciation is already up to date for all cows",
+        });
+      }
+    } catch (error) {
+      console.error('Error calculating depreciation:', error);
+      toast({
+        title: "Error",
+        description: "Failed to calculate depreciation. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsCalculating(false);
+    }
+  };
+
   // Use summary statistics from database queries (not local cow data)
   const totalAssetValue = summaryStats.total_asset_value;
   const totalCurrentValue = summaryStats.total_current_value;
@@ -240,6 +390,25 @@ const Index = () => {
           <p className="text-muted-foreground">
             Overview of your dairy cow assets and depreciation
           </p>
+        </div>
+        <div className="flex gap-2">
+          <Button
+            onClick={handleCalculateDepreciation}
+            disabled={activeCows === 0 || isCalculating}
+            className="bg-primary hover:bg-primary/90"
+          >
+            {isCalculating ? (
+              <>
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                Processing...
+              </>
+            ) : (
+              <>
+                <BarChart3 className="mr-2 h-4 w-4" />
+                Calculate Depreciation
+              </>
+            )}
+          </Button>
         </div>
       </div>
 
