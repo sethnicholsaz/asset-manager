@@ -230,14 +230,16 @@ const handler = async (req: Request): Promise<Response> => {
 
     // Check for cows in master but not in DB (missing from database)
     masterData.forEach(master => {
-      const masterKey = `${master.id}_${processDate(master.birthdate)}`;
+      const masterKey = `${master.id.trim()}_${processDate(master.birthdate)}`;
       if (!dbLookup.has(masterKey)) {
         // Special logging for cow #40875 to debug the issue
         if (master.id === '40875') {
           console.log(`DEBUG cow #40875:`);
+          console.log(`  Master ID: "${master.id}"`);
           console.log(`  Master birthdate: "${master.birthdate}"`);
           console.log(`  Processed master birthdate: "${processDate(master.birthdate)}"`);
           console.log(`  Master key: "${masterKey}"`);
+          console.log(`  DB lookup has this key: ${dbLookup.has(masterKey)}`);
           console.log(`  DB lookup keys containing 40875:`, Array.from(dbLookup).filter(k => k.includes('40875')));
           console.log(`  All DB keys sample:`, Array.from(dbLookup).slice(0, 5));
         }
@@ -247,7 +249,7 @@ const handler = async (req: Request): Promise<Response> => {
           company_id: companyId,
           discrepancy_type: 'missing_from_database',
           cow_id: null,
-          tag_number: master.id,
+          tag_number: master.id.trim(),
           birth_date: processDate(master.birthdate),
           freshen_date: null,
           current_status: 'not_in_db',
