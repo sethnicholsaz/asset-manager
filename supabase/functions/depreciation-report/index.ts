@@ -92,23 +92,38 @@ Deno.serve(async (req) => {
 
     console.log(`Generating depreciation report for company ${companyId}, ${month}/${year}`);
 
-    // Fetch all cows for the company (no limit)
-    const { data: cows, error: cowsError } = await supabase
-      .from('cows')
-      .select('*')
-      .eq('company_id', companyId)
-      .order('tag_number');
+    // Fetch all cows for the company using pagination to ensure we get all records
+    let allCows: Cow[] = [];
+    let page = 0;
+    const pageSize = 1000;
+    
+    while (true) {
+      const { data: cows, error: cowsError } = await supabase
+        .from('cows')
+        .select('*')
+        .eq('company_id', companyId)
+        .order('tag_number')
+        .range(page * pageSize, (page + 1) * pageSize - 1);
 
-    if (cowsError) {
-      console.error('Error fetching cows:', cowsError);
-      throw cowsError;
+      if (cowsError) {
+        console.error('Error fetching cows:', cowsError);
+        throw cowsError;
+      }
+
+      if (!cows || cows.length === 0) break;
+      
+      allCows = allCows.concat(cows);
+      console.log(`Fetched page ${page + 1}: ${cows.length} cows, total so far: ${allCows.length}`);
+      
+      if (cows.length < pageSize) break; // Last page
+      page++;
     }
 
-    console.log(`Fetched ${cows?.length || 0} total cows`);
+    console.log(`Fetched ${allCows.length} total cows`);
 
     // Filter active cows that should be included in the report
     const currentDate = new Date(year, month - 1, 1);
-    const activeCows = (cows || []).filter((cow: Cow) => 
+    const activeCows = allCows.filter((cow: Cow) => 
       cow.status === 'active' && 
       new Date(cow.freshen_date) <= currentDate
     );
