@@ -152,3 +152,6 @@ verify_jwt = false
 
 [functions.master-file-upload]
 verify_jwt = false
+
+[functions.upload-dispositions]
+verify_jwt = false

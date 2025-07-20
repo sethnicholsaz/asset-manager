@@ -20,8 +20,6 @@ interface CowData {
   depreciation_method: string
   acquisition_type: string
   company_id: string
-  disposition_type?: string | null
-  event_date?: string | null
 }
 
 Deno.serve(async (req) => {
@@ -120,17 +118,20 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Determine status and disposition type from filename
+    // This endpoint is now specifically for FRESH cow uploads
+    // Sold/died animals should use the upload-dispositions endpoint
     const fileName = csvFile.name.toUpperCase();
-    let defaultCowStatus = 'active';
-    let defaultDispositionType: string | null = null;
+    const cowStatus = 'active'; // Fresh cows are always active
     
-    if (fileName.includes('SOLD')) {
-      defaultCowStatus = 'sold';
-      defaultDispositionType = 'sale';
-    } else if (fileName.includes('DIED') || fileName.includes('DEAD')) {
-      defaultCowStatus = 'deceased';
-      defaultDispositionType = 'death';
+    // Check if this looks like a disposition file (should use different endpoint)
+    if (fileName.includes('SOLD') || fileName.includes('DIED') || fileName.includes('DEAD')) {
+      return new Response(
+        JSON.stringify({ 
+          error: 'This endpoint is for fresh cow uploads only. Please use the upload-dispositions endpoint for sold/died animals.',
+          suggested_endpoint: 'upload-dispositions'
+        }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
     }
 
     // Validate file type
@@ -156,12 +157,13 @@ Deno.serve(async (req) => {
     const headers = lines[0].split(',').map(h => h.trim().replace(/"/g, ''));
     const dataRows = lines.slice(1);
 
-    // Map headers to expected format - case insensitive
+    // Map headers to expected format for fresh cows
     const headerMapping: Record<string, string> = {
       'ID': 'tag_number',
       'BDAT': 'birth_date', 
-      'Date': 'event_date', // This is the actual event/disposition date
-      'DIM': 'days_in_milk', // Days in Milk - numeric field, not a date
+      'FDAT': 'freshen_date', // Fresh date for new cows
+      'Date': 'freshen_date', // Alternative mapping for freshen date
+      'DIM': 'days_in_milk',
       'Event': 'event',
       'Remark': 'notes'
     };
@@ -252,20 +254,23 @@ Deno.serve(async (req) => {
           console.log(`Row ${i + 2}: Full rowData for first few fields:`, {
             tag_number: rowData.tag_number,
             birth_date: rowData.birth_date,
-            event_date: rowData.event_date,
-            'Date': rowData['Date'],
+            freshen_date: rowData.freshen_date,
             event: rowData.event
           });
 
           // Parse dates using mapped headers - STRICT PARSING
           const birthDateStr = rowData['birth_date'] || rowData['BDAT'];
-          const eventDateStr = rowData['event_date'] || rowData['Date'] || rowData['date'];
+          const freshenDateStr = rowData['freshen_date'] || rowData['Date'] || rowData['date'];
           
-          console.log(`Row ${i + 2}: birthDateStr='${birthDateStr}', eventDateStr='${eventDateStr}'`);
+          console.log(`Row ${i + 2}: birthDateStr='${birthDateStr}', freshenDateStr='${freshenDateStr}'`);
           
           // Validate required date strings
           if (!birthDateStr) {
             throw new Error(`Missing required birth date. Birth date: '${birthDateStr}'`);
+          }
+          
+          if (!freshenDateStr) {
+            throw new Error(`Missing required freshen date. Freshen date: '${freshenDateStr}'`);
           }
           
           // Helper function to parse dates that might be Excel serial numbers
@@ -286,40 +291,26 @@ Deno.serve(async (req) => {
           };
           
           const birthDate = parseDate(birthDateStr);
-          const eventDate = eventDateStr ? parseDate(eventDateStr) : null;
+          const freshenDate = parseDate(freshenDateStr);
           
-          console.log(`Row ${i + 2}: Parsed eventDate=${eventDate ? eventDate.toISOString() : 'null'}`);
+          console.log(`Row ${i + 2}: Parsed freshenDate=${freshenDate.toISOString()}`);
           
-          // STRICT: Fail immediately if birth date is invalid
+          // STRICT: Fail immediately if dates are invalid
           if (isNaN(birthDate.getTime())) {
             throw new Error(`Invalid birth date format: '${birthDateStr}'. Expected format: MM/DD/YYYY, YYYY-MM-DD, or Excel date number`);
           }
           
-          // For dispositions, we shouldn't update freshen date at all
-          // Only fresh cow uploads should update freshen dates
-          const freshenDate = null; // Will be excluded from cow updates for dispositions
+          if (isNaN(freshenDate.getTime())) {
+            throw new Error(`Invalid freshen date format: '${freshenDateStr}'. Expected format: MM/DD/YYYY, YYYY-MM-DD, or Excel date number`);
+          }
           
           // Validate date ranges
           if (birthDate > new Date()) {
             throw new Error(`Birth date '${birthDateStr}' cannot be in the future`);
           }
-
-          // Determine disposition type from row data
-          let cowStatus = defaultCowStatus;
-          let dispositionType = defaultDispositionType;
           
-          // Check Event or Remark fields for disposition information
-          const event = (rowData.event || '').toLowerCase();
-          const remark = (rowData.notes || rowData.remark || '').toLowerCase();
-          const status = (rowData.status || '').toLowerCase();
-          
-          // Look for keywords that indicate disposition type
-          if (event.includes('sold') || remark.includes('sold') || status.includes('sold')) {
-            cowStatus = 'sold';
-            dispositionType = 'sale';
-          } else if (event.includes('died') || event.includes('dead') || remark.includes('died') || remark.includes('dead') || status.includes('died') || status.includes('dead')) {
-            cowStatus = 'deceased';
-            dispositionType = 'death';
+          if (freshenDate < birthDate) {
+            throw new Error(`Freshen date '${freshenDateStr}' cannot be before birth date '${birthDateStr}'`);
           }
 
           // Calculate purchase price if not provided
@@ -329,8 +320,7 @@ Deno.serve(async (req) => {
             const matchingDefault = priceDefaults.find(pd => pd.birth_year === birthYear);
             
             if (matchingDefault) {
-              // For dispositions, use zero days diff since we don't have freshen date
-              const daysDiff = freshenDate ? Math.floor((freshenDate.getTime() - birthDate.getTime()) / (1000 * 60 * 60 * 24)) : 0;
+              const daysDiff = Math.floor((freshenDate.getTime() - birthDate.getTime()) / (1000 * 60 * 60 * 24));
               purchasePrice = matchingDefault.default_price + (daysDiff * (matchingDefault.daily_accrual_rate || 0));
             } else {
               purchasePrice = 2000; // Default fallback
@@ -342,18 +332,16 @@ Deno.serve(async (req) => {
             tag_number: rowData.tag_number,
             name: rowData.name || null,
             birth_date: birthDate.toISOString().split('T')[0],
-            freshen_date: birthDate.toISOString().split('T')[0], // Temporary placeholder - will be excluded for dispositions
+            freshen_date: freshenDate.toISOString().split('T')[0], // Use actual freshen date
             purchase_price: purchasePrice,
             salvage_value: parseFloat(rowData.salvage_value) || (purchasePrice * 0.1),
             current_value: purchasePrice,
             total_depreciation: 0,
             asset_type_id: rowData.asset_type_id || 'dairy-cow',
-            status: cowStatus, // Use determined status from row data
+            status: cowStatus, // Fresh cows are always active
             depreciation_method: rowData.depreciation_method || 'straight-line',
             acquisition_type: rowData.acquisition_type || defaultAcquisitionType || 'purchased',
-            company_id: companyId,
-            disposition_type: dispositionType, // Keep for disposition creation
-            event_date: eventDate ? eventDate.toISOString().split('T')[0] : null // Store event date
+            company_id: companyId
           };
 
           batchCows.push(cowData);
@@ -364,12 +352,8 @@ Deno.serve(async (req) => {
 
       // Insert batch if we have data
       if (batchCows.length > 0) {
-        // Remove disposition_type, event_date, and freshen_date from cow data before inserting to database
-        // For disposition uploads, we don't want to update the freshen_date - only status
-        const cowsForInsert = batchCows.map(cow => {
-          const { disposition_type, event_date, freshen_date, ...cowWithoutDispositionFields } = cow;
-          return cowWithoutDispositionFields;
-        });
+        // For fresh cow uploads, include all cow data including freshen_date
+        const cowsForInsert = batchCows;
         
         // Deduplicate by tag_number to prevent conflict errors
         const uniqueCowsMap = new Map();
@@ -395,54 +379,7 @@ Deno.serve(async (req) => {
           errors.push(`Batch ${Math.floor(batchStart / batchSize) + 1}: ${batchError.message}`);
         } else {
           processedCows.push(...batchCows);
-          console.log(`Batch ${Math.floor(batchStart / batchSize) + 1} completed: ${batchCows.length} records`);
-          
-          // Create disposition records for sold/deceased cows that have disposition types
-          const dispositionRecords = batchCows
-            .filter(cow => cow.disposition_type && cow.status !== 'active')
-            .map((cow, index) => {
-              // Get the original row data to access sale_amount
-              const originalRowIndex = batchStart + batchCows.indexOf(cow);
-              const values = dataRows[originalRowIndex].split(',').map(v => v.trim().replace(/"/g, ''));
-              const rowData: Record<string, string> = {};
-              headers.forEach((header, idx) => {
-                const mappedHeader = headerMapping[header] || header.toLowerCase();
-                rowData[mappedHeader] = values[idx] || '';
-              });
-              
-              const saleAmount = parseFloat(rowData.sale_amount || rowData.amount || '0') || 0;
-              
-              console.log(`Creating disposition for cow ${cow.tag_number}: event_date=${cow.event_date}, will use: ${cow.event_date || new Date().toISOString().split('T')[0]}`);
-              
-              return {
-                cow_id: cow.tag_number, // Using tag_number as cow_id for dispositions
-                company_id: companyId,
-                disposition_date: cow.event_date || new Date().toISOString().split('T')[0], // Use event date or current date
-                disposition_type: cow.disposition_type,
-                sale_amount: saleAmount, // Use actual sale amount from CSV
-                final_book_value: cow.current_value,
-                gain_loss: saleAmount - cow.current_value,
-                notes: `Imported from ${csvFile.name}`,
-                created_at: new Date().toISOString(),
-                updated_at: new Date().toISOString()
-              };
-            });
-
-          if (dispositionRecords.length > 0) {
-            const { error: dispositionError } = await supabase
-              .from('cow_dispositions')
-              .upsert(dispositionRecords, {
-                onConflict: 'cow_id,company_id,disposition_date,disposition_type',
-                ignoreDuplicates: false
-              });
-
-            if (dispositionError) {
-              console.error(`Disposition batch ${Math.floor(batchStart / batchSize) + 1} error:`, dispositionError);
-              errors.push(`Disposition batch ${Math.floor(batchStart / batchSize) + 1}: ${dispositionError.message}`);
-            } else {
-              console.log(`Disposition batch ${Math.floor(batchStart / batchSize) + 1} completed: ${dispositionRecords.length} disposition records`);
-            }
-          }
+          console.log(`Fresh cow batch ${Math.floor(batchStart / batchSize) + 1} completed: ${batchCows.length} records`);
         }
       }
     }
