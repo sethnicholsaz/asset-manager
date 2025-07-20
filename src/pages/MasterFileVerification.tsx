@@ -163,12 +163,22 @@ export default function MasterFileVerification() {
       const { record, actionType } = actionDialog;
 
       if (actionType === 'add_cow') {
+        // Validate required fields
+        if (!actionForm.freshenDate) {
+          toast({
+            title: "Validation Error",
+            description: "Freshen date is required",
+            variant: "destructive",
+          });
+          return;
+        }
+
         // Add cow to database
         const cowData = {
           id: `${record.tag_number}_${record.birth_date}`,
           tag_number: record.tag_number,
           birth_date: record.birth_date,
-          freshen_date: actionForm.freshenDate || null,
+          freshen_date: actionForm.freshenDate,
           purchase_price: 0, // Default, can be updated later
           salvage_value: 0,
           current_value: 0,
@@ -423,12 +433,13 @@ export default function MasterFileVerification() {
           <div className="space-y-4">
             {actionDialog?.actionType === 'add_cow' && (
               <div className="space-y-2">
-                <Label htmlFor="freshenDate">Freshen Date (Optional)</Label>
+                <Label htmlFor="freshenDate">Freshen Date *</Label>
                 <Input
                   id="freshenDate"
                   type="date"
                   value={actionForm.freshenDate}
                   onChange={(e) => setActionForm({...actionForm, freshenDate: e.target.value})}
+                  required
                 />
               </div>
             )}
@@ -502,7 +513,10 @@ export default function MasterFileVerification() {
             <Button variant="outline" onClick={() => setActionDialog(null)}>
               Cancel
             </Button>
-            <Button onClick={handleAction}>
+            <Button onClick={handleAction} disabled={
+              actionDialog?.actionType === 'add_cow' && !actionForm.freshenDate ||
+              actionDialog?.actionType === 'update_freshen' && !actionForm.freshenDate
+            }>
               {actionDialog?.actionType === 'ignore' ? 'Ignore' : 'Confirm Action'}
             </Button>
           </DialogFooter>
