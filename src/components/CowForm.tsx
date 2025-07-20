@@ -4,9 +4,10 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
-import { Cow, PurchasePriceDefault } from '@/types/cow';
+import { Cow, PurchasePriceDefault, AcquisitionType } from '@/types/cow';
 import { supabase } from '@/integrations/supabase/client';
 
 interface CowFormProps {
@@ -21,6 +22,7 @@ export function CowForm({ onAddCow }: CowFormProps) {
     freshenDate: '',
     purchasePrice: '',
     salvageValue: '',
+    acquisitionType: 'purchased' as AcquisitionType,
   });
   const [priceDefaults, setPriceDefaults] = useState<PurchasePriceDefault[]>([]);
   const [calculatedPrice, setCalculatedPrice] = useState<number | null>(null);
@@ -109,7 +111,8 @@ export function CowForm({ onAddCow }: CowFormProps) {
         status: 'active',
         depreciationMethod: 'straight-line',
         currentValue: purchasePrice,
-        totalDepreciation: 0
+        totalDepreciation: 0,
+        acquisitionType: formData.acquisitionType
       };
 
       onAddCow(newCow);
@@ -122,6 +125,7 @@ export function CowForm({ onAddCow }: CowFormProps) {
         freshenDate: '',
         purchasePrice: '',
         salvageValue: '',
+        acquisitionType: 'purchased',
       });
 
       toast({
@@ -167,6 +171,26 @@ export function CowForm({ onAddCow }: CowFormProps) {
               />
             </div>
 
+            <div className="space-y-2">
+              <Label htmlFor="acquisitionType">
+                Acquisition Type <span className="text-destructive">*</span>
+              </Label>
+              <Select 
+                value={formData.acquisitionType} 
+                onValueChange={(value: AcquisitionType) => handleInputChange('acquisitionType', value)}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="purchased">Purchased</SelectItem>
+                  <SelectItem value="raised">Raised</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          <div className="grid md:grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="name">Name (Optional)</Label>
               <Input

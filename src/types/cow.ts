@@ -11,6 +11,7 @@ export interface Cow {
   depreciationMethod: DepreciationMethod;
   currentValue: number;
   totalDepreciation: number;
+  acquisitionType: AcquisitionType;
   dispositionId?: string;
 }
 
@@ -74,6 +75,7 @@ export type CowStatus = 'active' | 'sold' | 'deceased' | 'retired';
 export type DepreciationMethod = 'straight-line' | 'declining-balance' | 'sum-of-years';
 export type DispositionType = 'sale' | 'death' | 'culled';
 export type JournalEntryType = 'depreciation' | 'disposition' | 'acquisition';
+export type AcquisitionType = 'purchased' | 'raised';
 
 export interface PurchasePriceDefault {
   id: string;

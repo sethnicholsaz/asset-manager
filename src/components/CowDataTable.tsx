@@ -51,6 +51,19 @@ export function CowDataTable({ cows, onEditCow, onDeleteCow }: CowDataTableProps
     );
   };
 
+  const getAcquisitionBadge = (acquisitionType: string) => {
+    const variants = {
+      purchased: 'default',
+      raised: 'secondary'
+    } as const;
+    
+    return (
+      <Badge variant={variants[acquisitionType as keyof typeof variants] || 'outline'}>
+        {acquisitionType.charAt(0).toUpperCase() + acquisitionType.slice(1)}
+      </Badge>
+    );
+  };
+
   const calculateMonthsInService = (freshenDate: Date) => {
     const now = new Date();
     return DepreciationCalculator.getMonthsSinceStart(freshenDate, now);
@@ -158,9 +171,10 @@ export function CowDataTable({ cows, onEditCow, onDeleteCow }: CowDataTableProps
                     className="cursor-pointer hover:bg-muted/50"
                     onClick={() => handleSort('currentValue')}
                   >
-                    Current Value {sortColumn === 'currentValue' && (sortDirection === 'asc' ? '↑' : '↓')}
+                     Current Value {sortColumn === 'currentValue' && (sortDirection === 'asc' ? '↑' : '↓')}
                   </TableHead>
                   <TableHead>Status</TableHead>
+                  <TableHead>Acquisition</TableHead>
                   <TableHead className="w-10"></TableHead>
                 </TableRow>
               </TableHeader>
@@ -173,8 +187,9 @@ export function CowDataTable({ cows, onEditCow, onDeleteCow }: CowDataTableProps
                     <TableCell>{calculateMonthsInService(cow.freshenDate)} months</TableCell>
                     <TableCell>{DepreciationCalculator.formatCurrency(cow.purchasePrice)}</TableCell>
                     <TableCell>{DepreciationCalculator.formatCurrency(cow.currentValue)}</TableCell>
-                    <TableCell>{getStatusBadge(cow.status)}</TableCell>
-                    <TableCell>
+                     <TableCell>{getStatusBadge(cow.status)}</TableCell>
+                     <TableCell>{getAcquisitionBadge(cow.acquisitionType)}</TableCell>
+                     <TableCell>
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
                           <Button variant="ghost" className="h-8 w-8 p-0">

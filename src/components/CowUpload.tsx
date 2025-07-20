@@ -107,6 +107,9 @@ export function CowUpload({ onUpload }: CowUploadProps) {
                 case 'salvagevalue':
                   cow.salvageValue = parseFloat(value) || 0;
                   break;
+                case 'acquisitiontype':
+                  cow.acquisitionType = value.toLowerCase() === 'raised' ? 'raised' : 'purchased';
+                  break;
               }
             });
 
@@ -133,6 +136,11 @@ export function CowUpload({ onUpload }: CowUploadProps) {
               defaultDepreciationMethod: 'straight-line',
               defaultSalvagePercentage: 10
             };
+            
+            // Set default acquisition type if not provided
+            if (!cow.acquisitionType) {
+              cow.acquisitionType = 'purchased';
+            }
             
             if (!cow.salvageValue && cow.purchasePrice) {
               cow.salvageValue = cow.purchasePrice * 0.1; // Default 10% salvage value
@@ -241,9 +249,13 @@ export function CowUpload({ onUpload }: CowUploadProps) {
             <li>name - Cow name</li>
             <li>purchasePrice - Initial cost/value (auto-calculated if not provided)</li>
             <li>salvageValue - End-of-life value (defaults to 10% of purchase price)</li>
+            <li>acquisitionType - "purchased" or "raised" (defaults to "purchased")</li>
           </ul>
           <p className="text-xs text-muted-foreground mt-2">
             <strong>Auto-calculation:</strong> If purchasePrice is not provided, it will be calculated using birth year defaults plus daily accrual rate from birth to freshen date.
+          </p>
+          <p className="text-xs text-muted-foreground mt-2">
+            <strong>Acquisition Type:</strong> Use "purchased" for cows bought from external sources, "raised" for cows born and raised on your farm.
           </p>
         </div>
       </CardContent>

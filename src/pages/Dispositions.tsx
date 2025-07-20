@@ -27,7 +27,8 @@ const sampleCows: Cow[] = [
     status: 'active',
     depreciationMethod: 'straight-line',
     currentValue: 1980,
-    totalDepreciation: 220
+    totalDepreciation: 220,
+    acquisitionType: 'purchased'
   },
   {
     id: 'cow-002',
@@ -47,7 +48,8 @@ const sampleCows: Cow[] = [
     status: 'active',
     depreciationMethod: 'straight-line',
     currentValue: 1260,
-    totalDepreciation: 840
+    totalDepreciation: 840,
+    acquisitionType: 'raised'
   }
 ];
 

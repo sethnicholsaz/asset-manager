@@ -58,6 +58,7 @@ export type Database = {
       }
       cows: {
         Row: {
+          acquisition_type: string
           asset_type_id: string
           birth_date: string
           created_at: string
@@ -75,6 +76,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          acquisition_type?: string
           asset_type_id?: string
           birth_date: string
           created_at?: string
@@ -92,6 +94,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          acquisition_type?: string
           asset_type_id?: string
           birth_date?: string
           created_at?: string
