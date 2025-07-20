@@ -80,42 +80,21 @@ const processDate = (dateStr: string): string => {
   
   // If already in YYYY-MM-DD format, return as-is
   if (/^\d{4}-\d{2}-\d{2}$/.test(cleanDate)) {
+    console.log(`Date already in YYYY-MM-DD format: "${cleanDate}"`);
     return cleanDate;
   }
   
+  // Handle M/D/YYYY or MM/DD/YYYY format (your CSV format)
   if (cleanDate.includes('/')) {
     const parts = cleanDate.split('/');
     if (parts.length === 3) {
-      let month, day, year;
+      const month = parts[0].padStart(2, '0');
+      const day = parts[1].padStart(2, '0'); 
+      const year = parts[2];
       
-      // Handle M/D/YYYY or MM/DD/YYYY format (your CSV format)
-      if (parts[2].length === 4) {
-        month = parts[0];
-        day = parts[1]; 
-        year = parts[2];
-      } else {
-        // Handle MM/DD/YY format
-        month = parts[0];
-        day = parts[1];
-        year = parts[2].length === 2 ? '20' + parts[2] : parts[2];
-      }
-      
-      const result = `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+      const result = `${year}-${month}-${day}`;
       console.log(`Date conversion: "${cleanDate}" -> "${result}"`);
       return result;
-    }
-  }
-  
-  // If in MM-DD-YYYY or DD-MM-YYYY format with dashes
-  if (cleanDate.includes('-') && cleanDate.length >= 8) {
-    const parts = cleanDate.split('-');
-    if (parts[0].length === 4) {
-      // Already YYYY-MM-DD
-      return cleanDate;
-    } else {
-      // Assume MM-DD-YYYY format
-      const [month, day, year] = parts;
-      return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
     }
   }
   
