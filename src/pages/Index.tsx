@@ -34,40 +34,36 @@ const Index = () => {
     try {
       console.log('Fetching cows for company:', currentCompany.id);
       
-      // Get count of active cows
-      const { count: activeCount } = await supabase
-        .from('cows')
-        .select('*', { count: 'exact', head: true })
-        .eq('company_id', currentCompany.id)
-        .eq('status', 'active');
+      // Get aggregated statistics using raw SQL for efficiency
+      const { data: statsData, error: statsError } = await supabase
+        .rpc('get_active_cow_stats', { p_company_id: currentCompany.id });
 
-      console.log('Active cow count:', activeCount);
+      if (statsError) {
+        console.error('Stats query error:', statsError);
+        // Fallback to count only if aggregation fails
+        const { count: activeCount } = await supabase
+          .from('cows')
+          .select('*', { count: 'exact', head: true })
+          .eq('company_id', currentCompany.id)
+          .eq('status', 'active');
+        
+        setSummaryStats({
+          active_count: activeCount || 0,
+          total_asset_value: 0,
+          total_current_value: 0,
+          total_depreciation: 0
+        });
+      } else {
+        const stats = statsData || { count: 0, total_purchase_price: 0, total_current_value: 0, total_depreciation: 0 };
+        setSummaryStats({
+          active_count: stats.count,
+          total_asset_value: stats.total_purchase_price,
+          total_current_value: stats.total_current_value,
+          total_depreciation: stats.total_depreciation
+        });
+      }
 
-      // Get sum of asset values for active cows using aggregation
-      const { data: aggregateData } = await supabase
-        .from('cows')
-        .select('purchase_price, current_value, total_depreciation')
-        .eq('company_id', currentCompany.id)
-        .eq('status', 'active');
-
-      // Calculate totals from the aggregated data
-      const totalAssetValue = (aggregateData || []).reduce((sum, cow) => sum + (cow.purchase_price || 0), 0);
-      const totalCurrentValue = (aggregateData || []).reduce((sum, cow) => sum + (cow.current_value || 0), 0);
-      const totalDepreciation = (aggregateData || []).reduce((sum, cow) => sum + (cow.total_depreciation || 0), 0);
-
-      setSummaryStats({
-        active_count: activeCount || 0,
-        total_asset_value: totalAssetValue,
-        total_current_value: totalCurrentValue,
-        total_depreciation: totalDepreciation
-      });
-
-      console.log('Summary stats:', {
-        active_count: activeCount,
-        total_asset_value: totalAssetValue,
-        total_current_value: totalCurrentValue,
-        total_depreciation: totalDepreciation
-      });
+      console.log('Summary stats:', summaryStats);
 
       // Get first 1000 active cows for the table display
       const { data, error } = await supabase
