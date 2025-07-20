@@ -83,11 +83,25 @@ export function DispositionReport({ cows }: DispositionReportProps) {
       const cow = cows.find(c => c.id === disposition.cowId);
       if (!cow) return;
 
+      // Calculate accumulated depreciation
+      let accumulatedDepreciation = cow.totalDepreciation || 0;
+      if (accumulatedDepreciation === 0) {
+        const monthlyDepreciation = DepreciationCalculator.calculateMonthlyDepreciation(cow, disposition.dispositionDate);
+        const monthsSinceStart = DepreciationCalculator.getMonthsSinceStart(cow.freshenDate, disposition.dispositionDate);
+        accumulatedDepreciation = monthlyDepreciation * monthsSinceStart;
+      }
+
+      // Calculate book value at disposition
+      const bookValue = Math.max(cow.salvageValue, cow.purchasePrice - accumulatedDepreciation);
+      
+      // Recalculate gain/loss based on proper book value
+      const actualGainLoss = (disposition.saleAmount || 0) - bookValue;
+
       const journalEntry: JournalEntry = {
         id: `je-disposition-${disposition.id}`,
         entryDate: disposition.dispositionDate,
         description: `${disposition.dispositionType === 'sale' ? 'Sale' : 'Write-off'} of Dairy Cow #${cow.tagNumber}`,
-        totalAmount: Math.abs(disposition.gainLoss),
+        totalAmount: Math.max(disposition.saleAmount || 0, cow.purchasePrice),
         entryType: 'disposition',
         lines: [],
         createdAt: new Date(),
@@ -109,17 +123,7 @@ export function DispositionReport({ cows }: DispositionReportProps) {
         });
       }
 
-      // Accumulated Depreciation removal - calculate if not stored
-      let accumulatedDepreciation = cow.totalDepreciation || 0;
-      
-      // If no accumulated depreciation stored, calculate it
-      if (accumulatedDepreciation === 0) {
-        const monthlyDepreciation = DepreciationCalculator.calculateMonthlyDepreciation(cow, disposition.dispositionDate);
-        const monthsSinceStart = DepreciationCalculator.getMonthsSinceStart(cow.freshenDate, disposition.dispositionDate);
-        accumulatedDepreciation = monthlyDepreciation * monthsSinceStart;
-      }
-      
-      // Always add accumulated depreciation removal (even if 0, for transparency)
+      // Accumulated Depreciation removal - always include
       journalEntry.lines.push({
         id: `jl-accum-dep-${disposition.id}`,
         journalEntryId: journalEntry.id,
@@ -145,17 +149,17 @@ export function DispositionReport({ cows }: DispositionReportProps) {
         createdAt: new Date()
       });
 
-      // Gain or Loss
-      if (disposition.gainLoss !== 0) {
-        const isGain = disposition.gainLoss > 0;
+      // Gain or Loss - use recalculated amount for proper balancing
+      if (actualGainLoss !== 0) {
+        const isGain = actualGainLoss > 0;
         journalEntry.lines.push({
           id: `jl-gainloss-${disposition.id}`,
           journalEntryId: journalEntry.id,
           accountCode: isGain ? '8000' : '9000',
           accountName: isGain ? 'Gain on Sale of Assets' : 'Loss on Sale of Assets',
           description: `${isGain ? 'Gain' : 'Loss'} on ${disposition.dispositionType} of cow #${cow.tagNumber}`,
-          debitAmount: isGain ? 0 : Math.abs(disposition.gainLoss),
-          creditAmount: isGain ? disposition.gainLoss : 0,
+          debitAmount: isGain ? 0 : Math.abs(actualGainLoss),
+          creditAmount: isGain ? actualGainLoss : 0,
           lineType: isGain ? 'credit' : 'debit',
           createdAt: new Date()
         });
