@@ -142,7 +142,8 @@ const handler = async (req: Request): Promise<Response> => {
       .from('cows')
       .select('id, tag_number, birth_date, freshen_date, status')
       .eq('company_id', companyId)
-      .eq('status', 'active');
+      .eq('status', 'active')
+      .limit(50000); // Set a high limit to ensure we get all cows
 
     if (cowsError) {
       console.error('Database error:', cowsError);
