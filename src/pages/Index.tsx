@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Cow } from '@/types/cow';
 import { CowDataTable } from '@/components/CowDataTable';
+import { EditCowDialog } from '@/components/EditCowDialog';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { BarChart3, TrendingUp, DollarSign, Calendar } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
@@ -10,6 +11,8 @@ import { useToast } from '@/hooks/use-toast';
 const Index = () => {
   const [cows, setCows] = useState<Cow[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [editingCow, setEditingCow] = useState<Cow | null>(null);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const { currentCompany } = useAuth();
   const { toast } = useToast();
 
@@ -88,6 +91,48 @@ const Index = () => {
         description: "Failed to remove cow",
         variant: "destructive",
       });
+    }
+  };
+
+  const handleEditCow = (cow: Cow) => {
+    setEditingCow(cow);
+    setIsEditDialogOpen(true);
+  };
+
+  const handleSaveEditedCow = async (updatedCow: Cow) => {
+    try {
+      const { error } = await supabase
+        .from('cows')
+        .update({
+          tag_number: updatedCow.tagNumber,
+          name: updatedCow.name,
+          birth_date: updatedCow.birthDate.toISOString().split('T')[0],
+          freshen_date: updatedCow.freshenDate.toISOString().split('T')[0],
+          purchase_price: updatedCow.purchasePrice,
+          salvage_value: updatedCow.salvageValue,
+          acquisition_type: updatedCow.acquisitionType,
+        })
+        .eq('id', updatedCow.id);
+
+      if (error) throw error;
+
+      // Update local state
+      setCows(prev => prev.map(cow => 
+        cow.id === updatedCow.id ? updatedCow : cow
+      ));
+
+      toast({
+        title: "Success",
+        description: "Cow details updated successfully",
+      });
+    } catch (error) {
+      console.error('Error updating cow:', error);
+      toast({
+        title: "Error",
+        description: "Failed to update cow details",
+        variant: "destructive",
+      });
+      throw error; // Re-throw to handle in dialog
     }
   };
 
@@ -180,7 +225,16 @@ const Index = () => {
       {/* Cow Inventory Table */}
       <CowDataTable 
         cows={cows} 
+        onEditCow={handleEditCow}
         onDeleteCow={handleDeleteCow}
+      />
+
+      {/* Edit Cow Dialog */}
+      <EditCowDialog
+        cow={editingCow}
+        open={isEditDialogOpen}
+        onOpenChange={setIsEditDialogOpen}
+        onSave={handleSaveEditedCow}
       />
 
       {/* Quick Start Guide */}

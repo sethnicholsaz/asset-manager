@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { MoreHorizontal, Calendar, DollarSign, TrendingDown } from 'lucide-react';
+import { MoreHorizontal, Calendar, DollarSign, TrendingDown, Search } from 'lucide-react';
 import { Cow } from '@/types/cow';
 import { DepreciationCalculator } from '@/utils/depreciation';
 import { Button } from '@/components/ui/button';
@@ -7,6 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { Input } from '@/components/ui/input';
 
 interface CowDataTableProps {
   cows: Cow[];
@@ -17,6 +18,7 @@ interface CowDataTableProps {
 export function CowDataTable({ cows, onEditCow, onDeleteCow }: CowDataTableProps) {
   const [sortColumn, setSortColumn] = useState<keyof Cow>('tagNumber');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
+  const [searchQuery, setSearchQuery] = useState('');
 
   const handleSort = (column: keyof Cow) => {
     if (sortColumn === column) {
@@ -27,7 +29,19 @@ export function CowDataTable({ cows, onEditCow, onDeleteCow }: CowDataTableProps
     }
   };
 
-  const sortedCows = [...cows].sort((a, b) => {
+  // Filter cows based on search query
+  const filteredCows = cows.filter(cow => {
+    if (!searchQuery) return true;
+    const query = searchQuery.toLowerCase();
+    return (
+      cow.tagNumber.toLowerCase().includes(query) ||
+      (cow.name && cow.name.toLowerCase().includes(query)) ||
+      cow.status.toLowerCase().includes(query) ||
+      cow.acquisitionType.toLowerCase().includes(query)
+    );
+  });
+
+  const sortedCows = [...filteredCows].sort((a, b) => {
     const aValue = a[sortColumn];
     const bValue = b[sortColumn];
     
@@ -137,10 +151,25 @@ export function CowDataTable({ cows, onEditCow, onDeleteCow }: CowDataTableProps
       {/* Data Table */}
       <Card>
         <CardHeader>
-          <CardTitle>Dairy Cow Inventory</CardTitle>
-          <CardDescription>
-            Manage your dairy cow assets and track depreciation
-          </CardDescription>
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle>Dairy Cow Inventory</CardTitle>
+              <CardDescription>
+                Manage your dairy cow assets and track depreciation
+              </CardDescription>
+            </div>
+            <div className="flex items-center space-x-2">
+              <div className="relative">
+                <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Search cows..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-8 w-[250px]"
+                />
+              </div>
+            </div>
+          </div>
         </CardHeader>
         <CardContent>
           <div className="rounded-md border">
@@ -210,6 +239,13 @@ export function CowDataTable({ cows, onEditCow, onDeleteCow }: CowDataTableProps
                 ))}
               </TableBody>
             </Table>
+            
+            {sortedCows.length === 0 && searchQuery && (
+              <div className="text-center py-12 text-muted-foreground">
+                <p>No cows found matching "{searchQuery}"</p>
+                <p className="text-sm">Try adjusting your search terms</p>
+              </div>
+            )}
             
             {cows.length === 0 && (
               <div className="text-center py-12 text-muted-foreground">
