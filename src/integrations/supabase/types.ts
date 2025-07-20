@@ -648,6 +648,15 @@ export type Database = {
           updated_at: string
         }[]
       }
+      get_active_cow_stats: {
+        Args: { p_company_id: string }
+        Returns: {
+          count: number
+          total_purchase_price: number
+          total_current_value: number
+          total_depreciation: number
+        }[]
+      }
       upsert_depreciation_settings: {
         Args: {
           p_company_id: string

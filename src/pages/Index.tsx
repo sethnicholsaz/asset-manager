@@ -34,11 +34,11 @@ const Index = () => {
     try {
       console.log('Fetching cows for company:', currentCompany.id);
       
-      // Get aggregated statistics using raw SQL for efficiency
+      // Get aggregated statistics using efficient SQL function
       const { data: statsData, error: statsError } = await supabase
-        .rpc('get_active_cow_stats', { p_company_id: currentCompany.id });
+        .rpc('get_active_cow_stats' as any, { p_company_id: currentCompany.id });
 
-      if (statsError) {
+      if (statsError || !statsData || statsData.length === 0) {
         console.error('Stats query error:', statsError);
         // Fallback to count only if aggregation fails
         const { count: activeCount } = await supabase
@@ -54,16 +54,16 @@ const Index = () => {
           total_depreciation: 0
         });
       } else {
-        const stats = statsData || { count: 0, total_purchase_price: 0, total_current_value: 0, total_depreciation: 0 };
+        const stats = statsData[0] as any;
         setSummaryStats({
-          active_count: stats.count,
-          total_asset_value: stats.total_purchase_price,
-          total_current_value: stats.total_current_value,
-          total_depreciation: stats.total_depreciation
+          active_count: Number(stats.count || 0),
+          total_asset_value: Number(stats.total_purchase_price || 0),
+          total_current_value: Number(stats.total_current_value || 0),
+          total_depreciation: Number(stats.total_depreciation || 0)
         });
       }
 
-      console.log('Summary stats:', summaryStats);
+      console.log('Summary stats loaded:', summaryStats);
 
       // Get first 1000 active cows for the table display
       const { data, error } = await supabase
