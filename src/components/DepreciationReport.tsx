@@ -54,23 +54,36 @@ export function DepreciationReport({ cows }: DepreciationReportProps) {
   if (totalMonthlyDepreciation > 0) {
     const journalEntry: JournalEntry = {
       id: `je-${selectedYear}-${selectedMonth}`,
-      date: new Date(selectedYear, selectedMonth - 1, 1),
+      entryDate: new Date(selectedYear, selectedMonth - 1, 1),
       description: `Dairy Cow Depreciation - ${getMonthName(selectedMonth)} ${selectedYear}`,
-      debits: [
-        {
-          account: '6100 - Depreciation Expense',
-          description: 'Monthly depreciation of dairy cows',
-          amount: totalMonthlyDepreciation,
-        }
-      ],
-      credits: [
-        {
-          account: '1500.1 - Accumulated Depreciation - Dairy Cows',
-          description: 'Monthly depreciation of dairy cows',
-          amount: totalMonthlyDepreciation,
-        }
-      ],
       totalAmount: totalMonthlyDepreciation,
+      entryType: 'depreciation',
+      lines: [
+        {
+          id: `jl-debit-${selectedYear}-${selectedMonth}`,
+          journalEntryId: `je-${selectedYear}-${selectedMonth}`,
+          accountCode: '6100',
+          accountName: 'Depreciation Expense',
+          description: 'Monthly depreciation of dairy cows',
+          debitAmount: totalMonthlyDepreciation,
+          creditAmount: 0,
+          lineType: 'debit',
+          createdAt: new Date()
+        },
+        {
+          id: `jl-credit-${selectedYear}-${selectedMonth}`,
+          journalEntryId: `je-${selectedYear}-${selectedMonth}`,
+          accountCode: '1500.1',
+          accountName: 'Accumulated Depreciation - Dairy Cows',
+          description: 'Monthly depreciation of dairy cows',
+          debitAmount: 0,
+          creditAmount: totalMonthlyDepreciation,
+          lineType: 'credit',
+          createdAt: new Date()
+        }
+      ],
+      createdAt: new Date(),
+      updatedAt: new Date()
     };
     journalEntries.push(journalEntry);
   }
@@ -292,7 +305,7 @@ export function DepreciationReport({ cows }: DepreciationReportProps) {
                     <div>
                       <h4 className="font-medium">{entry.description}</h4>
                       <p className="text-sm text-muted-foreground">
-                        Date: {DepreciationCalculator.formatDate(entry.date)}
+                        Date: {DepreciationCalculator.formatDate(entry.entryDate)}
                       </p>
                     </div>
                     <p className="font-medium text-lg">
@@ -304,11 +317,11 @@ export function DepreciationReport({ cows }: DepreciationReportProps) {
                     <div>
                       <h5 className="font-medium text-sm mb-2">Debits</h5>
                       <div className="space-y-2">
-                        {entry.debits.map((line, index) => (
-                          <div key={index} className="text-sm">
-                            <div className="font-medium">{line.account}</div>
+                        {entry.lines.filter(line => line.lineType === 'debit').map((line) => (
+                          <div key={line.id} className="text-sm">
+                            <div className="font-medium">{line.accountCode} - {line.accountName}</div>
                             <div className="text-muted-foreground">{line.description}</div>
-                            <div className="font-medium">{DepreciationCalculator.formatCurrency(line.amount)}</div>
+                            <div className="font-medium">{DepreciationCalculator.formatCurrency(line.debitAmount)}</div>
                           </div>
                         ))}
                       </div>
@@ -317,11 +330,11 @@ export function DepreciationReport({ cows }: DepreciationReportProps) {
                     <div>
                       <h5 className="font-medium text-sm mb-2">Credits</h5>
                       <div className="space-y-2">
-                        {entry.credits.map((line, index) => (
-                          <div key={index} className="text-sm">
-                            <div className="font-medium">{line.account}</div>
+                        {entry.lines.filter(line => line.lineType === 'credit').map((line) => (
+                          <div key={line.id} className="text-sm">
+                            <div className="font-medium">{line.accountCode} - {line.accountName}</div>
                             <div className="text-muted-foreground">{line.description}</div>
-                            <div className="font-medium">{DepreciationCalculator.formatCurrency(line.amount)}</div>
+                            <div className="font-medium">{DepreciationCalculator.formatCurrency(line.creditAmount)}</div>
                           </div>
                         ))}
                       </div>

@@ -5,6 +5,7 @@ import { CowDataTable } from '@/components/CowDataTable';
 import { DepreciationReport } from '@/components/DepreciationReport';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import Dispositions from './Dispositions';
 
 const Index = () => {
   const [cows, setCows] = useState<Cow[]>([]);
@@ -35,9 +36,10 @@ const Index = () => {
 
         {/* Main Content */}
         <Tabs defaultValue="dashboard" className="space-y-6">
-          <TabsList className="grid w-full max-w-md grid-cols-3">
+          <TabsList className="grid w-full max-w-lg grid-cols-4">
             <TabsTrigger value="dashboard">Dashboard</TabsTrigger>
             <TabsTrigger value="upload">Import</TabsTrigger>
+            <TabsTrigger value="dispositions">Dispositions</TabsTrigger>
             <TabsTrigger value="reports">Reports</TabsTrigger>
           </TabsList>
 
@@ -50,6 +52,10 @@ const Index = () => {
 
           <TabsContent value="upload" className="space-y-6">
             <CowUpload onUpload={handleCowUpload} />
+          </TabsContent>
+
+          <TabsContent value="dispositions" className="space-y-6">
+            <Dispositions />
           </TabsContent>
 
           <TabsContent value="reports" className="space-y-6">

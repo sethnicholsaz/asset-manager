@@ -11,6 +11,21 @@ export interface Cow {
   depreciationMethod: DepreciationMethod;
   currentValue: number;
   totalDepreciation: number;
+  dispositionId?: string;
+}
+
+export interface CowDisposition {
+  id: string;
+  cowId: string;
+  dispositionDate: Date;
+  dispositionType: DispositionType;
+  saleAmount: number;
+  finalBookValue: number;
+  gainLoss: number;
+  notes?: string;
+  journalEntryId?: string;
+  createdAt: Date;
+  updatedAt: Date;
 }
 
 export interface AssetType {
@@ -34,21 +49,31 @@ export interface DepreciationEntry {
 
 export interface JournalEntry {
   id: string;
-  date: Date;
+  entryDate: Date;
   description: string;
-  debits: JournalLine[];
-  credits: JournalLine[];
   totalAmount: number;
+  entryType: JournalEntryType;
+  lines: JournalLine[];
+  createdAt: Date;
+  updatedAt: Date;
 }
 
 export interface JournalLine {
-  account: string;
+  id: string;
+  journalEntryId: string;
+  accountCode: string;
+  accountName: string;
   description: string;
-  amount: number;
+  debitAmount: number;
+  creditAmount: number;
+  lineType: 'debit' | 'credit';
+  createdAt: Date;
 }
 
 export type CowStatus = 'active' | 'sold' | 'deceased' | 'retired';
 export type DepreciationMethod = 'straight-line' | 'declining-balance' | 'sum-of-years';
+export type DispositionType = 'sale' | 'death' | 'culled';
+export type JournalEntryType = 'depreciation' | 'disposition' | 'acquisition';
 
 export interface PurchasePriceDefault {
   id: string;

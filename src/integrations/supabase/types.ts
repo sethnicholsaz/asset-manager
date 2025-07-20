@@ -14,6 +14,184 @@ export type Database = {
   }
   public: {
     Tables: {
+      cow_dispositions: {
+        Row: {
+          cow_id: string
+          created_at: string
+          disposition_date: string
+          disposition_type: string
+          final_book_value: number
+          gain_loss: number
+          id: string
+          journal_entry_id: string | null
+          notes: string | null
+          sale_amount: number | null
+          updated_at: string
+        }
+        Insert: {
+          cow_id: string
+          created_at?: string
+          disposition_date: string
+          disposition_type: string
+          final_book_value: number
+          gain_loss: number
+          id?: string
+          journal_entry_id?: string | null
+          notes?: string | null
+          sale_amount?: number | null
+          updated_at?: string
+        }
+        Update: {
+          cow_id?: string
+          created_at?: string
+          disposition_date?: string
+          disposition_type?: string
+          final_book_value?: number
+          gain_loss?: number
+          id?: string
+          journal_entry_id?: string | null
+          notes?: string | null
+          sale_amount?: number | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      cows: {
+        Row: {
+          asset_type_id: string
+          birth_date: string
+          created_at: string
+          current_value: number
+          depreciation_method: string
+          disposition_id: string | null
+          freshen_date: string
+          id: string
+          name: string | null
+          purchase_price: number
+          salvage_value: number
+          status: string
+          tag_number: string
+          total_depreciation: number
+          updated_at: string
+        }
+        Insert: {
+          asset_type_id?: string
+          birth_date: string
+          created_at?: string
+          current_value: number
+          depreciation_method?: string
+          disposition_id?: string | null
+          freshen_date: string
+          id: string
+          name?: string | null
+          purchase_price: number
+          salvage_value: number
+          status?: string
+          tag_number: string
+          total_depreciation?: number
+          updated_at?: string
+        }
+        Update: {
+          asset_type_id?: string
+          birth_date?: string
+          created_at?: string
+          current_value?: number
+          depreciation_method?: string
+          disposition_id?: string | null
+          freshen_date?: string
+          id?: string
+          name?: string | null
+          purchase_price?: number
+          salvage_value?: number
+          status?: string
+          tag_number?: string
+          total_depreciation?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cows_disposition_id_fkey"
+            columns: ["disposition_id"]
+            isOneToOne: false
+            referencedRelation: "cow_dispositions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      journal_entries: {
+        Row: {
+          created_at: string
+          description: string
+          entry_date: string
+          entry_type: string
+          id: string
+          total_amount: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          description: string
+          entry_date: string
+          entry_type: string
+          id?: string
+          total_amount: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          description?: string
+          entry_date?: string
+          entry_type?: string
+          id?: string
+          total_amount?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      journal_lines: {
+        Row: {
+          account_code: string
+          account_name: string
+          created_at: string
+          credit_amount: number | null
+          debit_amount: number | null
+          description: string
+          id: string
+          journal_entry_id: string
+          line_type: string
+        }
+        Insert: {
+          account_code: string
+          account_name: string
+          created_at?: string
+          credit_amount?: number | null
+          debit_amount?: number | null
+          description: string
+          id?: string
+          journal_entry_id: string
+          line_type: string
+        }
+        Update: {
+          account_code?: string
+          account_name?: string
+          created_at?: string
+          credit_amount?: number | null
+          debit_amount?: number | null
+          description?: string
+          id?: string
+          journal_entry_id?: string
+          line_type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "journal_lines_journal_entry_id_fkey"
+            columns: ["journal_entry_id"]
+            isOneToOne: false
+            referencedRelation: "journal_entries"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       purchase_price_defaults: {
         Row: {
           birth_year: number
