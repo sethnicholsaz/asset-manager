@@ -129,14 +129,8 @@ export function DispositionReport({ cows }: DispositionReportProps) {
         return;
       }
 
-      // Fix invalid freshen dates - if freshen date is after disposition date or too recent, use birth date + 2 years
-      let effectiveFreshenDate = cow.freshenDate;
-      if (cow.freshenDate >= disposition.dispositionDate || cow.freshenDate.getFullYear() >= 2024) {
-        // Use birth date + 2 years as a reasonable freshen date for dairy cows
-        effectiveFreshenDate = new Date(cow.birthDate);
-        effectiveFreshenDate.setFullYear(effectiveFreshenDate.getFullYear() + 2);
-        console.log(`Fixed freshen date for cow #${cow.tagNumber}: ${cow.freshenDate.toDateString()} -> ${effectiveFreshenDate.toDateString()}`);
-      }
+      // Use actual freshen dates from data - no automatic calculation
+      const effectiveFreshenDate = cow.freshenDate;
 
       // Calculate accumulated depreciation at disposition date using corrected freshen date
       const monthlyDepreciation = DepreciationCalculator.calculateMonthlyDepreciation(cow, disposition.dispositionDate);
@@ -306,12 +300,8 @@ export function DispositionReport({ cows }: DispositionReportProps) {
       Notes: d.notes || ''
     };
     
-    // Fix invalid freshen dates for export calculation
-    let effectiveFreshenDate = cow.freshenDate;
-    if (cow.freshenDate >= d.dispositionDate || cow.freshenDate.getFullYear() >= 2024) {
-      effectiveFreshenDate = new Date(cow.birthDate);
-      effectiveFreshenDate.setFullYear(effectiveFreshenDate.getFullYear() + 2);
-    }
+    // Use actual freshen dates from data - no automatic calculation
+    const effectiveFreshenDate = cow.freshenDate;
     
     // Calculate proper book value for export
     const monthlyDepreciation = DepreciationCalculator.calculateMonthlyDepreciation(cow, d.dispositionDate);
@@ -510,12 +500,8 @@ export function DispositionReport({ cows }: DispositionReportProps) {
                         const cow = dispositionCows.find(c => c.tagNumber === disposition.cowId);
                         if (!cow) return null;
                         
-                        // Fix invalid freshen dates for display calculation
-                        let effectiveFreshenDate = cow.freshenDate;
-                        if (cow.freshenDate >= disposition.dispositionDate || cow.freshenDate.getFullYear() >= 2024) {
-                          effectiveFreshenDate = new Date(cow.birthDate);
-                          effectiveFreshenDate.setFullYear(effectiveFreshenDate.getFullYear() + 2);
-                        }
+                        // Use actual freshen dates from data - no automatic calculation
+                        const effectiveFreshenDate = cow.freshenDate;
                         
                         // Calculate proper book value for display
                         const monthlyDepreciation = DepreciationCalculator.calculateMonthlyDepreciation(cow, disposition.dispositionDate);
