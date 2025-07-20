@@ -240,7 +240,7 @@ Deno.serve(async (req) => {
 
           // Parse dates using mapped headers - STRICT PARSING
           const birthDateStr = rowData['birth_date'] || rowData['BDAT'];
-          const eventDateStr = rowData['event_date'] || rowData['Date'];
+          const eventDateStr = rowData['event_date'] || rowData['Date'] || rowData['date'];
           
           console.log(`Row ${i + 2}: birthDateStr='${birthDateStr}', eventDateStr='${eventDateStr}'`);
           
