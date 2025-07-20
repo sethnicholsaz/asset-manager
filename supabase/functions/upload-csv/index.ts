@@ -284,7 +284,7 @@ Deno.serve(async (req) => {
             depreciation_method: rowData.depreciation_method || 'straight-line',
             acquisition_type: rowData.acquisition_type || defaultAcquisitionType || 'purchased',
             company_id: companyId,
-            disposition_type: dispositionType // Add disposition type to cow data
+            disposition_type: dispositionType // Keep for disposition creation
           };
 
           batchCows.push(cowData);
@@ -295,9 +295,15 @@ Deno.serve(async (req) => {
 
       // Insert batch if we have data
       if (batchCows.length > 0) {
+        // Remove disposition_type from cow data before inserting to database
+        const cowsForInsert = batchCows.map(cow => {
+          const { disposition_type, ...cowWithoutDispositionType } = cow;
+          return cowWithoutDispositionType;
+        });
+        
         const { error: batchError } = await supabase
           .from('cows')
-          .upsert(batchCows, {
+          .upsert(cowsForInsert, {
             onConflict: 'tag_number,company_id',
             ignoreDuplicates: false
           });
