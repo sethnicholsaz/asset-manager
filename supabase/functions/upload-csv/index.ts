@@ -183,6 +183,10 @@ Deno.serve(async (req) => {
     const processedCows: CowData[] = [];
     const errors: string[] = [];
 
+    // Process rows in batches for better performance
+    const batchSize = 100;
+    console.log(`Processing ${dataRows.length} rows in batches of ${batchSize}`);
+
     for (let i = 0; i < dataRows.length; i++) {
       try {
         const values = dataRows[i].split(',').map(v => v.trim().replace(/"/g, ''));
@@ -194,7 +198,10 @@ Deno.serve(async (req) => {
           rowData[mappedHeader] = values[index] || '';
         });
 
-        console.log('Row data:', rowData);
+        // Only log every 100th row to reduce CPU usage
+        if (i % 100 === 0) {
+          console.log(`Processing row ${i + 1}/${dataRows.length}`);
+        }
 
         // Parse dates using mapped headers
         const birthDate = new Date(rowData['birth_date'] || rowData['BDAT']);
