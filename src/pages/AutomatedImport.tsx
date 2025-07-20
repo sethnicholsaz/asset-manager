@@ -214,6 +214,8 @@ export default function AutomatedImport() {
     const file = event.target.files?.[0];
     if (!file) return;
 
+    console.log('File selected:', file.name, 'Type:', fileType);
+
     if (!file.name.endsWith('.csv')) {
       toast({
         title: "Invalid file",
@@ -228,7 +230,9 @@ export default function AutomatedImport() {
 
     try {
       const csvContent = await file.text();
+      console.log('CSV content preview:', csvContent.substring(0, 200));
       const data = parseCsvData(csvContent);
+      console.log('Parsed data:', data.slice(0, 2)); // Log first 2 rows
 
       let result: ProcessedResult;
       if (fileType === 'fresh') {
@@ -254,6 +258,7 @@ export default function AutomatedImport() {
         });
       }
     } catch (error) {
+      console.error('Upload error:', error);
       toast({
         title: "Upload failed",
         description: error instanceof Error ? error.message : "An error occurred",
