@@ -17,6 +17,8 @@ const Index = () => {
     total_depreciation: 0
   });
   const [isLoading, setIsLoading] = useState(true);
+  const [isSearching, setIsSearching] = useState(false);
+  const [currentSearchQuery, setCurrentSearchQuery] = useState('');
   const [editingCow, setEditingCow] = useState<Cow | null>(null);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const { currentCompany } = useAuth();
@@ -28,50 +30,70 @@ const Index = () => {
     }
   }, [currentCompany]);
 
-  const fetchCows = async () => {
+  const fetchCows = async (searchQuery?: string) => {
     if (!currentCompany) return;
 
     try {
       console.log('Fetching cows for company:', currentCompany.id);
       
-      // Get aggregated statistics using efficient SQL function
-      const { data: statsData, error: statsError } = await supabase
-        .rpc('get_active_cow_stats' as any, { p_company_id: currentCompany.id });
+      // Get aggregated statistics (only if not searching)
+      if (!searchQuery) {
+        const { data: statsData, error: statsError } = await supabase
+          .rpc('get_active_cow_stats' as any, { p_company_id: currentCompany.id });
 
-      if (statsError || !statsData || statsData.length === 0) {
-        console.error('Stats query error:', statsError);
-        // Fallback to count only if aggregation fails
-        const { count: activeCount } = await supabase
-          .from('cows')
-          .select('*', { count: 'exact', head: true })
-          .eq('company_id', currentCompany.id)
-          .eq('status', 'active');
-        
-        setSummaryStats({
-          active_count: activeCount || 0,
-          total_asset_value: 0,
-          total_current_value: 0,
-          total_depreciation: 0
-        });
-      } else {
-        const stats = statsData[0] as any;
-        setSummaryStats({
-          active_count: Number(stats.count || 0),
-          total_asset_value: Number(stats.total_purchase_price || 0),
-          total_current_value: Number(stats.total_current_value || 0),
-          total_depreciation: Number(stats.total_depreciation || 0)
-        });
+        if (statsError || !statsData || statsData.length === 0) {
+          console.error('Stats query error:', statsError);
+          // Fallback to count only if aggregation fails
+          const { count: activeCount } = await supabase
+            .from('cows')
+            .select('*', { count: 'exact', head: true })
+            .eq('company_id', currentCompany.id)
+            .eq('status', 'active');
+          
+          setSummaryStats({
+            active_count: activeCount || 0,
+            total_asset_value: 0,
+            total_current_value: 0,
+            total_depreciation: 0
+          });
+        } else {
+          const stats = statsData[0] as any;
+          setSummaryStats({
+            active_count: Number(stats.count || 0),
+            total_asset_value: Number(stats.total_purchase_price || 0),
+            total_current_value: Number(stats.total_current_value || 0),
+            total_depreciation: Number(stats.total_depreciation || 0)
+          });
+        }
+
+        console.log('Summary stats loaded:', summaryStats);
       }
 
-      console.log('Summary stats loaded:', summaryStats);
-
-      // Get first 1000 active cows for the table display
-      const { data, error } = await supabase
-        .from('cows')
-        .select('*')
-        .eq('company_id', currentCompany.id)
-        .eq('status', 'active')
-        .limit(1000);
+      // Get cows data
+      let data, error;
+      
+      if (searchQuery && searchQuery.trim()) {
+        // Use global search function
+        const { data: searchData, error: searchError } = await supabase
+          .rpc('search_cows' as any, { 
+            p_company_id: currentCompany.id,
+            p_search_query: searchQuery.trim(),
+            p_limit: 1000,
+            p_offset: 0
+          });
+        data = searchData;
+        error = searchError;
+      } else {
+        // Get first 1000 active cows for the table display
+        const { data: cowData, error: cowError } = await supabase
+          .from('cows')
+          .select('*')
+          .eq('company_id', currentCompany.id)
+          .eq('status', 'active')
+          .limit(1000);
+        data = cowData;
+        error = cowError;
+      }
 
       console.log('Query result - data length:', data?.length);
       
@@ -110,6 +132,7 @@ const Index = () => {
       });
     } finally {
       setIsLoading(false);
+      setIsSearching(false);
     }
   };
 
@@ -177,6 +200,12 @@ const Index = () => {
       });
       throw error; // Re-throw to handle in dialog
     }
+  };
+
+  const handleSearch = async (searchQuery: string) => {
+    setCurrentSearchQuery(searchQuery);
+    setIsSearching(true);
+    await fetchCows(searchQuery);
   };
 
   // Use summary statistics from database queries (not local cow data)
@@ -271,6 +300,8 @@ const Index = () => {
         summaryStats={summaryStats}
         onEditCow={handleEditCow}
         onDeleteCow={handleDeleteCow}
+        onSearch={handleSearch}
+        isSearching={isSearching}
       />
 
       {/* Edit Cow Dialog */}

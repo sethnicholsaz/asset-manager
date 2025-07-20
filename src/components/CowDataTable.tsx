@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { MoreHorizontal, Calendar, DollarSign, TrendingDown, Search } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { MoreHorizontal, Calendar, DollarSign, TrendingDown, Search, X } from 'lucide-react';
 import { Cow } from '@/types/cow';
 import { DepreciationCalculator } from '@/utils/depreciation';
 import { Button } from '@/components/ui/button';
@@ -19,12 +19,23 @@ interface CowDataTableProps {
   };
   onEditCow?: (cow: Cow) => void;
   onDeleteCow?: (cowId: string) => void;
+  onSearch?: (query: string) => void;
+  isSearching?: boolean;
 }
 
-export function CowDataTable({ cows, summaryStats, onEditCow, onDeleteCow }: CowDataTableProps) {
+export function CowDataTable({ cows, summaryStats, onEditCow, onDeleteCow, onSearch, isSearching }: CowDataTableProps) {
   const [sortColumn, setSortColumn] = useState<keyof Cow>('tagNumber');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
   const [searchQuery, setSearchQuery] = useState('');
+
+  // Debounced search effect
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      onSearch?.(searchQuery);
+    }, 300);
+
+    return () => clearTimeout(timer);
+  }, [searchQuery, onSearch]);
 
   const handleSort = (column: keyof Cow) => {
     if (sortColumn === column) {
@@ -35,19 +46,11 @@ export function CowDataTable({ cows, summaryStats, onEditCow, onDeleteCow }: Cow
     }
   };
 
-  // Filter cows based on search query
-  const filteredCows = cows.filter(cow => {
-    if (!searchQuery) return true;
-    const query = searchQuery.toLowerCase();
-    return (
-      cow.tagNumber.toLowerCase().includes(query) ||
-      (cow.name && cow.name.toLowerCase().includes(query)) ||
-      cow.status.toLowerCase().includes(query) ||
-      cow.acquisitionType.toLowerCase().includes(query)
-    );
-  });
+  const clearSearch = () => {
+    setSearchQuery('');
+  };
 
-  const sortedCows = [...filteredCows].sort((a, b) => {
+  const sortedCows = [...cows].sort((a, b) => {
     const aValue = a[sortColumn];
     const bValue = b[sortColumn];
     
@@ -170,12 +173,25 @@ export function CowDataTable({ cows, summaryStats, onEditCow, onDeleteCow }: Cow
               <div className="relative">
                 <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
                 <Input
-                  placeholder="Search cows..."
+                  placeholder="Search all cows..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-8 w-[250px]"
+                  className="pl-8 pr-8 w-[300px]"
                 />
+                {searchQuery && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={clearSearch}
+                    className="absolute right-1 top-1 h-6 w-6 p-0 hover:bg-muted"
+                  >
+                    <X className="h-3 w-3" />
+                  </Button>
+                )}
               </div>
+              {isSearching && (
+                <div className="text-sm text-muted-foreground">Searching...</div>
+              )}
             </div>
           </div>
         </CardHeader>
@@ -251,11 +267,11 @@ export function CowDataTable({ cows, summaryStats, onEditCow, onDeleteCow }: Cow
             {sortedCows.length === 0 && searchQuery && (
               <div className="text-center py-12 text-muted-foreground">
                 <p>No cows found matching "{searchQuery}"</p>
-                <p className="text-sm">Try adjusting your search terms</p>
+                <p className="text-sm">Try adjusting your search terms or clear the search</p>
               </div>
             )}
             
-            {cows.length === 0 && (
+            {cows.length === 0 && !searchQuery && (
               <div className="text-center py-12 text-muted-foreground">
                 <p>No cows imported yet</p>
                 <p className="text-sm">Upload a CSV file to get started</p>

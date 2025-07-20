@@ -657,6 +657,33 @@ export type Database = {
           total_depreciation: number
         }[]
       }
+      search_cows: {
+        Args: {
+          p_company_id: string
+          p_search_query: string
+          p_limit?: number
+          p_offset?: number
+        }
+        Returns: {
+          id: string
+          tag_number: string
+          name: string
+          birth_date: string
+          freshen_date: string
+          purchase_price: number
+          current_value: number
+          salvage_value: number
+          status: string
+          acquisition_type: string
+          depreciation_method: string
+          asset_type_id: string
+          total_depreciation: number
+          company_id: string
+          disposition_id: string
+          created_at: string
+          updated_at: string
+        }[]
+      }
       upsert_depreciation_settings: {
         Args: {
           p_company_id: string
