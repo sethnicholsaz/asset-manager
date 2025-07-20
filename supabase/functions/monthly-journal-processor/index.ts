@@ -84,6 +84,8 @@ serve(async (req) => {
       .from('companies')
       .select('id, name');
 
+    console.log(`Found ${companies?.length || 0} companies to process`);
+    
     if (companiesError) throw companiesError;
 
     let totalCompaniesProcessed = 0;
