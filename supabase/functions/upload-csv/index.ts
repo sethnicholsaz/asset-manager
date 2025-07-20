@@ -160,10 +160,10 @@ Deno.serve(async (req) => {
     const headerMapping = {
       'ID': 'tag_number',
       'BDAT': 'birth_date', 
-      'Date': 'event_date', // This is the disposition/event date for disposition files
+      'Date': 'dim', // Days in Milk - not a date field
+      'DIM': 'dim', // Days in Milk
       'SDATE': 'event_date', // Sale date
       'DDATE': 'event_date', // Death date
-      'DIM': 'freshen_date', // Days in milk - use as freshen date fallback
       'Event': 'event',
       'Remark': 'notes'
     };
@@ -233,8 +233,7 @@ Deno.serve(async (req) => {
 
           // Parse dates using mapped headers - STRICT PARSING
           const birthDateStr = rowData['birth_date'] || rowData['BDAT'];
-          const freshenDateStr = rowData['freshen_date'] || rowData['DIM'];
-          const eventDateStr = rowData['event_date'] || rowData['Date'];
+          const eventDateStr = rowData['event_date'] || rowData['SDATE'] || rowData['DDATE'];
           
           // Validate required date strings
           if (!birthDateStr) {
@@ -242,7 +241,6 @@ Deno.serve(async (req) => {
           }
           
           const birthDate = new Date(birthDateStr);
-          let freshenDate = freshenDateStr ? new Date(freshenDateStr) : null;
           const eventDate = eventDateStr ? new Date(eventDateStr) : null;
           
           // STRICT: Fail immediately if birth date is invalid
@@ -250,11 +248,9 @@ Deno.serve(async (req) => {
             throw new Error(`Invalid birth date format: '${birthDateStr}'. Expected format: MM/DD/YYYY or YYYY-MM-DD`);
           }
           
-          // If no freshen date provided, calculate it as birth date + 2 years
-          if (!freshenDate || isNaN(freshenDate.getTime())) {
-            freshenDate = new Date(birthDate);
-            freshenDate.setFullYear(freshenDate.getFullYear() + 2);
-          }
+          // Calculate freshen date as birth date + 2 years (standard for dairy cows)
+          const freshenDate = new Date(birthDate);
+          freshenDate.setFullYear(freshenDate.getFullYear() + 2);
           
           // Validate date ranges
           if (birthDate > new Date()) {
@@ -374,7 +370,7 @@ Deno.serve(async (req) => {
               return {
                 cow_id: cow.tag_number, // Using tag_number as cow_id for dispositions
                 company_id: companyId,
-                disposition_date: cow.event_date || new Date().toISOString().split('T')[0], // Use event date if available
+                disposition_date: cow.event_date || new Date().toISOString().split('T')[0], // Use event date or current date
                 disposition_type: cow.disposition_type,
                 sale_amount: saleAmount, // Use actual sale amount from CSV
                 final_book_value: cow.current_value,
