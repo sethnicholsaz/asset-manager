@@ -36,11 +36,15 @@ function CreateCompanyForm() {
     
     setIsLoading(true);
     try {
+      console.log('Creating company for user:', user.id);
+      
       // Create company
       const companySlug = companyName.toLowerCase()
         .replace(/[^a-z0-9]+/g, '-')
         .replace(/^-+|-+$/g, '');
 
+      console.log('Inserting company:', { name: companyName.trim(), slug: companySlug });
+      
       const { data: company, error: companyError } = await supabase
         .from('companies')
         .insert({
@@ -50,9 +54,15 @@ function CreateCompanyForm() {
         .select()
         .single();
 
-      if (companyError) throw companyError;
+      if (companyError) {
+        console.error('Company creation error:', companyError);
+        throw new Error(`Failed to create company: ${companyError.message}`);
+      }
+
+      console.log('Company created:', company);
 
       // Create profile if it doesn't exist
+      console.log('Creating/updating profile...');
       const { error: profileError } = await supabase
         .from('profiles')
         .upsert({
@@ -60,11 +70,19 @@ function CreateCompanyForm() {
           email: user.email || '',
           first_name: user.user_metadata?.first_name || '',
           last_name: user.user_metadata?.last_name || ''
+        }, {
+          onConflict: 'user_id'
         });
 
-      if (profileError) throw profileError;
+      if (profileError) {
+        console.error('Profile creation error:', profileError);
+        throw new Error(`Failed to create profile: ${profileError.message}`);
+      }
+
+      console.log('Profile created/updated');
 
       // Create company membership
+      console.log('Creating membership...');
       const { error: membershipError } = await supabase
         .from('company_memberships')
         .insert({
@@ -74,7 +92,12 @@ function CreateCompanyForm() {
           accepted_at: new Date().toISOString()
         });
 
-      if (membershipError) throw membershipError;
+      if (membershipError) {
+        console.error('Membership creation error:', membershipError);
+        throw new Error(`Failed to create membership: ${membershipError.message}`);
+      }
+
+      console.log('Membership created successfully');
 
       toast({
         title: "Company created!",
@@ -82,8 +105,9 @@ function CreateCompanyForm() {
       });
 
       // Refresh the page to load the new company
-      window.location.reload();
+      setTimeout(() => window.location.reload(), 1000);
     } catch (error) {
+      console.error('Full error:', error);
       toast({
         title: "Failed to create company",
         description: error instanceof Error ? error.message : "An error occurred",
