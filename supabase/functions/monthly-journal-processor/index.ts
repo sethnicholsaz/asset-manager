@@ -260,49 +260,64 @@ Deno.serve(async (req) => {
               }
 
               const bookValue = Math.max(cow.salvage_value, cow.purchase_price - accumulatedDepreciation);
-              const actualGainLoss = (disposition.sale_amount || 0) - bookValue;
+              const saleAmount = disposition.sale_amount || 0;
+              const actualGainLoss = saleAmount - bookValue;
 
-              totalDispositionAmount += Math.max(disposition.sale_amount || 0, cow.purchase_price);
+              totalDispositionAmount += Math.max(saleAmount, cow.purchase_price);
 
-              // Cash entry (if sale)
-              if (disposition.disposition_type === 'sale' && disposition.sale_amount > 0) {
+              // Cash entry (only if sale with actual sale amount)
+              if (disposition.disposition_type === 'sale' && saleAmount > 0) {
                 allJournalLines.push({
                   account_code: '1000',
                   account_name: 'Cash',
                   description: `Cash received from sale of cow #${cow.tag_number}`,
-                  debit_amount: disposition.sale_amount,
+                  debit_amount: saleAmount,
                   credit_amount: 0,
                   line_type: 'debit'
                 });
               }
 
-              // Accumulated Depreciation removal
-              allJournalLines.push({
-                account_code: '1500.1',
-                account_name: 'Accumulated Depreciation - Dairy Cows',
-                description: `Remove accumulated depreciation for cow #${cow.tag_number}`,
-                debit_amount: accumulatedDepreciation,
-                credit_amount: 0,
-                line_type: 'debit'
-              });
+              // Accumulated Depreciation removal (write back)
+              if (accumulatedDepreciation > 0) {
+                allJournalLines.push({
+                  account_code: '1500.1',
+                  account_name: 'Accumulated Depreciation - Dairy Cows',
+                  description: `Remove accumulated depreciation for cow #${cow.tag_number}`,
+                  debit_amount: accumulatedDepreciation,
+                  credit_amount: 0,
+                  line_type: 'debit'
+                });
+              }
 
-              // Asset removal
+              // Asset removal (take off books)
               allJournalLines.push({
                 account_code: '1500',
                 account_name: 'Dairy Cows',
-                description: `Remove cow asset #${cow.tag_number}`,
+                description: `Remove cow asset #${cow.tag_number} - ${disposition.disposition_type}`,
                 debit_amount: 0,
                 credit_amount: cow.purchase_price,
                 line_type: 'credit'
               });
 
-              // Gain or Loss
+              // Gain or Loss handling
               if (actualGainLoss !== 0) {
                 const isGain = actualGainLoss > 0;
+                let accountCode = '9000'; // Default loss account
+                let accountName = 'Loss on Sale of Assets';
+                
+                // Specific account for dead cows
+                if (disposition.disposition_type === 'death') {
+                  accountCode = '9001';
+                  accountName = 'Loss on Dead Cows';
+                } else if (isGain) {
+                  accountCode = '8000';
+                  accountName = 'Gain on Sale of Assets';
+                }
+                
                 allJournalLines.push({
-                  account_code: isGain ? '8000' : '9000',
-                  account_name: isGain ? 'Gain on Sale of Assets' : 'Loss on Sale of Assets',
-                  description: `${isGain ? 'Gain' : 'Loss'} on ${disposition.disposition_type} of cow #${cow.tag_number}`,
+                  account_code: accountCode,
+                  account_name: accountName,
+                  description: `${isGain ? 'Gain' : 'Loss'} on ${disposition.disposition_type} of cow #${cow.tag_number} (Book value: ${formatCurrency(bookValue)})`,
                   debit_amount: isGain ? 0 : Math.abs(actualGainLoss),
                   credit_amount: isGain ? actualGainLoss : 0,
                   line_type: isGain ? 'credit' : 'debit'
