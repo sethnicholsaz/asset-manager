@@ -9,8 +9,10 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { useToast } from '@/hooks/use-toast';
 import { PurchasePriceDefault } from '@/types/cow';
 import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/contexts/AuthContext';
 
 export function PurchasePriceSettings() {
+  const { currentCompany } = useAuth();
   const [defaults, setDefaults] = useState<PurchasePriceDefault[]>([]);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editData, setEditData] = useState({ default_price: '', daily_accrual_rate: '' });
@@ -21,13 +23,16 @@ export function PurchasePriceSettings() {
 
   useEffect(() => {
     fetchDefaults();
-  }, []);
+  }, [currentCompany?.id]);
 
   const fetchDefaults = async () => {
+    if (!currentCompany?.id) return;
+    
     try {
       const { data, error } = await supabase
         .from('purchase_price_defaults')
         .select('*')
+        .eq('company_id', currentCompany.id)
         .order('birth_year', { ascending: false });
       
       if (error) throw error;
@@ -119,6 +124,15 @@ export function PurchasePriceSettings() {
   };
 
   const handleAddNew = async () => {
+    if (!currentCompany?.id) {
+      toast({
+        title: "Error",
+        description: "No company selected",
+        variant: "destructive",
+      });
+      return;
+    }
+
     try {
       if (!newEntry.birth_year || !newEntry.default_price || !newEntry.daily_accrual_rate) {
         throw new Error('Please fill in all fields');
@@ -127,6 +141,7 @@ export function PurchasePriceSettings() {
       const { error } = await supabase
         .from('purchase_price_defaults')
         .insert({
+          company_id: currentCompany.id,
           birth_year: parseInt(newEntry.birth_year),
           default_price: parseFloat(newEntry.default_price),
           daily_accrual_rate: parseFloat(newEntry.daily_accrual_rate)
