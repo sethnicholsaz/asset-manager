@@ -285,11 +285,21 @@ Deno.serve(async (req) => {
         }
       }
 
-      // Insert disposition records (ignore duplicates)
+      // Deduplicate batch dispositions before inserting
       if (batchDispositions.length > 0) {
+        // Remove duplicates within the batch based on the unique constraint
+        const uniqueDispositions = batchDispositions.filter((disposition, index, self) => 
+          index === self.findIndex(d => 
+            d.cow_id === disposition.cow_id && 
+            d.company_id === disposition.company_id && 
+            d.disposition_date === disposition.disposition_date && 
+            d.disposition_type === disposition.disposition_type
+          )
+        );
+
         const { error: dispositionError } = await supabase
           .from('cow_dispositions')
-          .upsert(batchDispositions, { 
+          .upsert(uniqueDispositions, { 
             onConflict: 'cow_id,company_id,disposition_date,disposition_type'
           });
 
