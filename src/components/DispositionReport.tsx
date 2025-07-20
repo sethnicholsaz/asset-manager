@@ -129,15 +129,15 @@ export function DispositionReport({ cows }: DispositionReportProps) {
         return;
       }
 
-      // Calculate accumulated depreciation
-      let accumulatedDepreciation = cow.totalDepreciation || 0;
-      if (accumulatedDepreciation === 0) {
-        const monthlyDepreciation = DepreciationCalculator.calculateMonthlyDepreciation(cow, disposition.dispositionDate);
-        const monthsSinceStart = DepreciationCalculator.getMonthsSinceStart(cow.freshenDate, disposition.dispositionDate);
-        accumulatedDepreciation = monthlyDepreciation * monthsSinceStart;
-      }
+      // Calculate accumulated depreciation at disposition date
+      const monthlyDepreciation = DepreciationCalculator.calculateMonthlyDepreciation(cow, disposition.dispositionDate);
+      const monthsSinceStart = DepreciationCalculator.getMonthsSinceStart(cow.freshenDate, disposition.dispositionDate);
+      const accumulatedDepreciation = Math.min(
+        monthlyDepreciation * monthsSinceStart,
+        cow.purchasePrice - cow.salvageValue // Cap at depreciable amount
+      );
 
-      // Calculate book value at disposition
+      // Calculate book value at disposition (purchase price - accumulated depreciation, but not less than salvage)
       const bookValue = Math.max(cow.salvageValue, cow.purchasePrice - accumulatedDepreciation);
       
       // Recalculate gain/loss based on proper book value
@@ -285,13 +285,33 @@ export function DispositionReport({ cows }: DispositionReportProps) {
 
   const exportData = dispositions.map(d => {
     const cow = dispositionCows.find(c => c.id === d.cowId);
-    return {
-      CowTag: cow?.tagNumber || d.cowId,
+    if (!cow) return {
+      CowTag: d.cowId,
       DispositionDate: DepreciationCalculator.formatDate(d.dispositionDate),
       DispositionType: d.dispositionType,
       SaleAmount: d.saleAmount || 0,
       FinalBookValue: d.finalBookValue,
       GainLoss: d.gainLoss,
+      Notes: d.notes || ''
+    };
+    
+    // Calculate proper book value for export
+    const monthlyDepreciation = DepreciationCalculator.calculateMonthlyDepreciation(cow, d.dispositionDate);
+    const monthsSinceStart = DepreciationCalculator.getMonthsSinceStart(cow.freshenDate, d.dispositionDate);
+    const accumulatedDepreciation = Math.min(
+      monthlyDepreciation * monthsSinceStart,
+      cow.purchasePrice - cow.salvageValue
+    );
+    const bookValue = Math.max(cow.salvageValue, cow.purchasePrice - accumulatedDepreciation);
+    const actualGainLoss = (d.saleAmount || 0) - bookValue;
+    
+    return {
+      CowTag: cow.tagNumber,
+      DispositionDate: DepreciationCalculator.formatDate(d.dispositionDate),
+      DispositionType: d.dispositionType,
+      SaleAmount: d.saleAmount || 0,
+      FinalBookValue: bookValue,
+      GainLoss: actualGainLoss,
       Notes: d.notes || ''
     };
   });
@@ -470,15 +490,27 @@ export function DispositionReport({ cows }: DispositionReportProps) {
                     <TableBody>
                       {dispositions.map((disposition) => {
                         const cow = dispositionCows.find(c => c.id === disposition.cowId);
+                        if (!cow) return null;
+                        
+                        // Calculate proper book value for display
+                        const monthlyDepreciation = DepreciationCalculator.calculateMonthlyDepreciation(cow, disposition.dispositionDate);
+                        const monthsSinceStart = DepreciationCalculator.getMonthsSinceStart(cow.freshenDate, disposition.dispositionDate);
+                        const accumulatedDepreciation = Math.min(
+                          monthlyDepreciation * monthsSinceStart,
+                          cow.purchasePrice - cow.salvageValue
+                        );
+                        const bookValue = Math.max(cow.salvageValue, cow.purchasePrice - accumulatedDepreciation);
+                        const actualGainLoss = (disposition.saleAmount || 0) - bookValue;
+                        
                         return (
                           <TableRow key={disposition.id}>
                             <TableCell className="font-medium">{cow?.tagNumber || disposition.cowId}</TableCell>
                             <TableCell>{DepreciationCalculator.formatDate(disposition.dispositionDate)}</TableCell>
                             <TableCell className="capitalize">{disposition.dispositionType}</TableCell>
                             <TableCell>{DepreciationCalculator.formatCurrency(disposition.saleAmount || 0)}</TableCell>
-                            <TableCell>{DepreciationCalculator.formatCurrency(disposition.finalBookValue)}</TableCell>
-                            <TableCell className={disposition.gainLoss >= 0 ? 'text-success' : 'text-destructive'}>
-                              {DepreciationCalculator.formatCurrency(disposition.gainLoss)}
+                            <TableCell>{DepreciationCalculator.formatCurrency(bookValue)}</TableCell>
+                            <TableCell className={actualGainLoss >= 0 ? 'text-success' : 'text-destructive'}>
+                              {DepreciationCalculator.formatCurrency(actualGainLoss)}
                             </TableCell>
                             <TableCell className="max-w-xs truncate">{disposition.notes || '-'}</TableCell>
                           </TableRow>
