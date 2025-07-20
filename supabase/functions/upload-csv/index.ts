@@ -156,8 +156,8 @@ Deno.serve(async (req) => {
     const headers = lines[0].split(',').map(h => h.trim().replace(/"/g, ''));
     const dataRows = lines.slice(1);
 
-    // Map headers to expected format
-    const headerMapping = {
+    // Map headers to expected format - case insensitive
+    const headerMapping: Record<string, string> = {
       'ID': 'tag_number',
       'BDAT': 'birth_date', 
       'Date': 'event_date', // This is the actual event/disposition date
@@ -165,9 +165,19 @@ Deno.serve(async (req) => {
       'Event': 'event',
       'Remark': 'notes'
     };
+    
+    // Also create a lowercase version for case-insensitive matching
+    const lowerHeaderMapping: Record<string, string> = {};
+    Object.entries(headerMapping).forEach(([key, value]) => {
+      lowerHeaderMapping[key.toLowerCase()] = value;
+    });
 
-    // Create mapped headers
-    const mappedHeaders = headers.map(h => headerMapping[h] || h.toLowerCase());
+    // Create mapped headers with better case handling
+    const mappedHeaders = headers.map(h => {
+      const exactMatch = headerMapping[h];
+      const lowerMatch = lowerHeaderMapping[h.toLowerCase()];
+      return exactMatch || lowerMatch || h.toLowerCase();
+    });
     
     console.log('Original headers:', headers);
     console.log('Mapped headers:', mappedHeaders);
@@ -224,9 +234,11 @@ Deno.serve(async (req) => {
           const values = dataRows[i].split(',').map(v => v.trim().replace(/"/g, ''));
           const rowData: Record<string, string> = {};
           
-          // Map original headers to data using the mapping
+          // Map original headers to data using improved mapping
           headers.forEach((header, index) => {
-            const mappedHeader = headerMapping[header] || header.toLowerCase();
+            const exactMatch = headerMapping[header];
+            const lowerMatch = lowerHeaderMapping[header.toLowerCase()];
+            const mappedHeader = exactMatch || lowerMatch || header.toLowerCase();
             rowData[mappedHeader] = values[index] || '';
           });
           
