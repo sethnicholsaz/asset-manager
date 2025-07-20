@@ -95,19 +95,35 @@ serve(async (req) => {
       console.log(`Processing company: ${company.name} (${company.id})`);
 
       try {
-        // Check for existing entries for this month
+        // Check for existing POSTED entries for this month (draft entries will be replaced)
         const { data: existingEntries } = await supabase
           .from('stored_journal_entries')
-          .select('entry_type')
+          .select('entry_type, status')
           .eq('company_id', company.id)
           .eq('month', targetMonth)
-          .eq('year', targetYear);
+          .eq('year', targetYear)
+          .eq('status', 'posted');
 
-        console.log(`Found ${existingEntries?.length || 0} existing entries for ${company.name}`);
+        console.log(`Found ${existingEntries?.length || 0} existing posted entries for ${company.name}`);
 
         const hasDepreciationEntry = existingEntries?.some(e => e.entry_type === 'depreciation');
         const hasDispositionEntry = existingEntries?.some(e => e.entry_type === 'disposition');
         const hasAcquisitionEntry = existingEntries?.some(e => e.entry_type === 'acquisition');
+
+        // Delete any draft entries before creating new ones
+        const { error: deleteDraftError } = await supabase
+          .from('stored_journal_entries')
+          .delete()
+          .eq('company_id', company.id)
+          .eq('month', targetMonth)
+          .eq('year', targetYear)
+          .eq('status', 'draft');
+
+        if (deleteDraftError) {
+          console.error('Error deleting draft entries:', deleteDraftError);
+        } else {
+          console.log('Deleted existing draft entries for regeneration');
+        }
 
         // Process Depreciation Entries (if not already created)
         if (!hasDepreciationEntry) {
