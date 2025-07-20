@@ -378,6 +378,8 @@ Deno.serve(async (req) => {
               
               const saleAmount = parseFloat(rowData.sale_amount || rowData.amount || '0') || 0;
               
+              console.log(`Creating disposition for cow ${cow.tag_number}: event_date=${cow.event_date}, will use: ${cow.event_date || new Date().toISOString().split('T')[0]}`);
+              
               return {
                 cow_id: cow.tag_number, // Using tag_number as cow_id for dispositions
                 company_id: companyId,
