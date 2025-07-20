@@ -366,7 +366,7 @@ Deno.serve(async (req) => {
               return {
                 cow_id: cow.tag_number, // Using tag_number as cow_id for dispositions
                 company_id: companyId,
-                disposition_date: cow.freshen_date, // Use freshen_date as disposition date
+                disposition_date: new Date().toISOString().split('T')[0], // Use current date as disposition date
                 disposition_type: cow.disposition_type,
                 sale_amount: saleAmount, // Use actual sale amount from CSV
                 final_book_value: cow.current_value,
