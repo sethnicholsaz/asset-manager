@@ -31,7 +31,8 @@ const Index = () => {
         .from('cows')
         .select('*', { count: 'exact' })
         .eq('company_id', currentCompany.id)
-        .eq('status', 'active');
+        .eq('status', 'active')
+        .limit(25000);
 
       console.log('Query result - count:', count, 'data length:', data?.length);
       
