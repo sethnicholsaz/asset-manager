@@ -3,6 +3,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { PurchasePriceSettings } from '@/components/PurchasePriceSettings';
 import { DepreciationSettings } from '@/components/DepreciationSettings';
+import { UploadTokenManager } from '@/components/UploadTokenManager';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from '@/hooks/use-toast';
 
@@ -154,6 +155,17 @@ export default function Settings() {
           </p>
         </div>
         <PurchasePriceSettings />
+      </div>
+
+      {/* Upload Tokens Section */}
+      <div className="space-y-4">
+        <div>
+          <h2 className="text-xl font-semibold">API Access Tokens</h2>
+          <p className="text-sm text-muted-foreground">
+            Manage access tokens for CSV upload API endpoint
+          </p>
+        </div>
+        <UploadTokenManager />
       </div>
     </div>
   );
