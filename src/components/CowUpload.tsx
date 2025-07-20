@@ -155,7 +155,10 @@ export function CowUpload({ onUpload }: CowUploadProps) {
                   cow.salvageValue = parseFloat(value) || 0;
                   break;
                 case 'acquisitiontype':
-                  cow.acquisitionType = value.toLowerCase() === 'raised' ? 'raised' : 'purchased';
+                  // Only set if value is provided, otherwise use default
+                  if (value && value.trim()) {
+                    cow.acquisitionType = value.toLowerCase() === 'raised' ? 'raised' : 'purchased';
+                  }
                   break;
               }
             });
