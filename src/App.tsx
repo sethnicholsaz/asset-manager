@@ -17,6 +17,7 @@ import { AppSidebar } from "@/components/AppSidebar";
 import Index from "./pages/Index";
 import Import from "./pages/Import";
 import AutomatedImport from "./pages/AutomatedImport";
+import MasterFileVerification from "./pages/MasterFileVerification";
 import Dispositions from "./pages/Dispositions";
 import Reports from "./pages/Reports";
 import Settings from "./pages/Settings";
@@ -202,6 +203,7 @@ function AppContent() {
               <Route path="/" element={<Index />} />
               <Route path="/import" element={<Import />} />
               <Route path="/automated-import" element={<AutomatedImport />} />
+              <Route path="/master-verification" element={<MasterFileVerification />} />
               <Route path="/dispositions" element={<Dispositions />} />
               <Route path="/reports" element={<Reports />} />
               <Route path="/users" element={<UserManagement />} />
