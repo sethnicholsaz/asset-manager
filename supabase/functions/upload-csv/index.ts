@@ -160,10 +160,10 @@ Deno.serve(async (req) => {
     const headerMapping = {
       'ID': 'tag_number',
       'BDAT': 'birth_date', 
-      'Date': 'dim', // Days in Milk - not a date field
-      'DIM': 'dim', // Days in Milk
+      'Date': 'event_date', // This is the disposition/event date
       'SDATE': 'event_date', // Sale date
       'DDATE': 'event_date', // Death date
+      'DIM': 'dim', // Days in Milk
       'Event': 'event',
       'Remark': 'notes'
     };
@@ -233,19 +233,36 @@ Deno.serve(async (req) => {
 
           // Parse dates using mapped headers - STRICT PARSING
           const birthDateStr = rowData['birth_date'] || rowData['BDAT'];
-          const eventDateStr = rowData['event_date'] || rowData['SDATE'] || rowData['DDATE'];
+          const eventDateStr = rowData['event_date'] || rowData['Date'];
           
           // Validate required date strings
           if (!birthDateStr) {
             throw new Error(`Missing required birth date. Birth date: '${birthDateStr}'`);
           }
           
-          const birthDate = new Date(birthDateStr);
-          const eventDate = eventDateStr ? new Date(eventDateStr) : null;
+          // Helper function to parse dates that might be Excel serial numbers
+          const parseDate = (dateStr: string): Date => {
+            if (!dateStr) throw new Error('Empty date string');
+            
+            // Check if it's a number (Excel date serial number)
+            const num = Number(dateStr);
+            if (!isNaN(num) && num > 1) {
+              // Excel date serial number (days since 1900-01-01, with some adjustments)
+              const excelEpoch = new Date(1900, 0, 1);
+              const date = new Date(excelEpoch.getTime() + (num - 2) * 24 * 60 * 60 * 1000);
+              return date;
+            }
+            
+            // Try to parse as regular date
+            return new Date(dateStr);
+          };
+          
+          const birthDate = parseDate(birthDateStr);
+          const eventDate = eventDateStr ? parseDate(eventDateStr) : null;
           
           // STRICT: Fail immediately if birth date is invalid
           if (isNaN(birthDate.getTime())) {
-            throw new Error(`Invalid birth date format: '${birthDateStr}'. Expected format: MM/DD/YYYY or YYYY-MM-DD`);
+            throw new Error(`Invalid birth date format: '${birthDateStr}'. Expected format: MM/DD/YYYY, YYYY-MM-DD, or Excel date number`);
           }
           
           // Calculate freshen date as birth date + 2 years (standard for dairy cows)
@@ -255,10 +272,6 @@ Deno.serve(async (req) => {
           // Validate date ranges
           if (birthDate > new Date()) {
             throw new Error(`Birth date '${birthDateStr}' cannot be in the future`);
-          }
-          
-          if (freshenDate < birthDate) {
-            throw new Error(`Freshen date '${freshenDateStr}' cannot be before birth date '${birthDateStr}'`);
           }
 
           // Determine disposition type from row data
