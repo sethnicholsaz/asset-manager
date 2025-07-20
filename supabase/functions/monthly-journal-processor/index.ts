@@ -72,9 +72,9 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
-    // Process starting from June 2025 (for historical catch-up processing)
+    // Process starting from July 2025 (for historical catch-up processing)
     const now = new Date();
-    const targetMonth = 6; // June
+    const targetMonth = 7; // July
     const targetYear = 2025;
 
     console.log(`Processing monthly journal entries for ${getMonthName(targetMonth)} ${targetYear}`);
@@ -316,37 +316,37 @@ serve(async (req) => {
               });
 
               // Gain or Loss handling - for all dispositions
-              if (Math.abs(actualGainLoss) > 0.01) { // Use small threshold to avoid rounding issues
-                const isGain = actualGainLoss > 0;
-                let accountCode = '9000'; // Default loss account
-                let accountName = 'Loss on Sale of Assets';
-                
-                // Specific accounts based on disposition type
-                if (disposition.disposition_type === 'death') {
-                  accountCode = '9001';
-                  accountName = 'Loss on Dead Cows';
-                } else if (disposition.disposition_type === 'sale') {
-                  if (isGain) {
-                    accountCode = '8000';
-                    accountName = 'Gain on Sale of Cows';
-                  } else {
-                    accountCode = '9002';
-                    accountName = 'Loss on Sale of Cows';
-                  }
-                } else if (disposition.disposition_type === 'culled') {
-                  accountCode = '9003';
-                  accountName = 'Loss on Culled Cows';
+              // Always create a gain/loss entry to ensure the journal balances
+              const isGain = actualGainLoss > 0;
+              let accountCode = '9000'; // Default loss account
+              let accountName = 'Loss on Sale of Assets';
+              
+              // Specific accounts based on disposition type
+              if (disposition.disposition_type === 'death') {
+                accountCode = '9001';
+                accountName = 'Loss on Dead Cows';
+              } else if (disposition.disposition_type === 'sale') {
+                if (isGain) {
+                  accountCode = '8000';
+                  accountName = 'Gain on Sale of Cows';
+                } else {
+                  accountCode = '9002';
+                  accountName = 'Loss on Sale of Cows';
                 }
-                
-                allJournalLines.push({
-                  account_code: accountCode,
-                  account_name: accountName,
-                  description: `${isGain ? 'Gain' : 'Loss'} on ${disposition.disposition_type} of cow #${cow.tag_number} (Sale: ${formatCurrency(saleAmount)}, Book: ${formatCurrency(bookValue)})`,
-                  debit_amount: isGain ? 0 : Math.abs(actualGainLoss),
-                  credit_amount: isGain ? Math.abs(actualGainLoss) : 0,
-                  line_type: isGain ? 'credit' : 'debit'
-                });
+              } else if (disposition.disposition_type === 'culled') {
+                accountCode = '9003';
+                accountName = 'Loss on Culled Cows';
               }
+              
+              // Always create the gain/loss entry, even if amount is zero, to ensure balance
+              allJournalLines.push({
+                account_code: accountCode,
+                account_name: accountName,
+                description: `${isGain ? 'Gain' : 'Loss'} on ${disposition.disposition_type} of cow #${cow.tag_number} (Sale: ${formatCurrency(saleAmount)}, Book: ${formatCurrency(bookValue)})`,
+                debit_amount: isGain ? 0 : Math.abs(actualGainLoss),
+                credit_amount: isGain ? Math.abs(actualGainLoss) : 0,
+                line_type: isGain ? 'credit' : 'debit'
+              });
             });
 
             if (allJournalLines.length > 0) {

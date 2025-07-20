@@ -137,6 +137,19 @@ export default function JournalEntryDetails() {
 
     const totalDebits = entry.lines.reduce((sum, line) => sum + line.debit_amount, 0);
     const totalCredits = entry.lines.reduce((sum, line) => sum + line.credit_amount, 0);
+    
+    // Create account summary
+    const accountSummary = entry.lines.reduce((acc, line) => {
+      const key = `${line.account_code} - ${line.account_name}`;
+      if (!acc[key]) {
+        acc[key] = { debits: 0, credits: 0, account_code: line.account_code, account_name: line.account_name };
+      }
+      acc[key].debits += line.debit_amount;
+      acc[key].credits += line.credit_amount;
+      return acc;
+    }, {} as Record<string, { debits: number; credits: number; account_code: string; account_name: string }>);
+
+    const accountSummaryArray = Object.values(accountSummary).sort((a, b) => a.account_code.localeCompare(b.account_code));
 
     const printContent = `
       <!DOCTYPE html>
@@ -275,6 +288,36 @@ export default function JournalEntryDetails() {
           </table>
 
           <div class="totals">
+            <h4 style="margin-bottom: 15px; color: #333;">Account Summary</h4>
+            <table style="margin-bottom: 20px; font-size: 14px;">
+              <thead>
+                <tr>
+                  <th>Account Code</th>
+                  <th>Account Name</th>
+                  <th class="amount">Total Debits</th>
+                  <th class="amount">Total Credits</th>
+                  <th class="amount">Net Amount</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${accountSummaryArray.map(account => {
+                  const netAmount = account.debits - account.credits;
+                  return `
+                    <tr>
+                      <td>${account.account_code}</td>
+                      <td>${account.account_name}</td>
+                      <td class="amount">${account.debits > 0 ? DepreciationCalculator.formatCurrency(account.debits) : '-'}</td>
+                      <td class="amount">${account.credits > 0 ? DepreciationCalculator.formatCurrency(account.credits) : '-'}</td>
+                      <td class="amount" style="${netAmount > 0 ? 'color: #d73527;' : netAmount < 0 ? 'color: #28a745;' : ''}">${netAmount !== 0 ? DepreciationCalculator.formatCurrency(Math.abs(netAmount)) + (netAmount > 0 ? ' DR' : ' CR') : '-'}</td>
+                    </tr>
+                  `;
+                }).join('')}
+              </tbody>
+            </table>
+          </div>
+
+          <div class="totals" style="background-color: ${totalDebits === totalCredits ? '#d4edda' : '#f8d7da'};">
+            <h4 style="margin-bottom: 15px; color: #333;">Journal Entry Totals</h4>
             <div class="total-row">
               <strong>Total Debits:</strong>
               <strong>${DepreciationCalculator.formatCurrency(totalDebits)}</strong>
@@ -283,10 +326,15 @@ export default function JournalEntryDetails() {
               <strong>Total Credits:</strong>
               <strong>${DepreciationCalculator.formatCurrency(totalCredits)}</strong>
             </div>
-            <div class="total-row" style="border-top: 1px solid #ddd; padding-top: 10px; margin-top: 10px;">
+            <div class="total-row" style="border-top: 2px solid #333; padding-top: 10px; margin-top: 10px; font-size: 16px;">
               <strong>Balance Check:</strong>
-              <strong>${totalDebits === totalCredits ? 'BALANCED ✓' : 'UNBALANCED ⚠️'}</strong>
+              <strong style="color: ${totalDebits === totalCredits ? '#28a745' : '#d73527'};">${totalDebits === totalCredits ? 'BALANCED ✓' : `UNBALANCED by ${DepreciationCalculator.formatCurrency(Math.abs(totalDebits - totalCredits))} ⚠️`}</strong>
             </div>
+            ${totalDebits !== totalCredits ? `
+              <div style="margin-top: 15px; padding: 10px; background-color: #fff3cd; border: 1px solid #ffeaa7; border-radius: 4px;">
+                <strong style="color: #856404;">⚠️ ATTENTION:</strong> This journal entry does not balance. The difference of ${DepreciationCalculator.formatCurrency(Math.abs(totalDebits - totalCredits))} needs to be investigated.
+              </div>
+            ` : ''}
           </div>
 
           <div class="footer">
