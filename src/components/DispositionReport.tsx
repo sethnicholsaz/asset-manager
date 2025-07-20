@@ -19,6 +19,7 @@ export function DispositionReport({ cows }: DispositionReportProps) {
   const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1);
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
   const [dispositions, setDispositions] = useState<CowDisposition[]>([]);
+  const [dispositionCows, setDispositionCows] = useState<Cow[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const { currentCompany } = useAuth();
   const { toast } = useToast();
@@ -35,7 +36,8 @@ export function DispositionReport({ cows }: DispositionReportProps) {
       const startDate = new Date(selectedYear, selectedMonth - 1, 1);
       const endDate = new Date(selectedYear, selectedMonth, 0);
       
-      const { data, error } = await supabase
+      // Fetch dispositions for the period
+      const { data: dispositionData, error } = await supabase
         .from('cow_dispositions')
         .select('*')
         .eq('company_id', currentCompany.id)
@@ -44,7 +46,7 @@ export function DispositionReport({ cows }: DispositionReportProps) {
 
       if (error) throw error;
 
-      const transformedDispositions: CowDisposition[] = (data || []).map(d => ({
+      const transformedDispositions: CowDisposition[] = (dispositionData || []).map(d => ({
         id: d.id,
         cowId: d.cow_id,
         dispositionDate: new Date(d.disposition_date),
@@ -59,6 +61,44 @@ export function DispositionReport({ cows }: DispositionReportProps) {
       }));
 
       setDispositions(transformedDispositions);
+
+      // Fetch cow data for the disposed cows
+      if (transformedDispositions.length > 0) {
+        const cowIds = transformedDispositions.map(d => d.cowId);
+        const { data: cowData, error: cowError } = await supabase
+          .from('cows')
+          .select('*')
+          .in('id', cowIds);
+
+        if (cowError) throw cowError;
+
+        const transformedCows: Cow[] = (cowData || []).map(cow => ({
+          id: cow.id,
+          tagNumber: cow.tag_number,
+          name: cow.name,
+          birthDate: new Date(cow.birth_date),
+          freshenDate: new Date(cow.freshen_date),
+          purchasePrice: cow.purchase_price,
+          salvageValue: cow.salvage_value,
+          currentValue: cow.current_value,
+          totalDepreciation: cow.total_depreciation,
+          status: cow.status as 'active' | 'sold' | 'deceased' | 'retired',
+          depreciationMethod: cow.depreciation_method as 'straight-line',
+          acquisitionType: cow.acquisition_type as 'purchased' | 'raised',
+          dispositionId: cow.disposition_id,
+          assetType: {
+            id: cow.asset_type_id,
+            name: 'Dairy Cow',
+            defaultDepreciationYears: 5,
+            defaultDepreciationMethod: 'straight-line',
+            defaultSalvagePercentage: 10
+          }
+        }));
+
+        setDispositionCows(transformedCows);
+      } else {
+        setDispositionCows([]);
+      }
     } catch (error) {
       console.error('Error fetching dispositions:', error);
       toast({
@@ -80,7 +120,7 @@ export function DispositionReport({ cows }: DispositionReportProps) {
     const journalEntries: JournalEntry[] = [];
 
     dispositions.forEach((disposition) => {
-      const cow = cows.find(c => c.id === disposition.cowId);
+      const cow = dispositionCows.find(c => c.id === disposition.cowId);
       if (!cow) return;
 
       // Calculate accumulated depreciation
@@ -238,7 +278,7 @@ export function DispositionReport({ cows }: DispositionReportProps) {
   });
 
   const exportData = dispositions.map(d => {
-    const cow = cows.find(c => c.id === d.cowId);
+    const cow = dispositionCows.find(c => c.id === d.cowId);
     return {
       CowTag: cow?.tagNumber || d.cowId,
       DispositionDate: DepreciationCalculator.formatDate(d.dispositionDate),
@@ -423,7 +463,7 @@ export function DispositionReport({ cows }: DispositionReportProps) {
                     </TableHeader>
                     <TableBody>
                       {dispositions.map((disposition) => {
-                        const cow = cows.find(c => c.id === disposition.cowId);
+                        const cow = dispositionCows.find(c => c.id === disposition.cowId);
                         return (
                           <TableRow key={disposition.id}>
                             <TableCell className="font-medium">{cow?.tagNumber || disposition.cowId}</TableCell>
