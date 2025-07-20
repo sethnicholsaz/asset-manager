@@ -119,9 +119,15 @@ export function DispositionReport({ cows }: DispositionReportProps) {
   const generateJournalEntries = (): JournalEntry[] => {
     const journalEntries: JournalEntry[] = [];
 
+    console.log(`Generating journal entries for ${dispositions.length} dispositions`);
+    console.log(`Available cow data: ${dispositionCows.length} cows`);
+
     dispositions.forEach((disposition) => {
       const cow = dispositionCows.find(c => c.id === disposition.cowId);
-      if (!cow) return;
+      if (!cow) {
+        console.log(`No cow data found for disposition ${disposition.id}, cow ID: ${disposition.cowId}`);
+        return;
+      }
 
       // Calculate accumulated depreciation
       let accumulatedDepreciation = cow.totalDepreciation || 0;
