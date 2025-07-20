@@ -159,88 +159,108 @@ export default function JournalEntryDetails() {
           <style>
             body {
               font-family: Arial, sans-serif;
-              margin: 40px;
+              margin: 15px;
               color: #333;
+              font-size: 8pt;
+              line-height: 1.1;
             }
             .header {
               text-align: center;
-              border-bottom: 2px solid #333;
-              padding-bottom: 20px;
-              margin-bottom: 30px;
+              border-bottom: 1px solid #333;
+              padding-bottom: 8px;
+              margin-bottom: 12px;
             }
             .company-name {
-              font-size: 24px;
+              font-size: 12pt;
               font-weight: bold;
-              margin-bottom: 5px;
+              margin-bottom: 2px;
             }
             .report-title {
-              font-size: 18px;
-              margin-bottom: 10px;
+              font-size: 10pt;
+              margin-bottom: 4px;
             }
             .entry-info {
               display: flex;
               justify-content: space-between;
-              margin-bottom: 20px;
-              padding: 15px;
-              background-color: #f5f5f5;
-              border-radius: 5px;
+              margin-bottom: 8px;
+              padding: 6px;
+              background-color: #f8f8f8;
+              border-radius: 3px;
+              font-size: 7pt;
             }
-            .entry-details {
-              flex: 1;
+            .entry-details h3 {
+              margin: 0 0 4px 0;
+              font-size: 9pt;
             }
-            .entry-meta {
-              text-align: right;
+            .entry-details p, .entry-meta p {
+              margin: 1px 0;
+              line-height: 1.2;
             }
             table {
               width: 100%;
               border-collapse: collapse;
-              margin-bottom: 20px;
+              margin-bottom: 8px;
+              font-size: 7pt;
             }
             th, td {
-              border: 1px solid #ddd;
-              padding: 12px;
+              border: 1px solid #ccc;
+              padding: 3px 4px;
               text-align: left;
+              line-height: 1.1;
             }
             th {
-              background-color: #f8f9fa;
+              background-color: #f0f0f0;
               font-weight: bold;
+              font-size: 7pt;
             }
             .amount {
               text-align: right;
               font-family: monospace;
             }
             .totals {
-              margin-top: 20px;
-              padding: 15px;
-              background-color: #f8f9fa;
-              border-radius: 5px;
+              margin-top: 8px;
+              padding: 6px;
+              background-color: #f8f8f8;
+              border-radius: 3px;
+              font-size: 7pt;
+            }
+            .totals h4 {
+              margin: 0 0 6px 0;
+              font-size: 8pt;
+              color: #333;
             }
             .total-row {
               display: flex;
               justify-content: space-between;
-              margin-bottom: 5px;
+              margin-bottom: 2px;
+              line-height: 1.2;
             }
             .footer {
-              margin-top: 40px;
+              margin-top: 12px;
               text-align: center;
-              font-size: 12px;
+              font-size: 6pt;
               color: #666;
               border-top: 1px solid #ddd;
-              padding-top: 20px;
+              padding-top: 6px;
+              line-height: 1.1;
             }
             .status-badge {
               display: inline-block;
-              padding: 4px 8px;
-              border-radius: 4px;
-              font-size: 12px;
+              padding: 1px 4px;
+              border-radius: 2px;
+              font-size: 6pt;
               font-weight: bold;
               ${entry.status === 'posted' ? 'background-color: #d4edda; color: #155724;' : 
                 entry.status === 'draft' ? 'background-color: #fff3cd; color: #856404;' : 
                 'background-color: #d1ecf1; color: #0c5460;'}
             }
             @media print {
-              body { margin: 20px; }
+              body { 
+                margin: 10px; 
+                font-size: 8pt;
+              }
               .header { page-break-after: avoid; }
+              table { page-break-inside: avoid; }
             }
           </style>
         </head>
@@ -253,21 +273,21 @@ export default function JournalEntryDetails() {
           <div class="entry-info">
             <div class="entry-details">
               <h3>${getMonthName(entry.month)} ${entry.year} - ${entry.entry_type.charAt(0).toUpperCase() + entry.entry_type.slice(1)}</h3>
-              <p><strong>Description:</strong> ${entry.description}</p>
-              <p><strong>Entry Date:</strong> ${new Date(entry.entry_date).toLocaleDateString()}</p>
+              <p><strong>Desc:</strong> ${entry.description}</p>
+              <p><strong>Date:</strong> ${new Date(entry.entry_date).toLocaleDateString()}</p>
               <p><strong>Status:</strong> <span class="status-badge">${entry.status.toUpperCase()}</span></p>
             </div>
             <div class="entry-meta">
-              <p><strong>Entry ID:</strong> ${entry.id.substring(0, 8)}</p>
+              <p><strong>ID:</strong> ${entry.id.substring(0, 8)}</p>
               <p><strong>Created:</strong> ${new Date(entry.created_at).toLocaleDateString()}</p>
-              <p><strong>Total Amount:</strong> ${DepreciationCalculator.formatCurrency(entry.total_amount)}</p>
+              <p><strong>Total:</strong> ${DepreciationCalculator.formatCurrency(entry.total_amount)}</p>
             </div>
           </div>
 
           <table>
             <thead>
               <tr>
-                <th>Account Code</th>
+                <th>Acct</th>
                 <th>Account Name</th>
                 <th>Description</th>
                 <th class="amount">Debit</th>
@@ -288,15 +308,15 @@ export default function JournalEntryDetails() {
           </table>
 
           <div class="totals">
-            <h4 style="margin-bottom: 15px; color: #333;">Account Summary</h4>
-            <table style="margin-bottom: 20px; font-size: 14px;">
+            <h4>Account Summary</h4>
+            <table style="margin-bottom: 8px;">
               <thead>
                 <tr>
-                  <th>Account Code</th>
+                  <th>Acct</th>
                   <th>Account Name</th>
-                  <th class="amount">Total Debits</th>
-                  <th class="amount">Total Credits</th>
-                  <th class="amount">Net Amount</th>
+                  <th class="amount">Debits</th>
+                  <th class="amount">Credits</th>
+                  <th class="amount">Net</th>
                 </tr>
               </thead>
               <tbody>
@@ -316,30 +336,29 @@ export default function JournalEntryDetails() {
             </table>
           </div>
 
-          <div class="totals" style="background-color: ${totalDebits === totalCredits ? '#d4edda' : '#f8d7da'};">
-            <h4 style="margin-bottom: 15px; color: #333;">Journal Entry Totals</h4>
+          <div class="totals" style="background-color: ${totalDebits === totalCredits ? '#e8f5e8' : '#ffe8e8'};">
+            <h4>Totals</h4>
             <div class="total-row">
-              <strong>Total Debits:</strong>
-              <strong>${DepreciationCalculator.formatCurrency(totalDebits)}</strong>
+              <span><strong>Debits:</strong></span>
+              <span><strong>${DepreciationCalculator.formatCurrency(totalDebits)}</strong></span>
             </div>
             <div class="total-row">
-              <strong>Total Credits:</strong>
-              <strong>${DepreciationCalculator.formatCurrency(totalCredits)}</strong>
+              <span><strong>Credits:</strong></span>
+              <span><strong>${DepreciationCalculator.formatCurrency(totalCredits)}</strong></span>
             </div>
-            <div class="total-row" style="border-top: 2px solid #333; padding-top: 10px; margin-top: 10px; font-size: 16px;">
-              <strong>Balance Check:</strong>
-              <strong style="color: ${totalDebits === totalCredits ? '#28a745' : '#d73527'};">${totalDebits === totalCredits ? 'BALANCED ✓' : `UNBALANCED by ${DepreciationCalculator.formatCurrency(Math.abs(totalDebits - totalCredits))} ⚠️`}</strong>
+            <div class="total-row" style="border-top: 1px solid #333; padding-top: 4px; margin-top: 4px; font-weight: bold;">
+              <span>Balance:</span>
+              <span style="color: ${totalDebits === totalCredits ? '#28a745' : '#d73527'};">${totalDebits === totalCredits ? 'OK ✓' : `Off by ${DepreciationCalculator.formatCurrency(Math.abs(totalDebits - totalCredits))} ⚠️`}</span>
             </div>
             ${totalDebits !== totalCredits ? `
-              <div style="margin-top: 15px; padding: 10px; background-color: #fff3cd; border: 1px solid #ffeaa7; border-radius: 4px;">
-                <strong style="color: #856404;">⚠️ ATTENTION:</strong> This journal entry does not balance. The difference of ${DepreciationCalculator.formatCurrency(Math.abs(totalDebits - totalCredits))} needs to be investigated.
+              <div style="margin-top: 6px; padding: 4px; background-color: #fff3cd; border: 1px solid #ffeaa7; border-radius: 2px; font-size: 6pt;">
+                <strong>⚠️ UNBALANCED:</strong> Difference of ${DepreciationCalculator.formatCurrency(Math.abs(totalDebits - totalCredits))} requires review.
               </div>
             ` : ''}
           </div>
 
           <div class="footer">
-            <p>Generated on ${new Date().toLocaleString()}</p>
-            <p>This is a computer-generated report from the ${currentCompany?.name || 'Company'} accounting system.</p>
+            <p>Generated: ${new Date().toLocaleString()} | ${currentCompany?.name || 'Company'} Accounting System</p>
           </div>
         </body>
       </html>
