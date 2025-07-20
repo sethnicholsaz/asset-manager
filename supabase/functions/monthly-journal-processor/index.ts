@@ -1,4 +1,4 @@
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.3'
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -13,19 +13,12 @@ interface Company {
 interface Cow {
   id: string;
   tag_number: string;
-  name?: string;
-  birth_date: string;
-  freshen_date: string;
   purchase_price: number;
   salvage_value: number;
-  current_value: number;
+  freshen_date: string;
   total_depreciation: number;
   status: string;
-  depreciation_method: string;
   acquisition_type: string;
-  asset_type_id: string;
-  company_id: string;
-  disposition_id?: string;
 }
 
 interface Disposition {
@@ -36,26 +29,20 @@ interface Disposition {
   sale_amount: number;
   final_book_value: number;
   gain_loss: number;
-  notes?: string;
-  company_id: string;
 }
 
-// Helper functions for depreciation calculations
 function calculateMonthlyDepreciation(cow: Cow, currentDate: Date): number {
   const depreciableAmount = cow.purchase_price - cow.salvage_value;
-  const depreciationYears = 5; // Default depreciation years
-  const monthlyDepreciation = depreciableAmount / (depreciationYears * 12);
-  return Math.max(0, monthlyDepreciation);
+  const depreciationYears = 5; // Standard 5-year depreciation for dairy cows
+  
+  // Straight-line depreciation
+  return depreciableAmount / (depreciationYears * 12);
 }
 
 function getMonthsSinceStart(startDate: Date, currentDate: Date): number {
-  const start = new Date(startDate.getFullYear(), startDate.getMonth(), 1);
-  const current = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
-  
-  const yearDiff = current.getFullYear() - start.getFullYear();
-  const monthDiff = current.getMonth() - start.getMonth();
-  
-  return Math.max(0, yearDiff * 12 + monthDiff);
+  const yearDiff = currentDate.getFullYear() - startDate.getFullYear();
+  const monthDiff = currentDate.getMonth() - startDate.getMonth();
+  return yearDiff * 12 + monthDiff;
 }
 
 function formatCurrency(amount: number): string {
@@ -66,93 +53,173 @@ function formatCurrency(amount: number): string {
 }
 
 function getMonthName(month: number): string {
-  return new Date(2000, month - 1, 1).toLocaleString('en-US', { month: 'long' });
+  const months = ['January', 'February', 'March', 'April', 'May', 'June',
+    'July', 'August', 'September', 'October', 'November', 'December'];
+  return months[month - 1];
 }
 
-Deno.serve(async (req) => {
+serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    // Initialize Supabase client
+    const { createClient } = await import('https://esm.sh/@supabase/supabase-js@2.52.0');
+    
     const supabase = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
-    // Get the previous month (journal entries are created on the 5th for the previous month)
+    // Calculate previous month (journal entries are created for the previous month)
     const now = new Date();
     const prevMonth = now.getMonth() === 0 ? 12 : now.getMonth();
     const prevYear = now.getMonth() === 0 ? now.getFullYear() - 1 : now.getFullYear();
-    
+
     console.log(`Processing monthly journal entries for ${getMonthName(prevMonth)} ${prevYear}`);
 
-    // Get all companies
+    // Fetch all companies
     const { data: companies, error: companiesError } = await supabase
       .from('companies')
       .select('id, name');
 
-    if (companiesError) {
-      console.error('Error fetching companies:', companiesError);
-      throw companiesError;
-    }
+    if (companiesError) throw companiesError;
 
     let totalCompaniesProcessed = 0;
     let totalJournalEntriesCreated = 0;
 
-    // Process each company
-    for (const company of (companies || [])) {
+    for (const company of companies) {
       console.log(`Processing company: ${company.name} (${company.id})`);
 
       try {
-        // Check if journal entries already exist for this month/year
+        // Check for existing entries for this month
         const { data: existingEntries } = await supabase
           .from('stored_journal_entries')
-          .select('id, entry_type')
+          .select('entry_type')
           .eq('company_id', company.id)
           .eq('month', prevMonth)
           .eq('year', prevYear);
 
         const hasDepreciationEntry = existingEntries?.some(e => e.entry_type === 'depreciation');
         const hasDispositionEntry = existingEntries?.some(e => e.entry_type === 'disposition');
+        const hasAcquisitionEntry = existingEntries?.some(e => e.entry_type === 'acquisition');
+
+        // Process acquisitions first (cows entering the herd)
+        if (!hasAcquisitionEntry) {
+          console.log(`Creating acquisition entry for ${company.name}`);
+          
+          // Get cows that entered the herd in the previous month
+          const startOfMonth = new Date(prevYear, prevMonth - 1, 1);
+          const endOfMonth = new Date(prevYear, prevMonth, 0);
+
+          const { data: newCows, error: newCowsError } = await supabase
+            .from('cows')
+            .select('*')
+            .eq('company_id', company.id)
+            .gte('freshen_date', startOfMonth.toISOString().split('T')[0])
+            .lte('freshen_date', endOfMonth.toISOString().split('T')[0]);
+
+          if (newCowsError) throw newCowsError;
+
+          console.log(`Found ${newCows?.length || 0} new cows for acquisition`);
+
+          if (newCows && newCows.length > 0) {
+            let totalAcquisitionAmount = 0;
+            const acquisitionJournalLines: any[] = [];
+
+            newCows.forEach((cow: any) => {
+              totalAcquisitionAmount += cow.purchase_price;
+
+              // Add cow asset to books
+              acquisitionJournalLines.push({
+                account_code: '1500',
+                account_name: 'Dairy Cows',
+                description: `Add cow #${cow.tag_number} to herd - ${cow.acquisition_type}`,
+                debit_amount: cow.purchase_price,
+                credit_amount: 0,
+                line_type: 'debit'
+              });
+
+              // Credit appropriate source account
+              let sourceAccountCode = '1400'; // Default for purchased
+              let sourceAccountName = 'Purchased Cows';
+              
+              if (cow.acquisition_type === 'raised') {
+                sourceAccountCode = '1450';
+                sourceAccountName = 'Raised Heifers';
+              }
+
+              acquisitionJournalLines.push({
+                account_code: sourceAccountCode,
+                account_name: sourceAccountName,
+                description: `Transfer cow #${cow.tag_number} to dairy herd`,
+                debit_amount: 0,
+                credit_amount: cow.purchase_price,
+                line_type: 'credit'
+              });
+            });
+
+            if (acquisitionJournalLines.length > 0) {
+              // Create acquisition journal entry
+              const { data: journalEntry, error: journalError } = await supabase
+                .from('stored_journal_entries')
+                .insert({
+                  company_id: company.id,
+                  entry_date: new Date(prevYear, prevMonth - 1, 1),
+                  month: prevMonth,
+                  year: prevYear,
+                  entry_type: 'acquisition',
+                  description: `Cow Acquisitions - ${getMonthName(prevMonth)} ${prevYear}`,
+                  total_amount: totalAcquisitionAmount,
+                  status: 'posted'
+                })
+                .select('id')
+                .single();
+
+              if (journalError) throw journalError;
+
+              // Add journal_entry_id to all lines
+              const journalLinesToInsert = acquisitionJournalLines.map(line => ({
+                ...line,
+                journal_entry_id: journalEntry.id
+              }));
+
+              const { error: linesError } = await supabase
+                .from('stored_journal_lines')
+                .insert(journalLinesToInsert);
+
+              if (linesError) throw linesError;
+
+              console.log(`Created acquisition entry: ${formatCurrency(totalAcquisitionAmount)}`);
+              totalJournalEntriesCreated++;
+            }
+          }
+        }
 
         // Process Depreciation Entries (if not already created)
         if (!hasDepreciationEntry) {
           console.log(`Creating depreciation entry for ${company.name}`);
           
-          // Fetch all cows with pagination
-          let allCows: Cow[] = [];
-          let from = 0;
-          const pageSize = 1000;
+          // Fetch all active cows for this company as of the report date
+          const reportDate = new Date(prevYear, prevMonth, 0); // Last day of the month
           
-          while (true) {
-            const { data: cows, error: cowsError } = await supabase
-              .from('cows')
-              .select('*')
-              .eq('company_id', company.id)
-              .order('tag_number')
-              .range(from, from + pageSize - 1);
+          const { data: allCows, error: cowsError } = await supabase
+            .from('cows')
+            .select('*')
+            .eq('company_id', company.id);
 
-            if (cowsError) throw cowsError;
-            if (!cows || cows.length === 0) break;
-            
-            allCows = allCows.concat(cows);
-            if (cows.length < pageSize) break;
-            from += pageSize;
-          }
+          if (cowsError) throw cowsError;
 
-          // Filter active cows for the reporting period
-          const reportDate = new Date(prevYear, prevMonth, 0); // Last day of previous month
-          const activeCows = allCows.filter((cow: Cow) => 
+          // Filter active cows that were in service during the reporting period
+          const activeCows = allCows?.filter((cow: any) => 
             cow.status === 'active' && 
             new Date(cow.freshen_date) <= reportDate
           );
 
-          console.log(`Found ${activeCows.length} active cows for depreciation`);
+          console.log(`Found ${activeCows?.length || 0} active cows for depreciation`);
 
-          if (activeCows.length > 0) {
+          if (activeCows && activeCows.length > 0) {
             // Calculate total monthly depreciation
             let totalMonthlyDepreciation = 0;
             
@@ -167,7 +234,7 @@ Deno.serve(async (req) => {
                 .from('stored_journal_entries')
                 .insert({
                   company_id: company.id,
-                  entry_date: new Date(prevYear, prevMonth - 1, 1), // First day of the month
+                  entry_date: new Date(prevYear, prevMonth - 1, 1),
                   month: prevMonth,
                   year: prevYear,
                   entry_type: 'depreciation',
@@ -371,9 +438,8 @@ Deno.serve(async (req) => {
         }
 
         totalCompaniesProcessed++;
-      } catch (companyError) {
-        console.error(`Error processing company ${company.name}:`, companyError);
-        // Continue with next company
+      } catch (error) {
+        console.error(`Error processing company ${company.name}:`, error);
       }
     }
 
@@ -382,28 +448,23 @@ Deno.serve(async (req) => {
     return new Response(
       JSON.stringify({
         success: true,
-        month: prevMonth,
-        year: prevYear,
         companiesProcessed: totalCompaniesProcessed,
         journalEntriesCreated: totalJournalEntriesCreated,
-        message: `Monthly journal entries processed for ${getMonthName(prevMonth)} ${prevYear}`
+        period: `${getMonthName(prevMonth)} ${prevYear}`
       }),
-      { 
-        status: 200, 
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+      {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 200,
       }
     );
 
   } catch (error) {
-    console.error('Error in monthly processing:', error);
+    console.error('Error in monthly journal processor:', error);
     return new Response(
-      JSON.stringify({ 
-        error: 'Failed to process monthly journal entries', 
-        details: error.message 
-      }),
-      { 
-        status: 500, 
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+      JSON.stringify({ error: error.message }),
+      {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 500,
       }
     );
   }
