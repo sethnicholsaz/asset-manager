@@ -29,6 +29,8 @@ interface ProcessedResult {
 export default function AutomatedImport() {
   const [isProcessing, setIsProcessing] = useState(false);
   const [result, setResult] = useState<ProcessedResult | null>(null);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [uploadType, setUploadType] = useState<'fresh' | 'disposition' | null>(null);
   const { toast } = useToast();
   const { currentCompany } = useAuth();
 
@@ -210,7 +212,7 @@ export default function AutomatedImport() {
     return result;
   };
 
-  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>, fileType: 'fresh' | 'disposition') => {
+  const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>, fileType: 'fresh' | 'disposition') => {
     const file = event.target.files?.[0];
     if (!file) return;
 
@@ -225,17 +227,31 @@ export default function AutomatedImport() {
       return;
     }
 
-    setIsProcessing(true);
+    setSelectedFile(file);
+    setUploadType(fileType);
     setResult(null);
+  };
+
+  const handleUpload = async () => {
+    if (!selectedFile || !uploadType) {
+      toast({
+        title: "No file selected",
+        description: "Please select a CSV file first",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsProcessing(true);
 
     try {
-      const csvContent = await file.text();
+      const csvContent = await selectedFile.text();
       console.log('CSV content preview:', csvContent.substring(0, 200));
       const data = parseCsvData(csvContent);
       console.log('Parsed data:', data.slice(0, 2)); // Log first 2 rows
 
       let result: ProcessedResult;
-      if (fileType === 'fresh') {
+      if (uploadType === 'fresh') {
         result = await processFreshCows(data);
       } else {
         result = await processDispositions(data);
@@ -266,8 +282,6 @@ export default function AutomatedImport() {
       });
     } finally {
       setIsProcessing(false);
-      // Reset file input
-      event.target.value = '';
     }
   };
 
@@ -299,9 +313,14 @@ export default function AutomatedImport() {
                 id="fresh-upload"
                 type="file"
                 accept=".csv"
-                onChange={(e) => handleFileUpload(e, 'fresh')}
+                onChange={(e) => handleFileSelect(e, 'fresh')}
                 disabled={isProcessing}
               />
+              {selectedFile && uploadType === 'fresh' && (
+                <p className="text-sm text-muted-foreground">
+                  Selected: {selectedFile.name}
+                </p>
+              )}
             </div>
             <Alert>
               <FileText className="h-4 w-4" />
@@ -332,9 +351,14 @@ export default function AutomatedImport() {
                 id="disposition-upload"
                 type="file"
                 accept=".csv"
-                onChange={(e) => handleFileUpload(e, 'disposition')}
+                onChange={(e) => handleFileSelect(e, 'disposition')}
                 disabled={isProcessing}
               />
+              {selectedFile && uploadType === 'disposition' && (
+                <p className="text-sm text-muted-foreground">
+                  Selected: {selectedFile.name}
+                </p>
+              )}
             </div>
             <Alert>
               <FileText className="h-4 w-4" />
@@ -347,6 +371,37 @@ export default function AutomatedImport() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Upload Button */}
+      {selectedFile && (
+        <Card>
+          <CardContent className="flex items-center justify-between py-4">
+            <div className="flex items-center gap-3">
+              <FileText className="h-5 w-5" />
+              <div>
+                <p className="font-medium">{selectedFile.name}</p>
+                <p className="text-sm text-muted-foreground">
+                  Ready to process as {uploadType === 'fresh' ? 'Fresh Cows' : 'Dispositions'}
+                </p>
+              </div>
+            </div>
+            <Button 
+              onClick={handleUpload} 
+              disabled={isProcessing}
+              className="min-w-[120px]"
+            >
+              {isProcessing ? (
+                <div className="flex items-center gap-2">
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                  Processing...
+                </div>
+              ) : (
+                'Upload & Process'
+              )}
+            </Button>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Processing Status */}
       {isProcessing && (
