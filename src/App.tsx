@@ -16,6 +16,7 @@ import { CompanySelector } from "@/components/CompanySelector";
 import { AppSidebar } from "@/components/AppSidebar";
 import Index from "./pages/Index";
 import Import from "./pages/Import";
+import AutomatedImport from "./pages/AutomatedImport";
 import Dispositions from "./pages/Dispositions";
 import Reports from "./pages/Reports";
 import Settings from "./pages/Settings";
@@ -200,6 +201,7 @@ function AppContent() {
             <Routes>
               <Route path="/" element={<Index />} />
               <Route path="/import" element={<Import />} />
+              <Route path="/automated-import" element={<AutomatedImport />} />
               <Route path="/dispositions" element={<Dispositions />} />
               <Route path="/reports" element={<Reports />} />
               <Route path="/users" element={<UserManagement />} />

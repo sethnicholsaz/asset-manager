@@ -7,7 +7,8 @@ import {
   Settings,
   HelpCircle,
   Beef,
-  Users
+  Users,
+  UploadCloud
 } from "lucide-react";
 import { NavLink, useLocation } from "react-router-dom";
 
@@ -28,6 +29,7 @@ import {
 const mainItems = [
   { title: "Dashboard", url: "/", icon: BarChart3 },
   { title: "Import Cows", url: "/import", icon: Upload },
+  { title: "Automated Import", url: "/automated-import", icon: UploadCloud },
   { title: "Dispositions", url: "/dispositions", icon: TrendingDown },
   { title: "Reports", url: "/reports", icon: FileText },
   { title: "Team", url: "/users", icon: Users },
