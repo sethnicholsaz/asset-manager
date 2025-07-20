@@ -203,7 +203,17 @@ const Index = () => {
   };
 
   const handleSearch = async (searchQuery: string) => {
+    // Prevent multiple simultaneous searches
+    if (isSearching) return;
+    
     setCurrentSearchQuery(searchQuery);
+    
+    if (!searchQuery.trim()) {
+      // If empty search, just reload normal data without setting loading
+      await fetchCows();
+      return;
+    }
+    
     setIsSearching(true);
     await fetchCows(searchQuery);
   };

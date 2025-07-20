@@ -30,12 +30,14 @@ export function CowDataTable({ cows, summaryStats, onEditCow, onDeleteCow, onSea
 
   // Debounced search effect
   useEffect(() => {
+    if (!onSearch) return;
+    
     const timer = setTimeout(() => {
-      onSearch?.(searchQuery);
-    }, 300);
+      onSearch(searchQuery);
+    }, 500); // Increased debounce to 500ms
 
     return () => clearTimeout(timer);
-  }, [searchQuery, onSearch]);
+  }, [searchQuery]); // Removed onSearch from dependencies to prevent re-triggering
 
   const handleSort = (column: keyof Cow) => {
     if (sortColumn === column) {
