@@ -90,7 +90,12 @@ const processDate = (dateStr: string): string => {
     if (parts.length === 3) {
       const month = parts[0].padStart(2, '0');
       const day = parts[1].padStart(2, '0'); 
-      const year = parts[2];
+      let year = parts[2];
+      
+      // Handle 2-digit years by adding "20" prefix
+      if (year.length === 2) {
+        year = '20' + year;
+      }
       
       const result = `${year}-${month}-${day}`;
       console.log(`Date conversion: "${cleanDate}" -> "${result}"`);
