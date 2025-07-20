@@ -206,7 +206,7 @@ Deno.serve(async (req) => {
     // Process rows in batches for better performance
     const processedCows: CowData[] = [];
     const errors: string[] = [];
-    const batchSize = 250;
+    const batchSize = 1000; // Increased batch size to reduce DB calls
     
     console.log(`Processing ${dataRows.length} rows in batches of ${batchSize}`);
 
