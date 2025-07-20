@@ -267,15 +267,19 @@ const handler = async (req: Request): Promise<Response> => {
       const masterKey = `${master.id.trim()}_${processDate(master.birthdate)}`;
       if (!dbLookup.has(masterKey)) {
         // Special logging for cow #40875 to debug the issue
-        if (master.id === '40875') {
+        if (master.id.trim() === '40875') {
           console.log(`DEBUG cow #40875:`);
-          console.log(`  Master ID: "${master.id}"`);
-          console.log(`  Master birthdate: "${master.birthdate}"`);
+          console.log(`  Master ID: "${master.id}" (length: ${master.id.length})`);
+          console.log(`  Master birthdate: "${master.birthdate}" (length: ${master.birthdate.length})`);
           console.log(`  Processed master birthdate: "${processDate(master.birthdate)}"`);
-          console.log(`  Master key: "${masterKey}"`);
+          console.log(`  Master key: "${masterKey}" (length: ${masterKey.length})`);
           console.log(`  DB lookup has this key: ${dbLookup.has(masterKey)}`);
           console.log(`  DB lookup keys containing 40875:`, Array.from(dbLookup).filter(k => k.includes('40875')));
-          console.log(`  All DB keys sample:`, Array.from(dbLookup).slice(0, 5));
+          console.log(`  Master key bytes:`, Array.from(masterKey).map(c => c.charCodeAt(0)));
+          const dbKey40875 = Array.from(dbLookup).find(k => k.includes('40875'));
+          if (dbKey40875) {
+            console.log(`  DB key bytes:`, Array.from(dbKey40875).map(c => c.charCodeAt(0)));
+          }
         }
         
         console.log(`Cow ${master.id} found in master but not in DB. Master key: ${masterKey}`);
