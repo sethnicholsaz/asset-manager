@@ -61,10 +61,7 @@ export function DepreciationReport({ cows }: DepreciationReportProps) {
   };
 
   const currentDate = new Date(selectedYear, selectedMonth - 1, 1);
-  const activeCows = cows.filter(cow => 
-    cow.status === 'active' && 
-    new Date(cow.freshenDate) <= currentDate
-  );
+  const activeCows = cows.filter(cow => cow.status === 'active');
 
   // Calculate depreciation entries for the selected month
   const depreciationEntries: DepreciationEntry[] = activeCows.map(cow => {
