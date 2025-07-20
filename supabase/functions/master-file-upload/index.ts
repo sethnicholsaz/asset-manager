@@ -42,20 +42,34 @@ const parseCsvData = (csvContent: string): MasterFileData[] => {
   const lines = csvContent.trim().split('\n');
   const headers = lines[0].toLowerCase().split(',').map(h => h.trim());
   
+  console.log('CSV Headers found:', headers);
+  
   const idIndex = headers.findIndex(h => h.includes('id') || h.includes('tag'));
-  const birthdateIndex = headers.findIndex(h => h.includes('birth') || h.includes('bdat'));
+  const birthdateIndex = headers.findIndex(h => h.includes('bdat') || h.includes('birth') || h.includes('date'));
+  
+  console.log(`ID column index: ${idIndex}, Birthdate column index: ${birthdateIndex}`);
   
   if (idIndex === -1 || birthdateIndex === -1) {
-    throw new Error('CSV must contain ID and birthdate columns');
+    throw new Error(`CSV must contain ID and birthdate columns. Found headers: ${headers.join(', ')}`);
   }
 
-  return lines.slice(1).map(line => {
+  const parsedData = lines.slice(1).map((line, lineIndex) => {
     const values = line.split(',').map(v => v.trim());
-    return {
+    const result = {
       id: values[idIndex],
       birthdate: values[birthdateIndex]
     };
+    
+    // Log first few rows for debugging
+    if (lineIndex < 3) {
+      console.log(`Row ${lineIndex + 1}: ID="${result.id}", Birthdate="${result.birthdate}"`);
+    }
+    
+    return result;
   }).filter(row => row.id && row.birthdate);
+
+  console.log(`Parsed ${parsedData.length} valid records from CSV`);
+  return parsedData;
 };
 
 const processDate = (dateStr: string): string => {
