@@ -76,19 +76,38 @@ const processDate = (dateStr: string): string => {
   // Handle various date formats and clean the input
   const cleanDate = dateStr.replace(/['"]/g, '').trim();
   
+  console.log(`Processing date: "${dateStr}" -> cleaned: "${cleanDate}"`);
+  
   // If already in YYYY-MM-DD format, return as-is
   if (/^\d{4}-\d{2}-\d{2}$/.test(cleanDate)) {
     return cleanDate;
   }
   
   if (cleanDate.includes('/')) {
-    const [month, day, year] = cleanDate.split('/');
-    const fullYear = year.length === 2 ? '20' + year : year;
-    return `${fullYear}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+    const parts = cleanDate.split('/');
+    if (parts.length === 3) {
+      let month, day, year;
+      
+      // Handle M/D/YYYY or MM/DD/YYYY format (your CSV format)
+      if (parts[2].length === 4) {
+        month = parts[0];
+        day = parts[1]; 
+        year = parts[2];
+      } else {
+        // Handle MM/DD/YY format
+        month = parts[0];
+        day = parts[1];
+        year = parts[2].length === 2 ? '20' + parts[2] : parts[2];
+      }
+      
+      const result = `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+      console.log(`Date conversion: "${cleanDate}" -> "${result}"`);
+      return result;
+    }
   }
   
   // If in MM-DD-YYYY or DD-MM-YYYY format with dashes
-  if (cleanDate.includes('-') && cleanDate.length === 10) {
+  if (cleanDate.includes('-') && cleanDate.length >= 8) {
     const parts = cleanDate.split('-');
     if (parts[0].length === 4) {
       // Already YYYY-MM-DD
@@ -100,6 +119,7 @@ const processDate = (dateStr: string): string => {
     }
   }
   
+  console.log(`Date format not recognized: "${cleanDate}"`);
   return cleanDate;
 };
 
