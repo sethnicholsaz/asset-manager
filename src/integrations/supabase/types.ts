@@ -456,6 +456,69 @@ export type Database = {
           },
         ]
       }
+      master_file_staging: {
+        Row: {
+          action_date: string | null
+          action_notes: string | null
+          action_taken: string | null
+          birth_date: string
+          company_id: string
+          cow_id: string | null
+          created_at: string
+          current_status: string | null
+          discrepancy_type: string
+          disposition_date: string | null
+          disposition_type: string | null
+          freshen_date: string | null
+          id: string
+          master_file_name: string | null
+          sale_amount: number | null
+          tag_number: string
+          updated_at: string
+          verification_date: string
+        }
+        Insert: {
+          action_date?: string | null
+          action_notes?: string | null
+          action_taken?: string | null
+          birth_date: string
+          company_id: string
+          cow_id?: string | null
+          created_at?: string
+          current_status?: string | null
+          discrepancy_type: string
+          disposition_date?: string | null
+          disposition_type?: string | null
+          freshen_date?: string | null
+          id?: string
+          master_file_name?: string | null
+          sale_amount?: number | null
+          tag_number: string
+          updated_at?: string
+          verification_date?: string
+        }
+        Update: {
+          action_date?: string | null
+          action_notes?: string | null
+          action_taken?: string | null
+          birth_date?: string
+          company_id?: string
+          cow_id?: string | null
+          created_at?: string
+          current_status?: string | null
+          discrepancy_type?: string
+          disposition_date?: string | null
+          disposition_type?: string | null
+          freshen_date?: string | null
+          id?: string
+          master_file_name?: string | null
+          sale_amount?: number | null
+          tag_number?: string
+          updated_at?: string
+          verification_date?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           avatar_url: string | null

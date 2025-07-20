@@ -120,6 +120,13 @@ const handler = async (req: Request): Promise<Response> => {
 
     console.log(`Processing file: ${file.name}, size: ${file.size} bytes for company: ${companyId}`);
 
+    // Clear previous staging data for this company (optional - you might want to keep history)
+    await supabase
+      .from('master_file_staging')
+      .delete()
+      .eq('company_id', companyId)
+      .eq('action_taken', 'pending');
+
     // Read and parse CSV content
     const csvContent = await file.text();
     const masterData = parseCsvData(csvContent);
@@ -139,27 +146,22 @@ const handler = async (req: Request): Promise<Response> => {
 
     console.log(`Found ${activeCows?.length || 0} active cows in database`);
 
-    // Create verification results
-    const results: VerificationResult = {
-      success: true,
-      message: 'Master file verification completed successfully',
-      data: {
-        cowsNeedingDisposal: [],
-        cowsMissingFromMaster: [],
-        cowsMissingFreshenDate: [],
-        totalMasterRecords: masterData.length,
-        totalActiveInDb: activeCows?.length || 0
-      }
-    };
+    // Prepare staging records
+    const stagingRecords = [];
 
     // Check for cows missing freshen dates
     activeCows?.forEach(cow => {
       if (!cow.freshen_date) {
-        results.data.cowsMissingFreshenDate.push({
-          id: cow.id,
-          tagNumber: cow.tag_number,
-          birthDate: cow.birth_date,
-          freshenDate: cow.freshen_date
+        stagingRecords.push({
+          company_id: companyId,
+          discrepancy_type: 'missing_freshen_date',
+          cow_id: cow.id,
+          tag_number: cow.tag_number,
+          birth_date: cow.birth_date,
+          freshen_date: cow.freshen_date,
+          current_status: cow.status,
+          master_file_name: file.name,
+          action_taken: 'pending'
         });
       }
     });
@@ -173,11 +175,16 @@ const handler = async (req: Request): Promise<Response> => {
     activeCows?.forEach(cow => {
       const key = `${cow.tag_number}_${cow.birth_date}`;
       if (!masterLookup.has(key)) {
-        results.data.cowsNeedingDisposal.push({
-          id: cow.id,
-          tagNumber: cow.tag_number,
-          birthDate: cow.birth_date,
-          status: cow.status
+        stagingRecords.push({
+          company_id: companyId,
+          discrepancy_type: 'needs_disposal',
+          cow_id: cow.id,
+          tag_number: cow.tag_number,
+          birth_date: cow.birth_date,
+          freshen_date: cow.freshen_date,
+          current_status: cow.status,
+          master_file_name: file.name,
+          action_taken: 'pending'
         });
       }
     });
@@ -191,18 +198,64 @@ const handler = async (req: Request): Promise<Response> => {
     masterData.forEach(master => {
       const key = `${master.id}_${processDate(master.birthdate)}`;
       if (!dbLookup.has(key)) {
-        results.data.cowsMissingFromMaster.push({
-          id: master.id,
-          tagNumber: master.id,
-          birthDate: processDate(master.birthdate),
-          status: 'unknown'
+        stagingRecords.push({
+          company_id: companyId,
+          discrepancy_type: 'missing_from_master',
+          cow_id: null,
+          tag_number: master.id,
+          birth_date: processDate(master.birthdate),
+          freshen_date: null,
+          current_status: 'not_in_db',
+          master_file_name: file.name,
+          action_taken: 'pending'
         });
       }
     });
 
+    // Insert staging records
+    if (stagingRecords.length > 0) {
+      const { error: stagingError } = await supabase
+        .from('master_file_staging')
+        .insert(stagingRecords);
+
+      if (stagingError) {
+        console.error('Error inserting staging records:', stagingError);
+        throw stagingError;
+      }
+    }
+
+    // Create verification results for backward compatibility
+    const results: VerificationResult = {
+      success: true,
+      message: `Master file verification completed. ${stagingRecords.length} discrepancies found and stored for review.`,
+      data: {
+        cowsNeedingDisposal: stagingRecords.filter(r => r.discrepancy_type === 'needs_disposal').map(r => ({
+          id: r.cow_id || '',
+          tagNumber: r.tag_number,
+          birthDate: r.birth_date,
+          status: r.current_status || ''
+        })),
+        cowsMissingFromMaster: stagingRecords.filter(r => r.discrepancy_type === 'missing_from_master').map(r => ({
+          id: r.cow_id || '',
+          tagNumber: r.tag_number,
+          birthDate: r.birth_date,
+          status: r.current_status || ''
+        })),
+        cowsMissingFreshenDate: stagingRecords.filter(r => r.discrepancy_type === 'missing_freshen_date').map(r => ({
+          id: r.cow_id || '',
+          tagNumber: r.tag_number,
+          birthDate: r.birth_date,
+          freshenDate: r.freshen_date
+        })),
+        totalMasterRecords: masterData.length,
+        totalActiveInDb: activeCows?.length || 0
+      }
+    };
+
     console.log('Verification completed:', {
       totalMasterRecords: results.data.totalMasterRecords,
       totalActiveInDb: results.data.totalActiveInDb,
+      totalDiscrepancies: stagingRecords.length,
       cowsNeedingDisposal: results.data.cowsNeedingDisposal.length,
       cowsMissingFromMaster: results.data.cowsMissingFromMaster.length,
       cowsMissingFreshenDate: results.data.cowsMissingFreshenDate.length
