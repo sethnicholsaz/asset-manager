@@ -61,6 +61,8 @@ Deno.serve(async (req) => {
       );
     }
 
+    console.log('Verifying token for company:', companyId, 'token:', uploadToken);
+    
     // Verify upload token is valid and active
     const { data: tokenData, error: tokenError } = await supabase
       .from('upload_tokens')
@@ -70,6 +72,8 @@ Deno.serve(async (req) => {
       .eq('is_active', true)
       .single();
 
+    console.log('Token query result:', { tokenData, tokenError });
+
     if (tokenError || !tokenData) {
       console.error('Token verification failed:', tokenError);
       return new Response(
@@ -77,6 +81,8 @@ Deno.serve(async (req) => {
         { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
+
+    console.log('Token validated successfully, getting company info...');
 
     // Get company information
     const { data: company, error: companyError } = await supabase
@@ -92,6 +98,14 @@ Deno.serve(async (req) => {
         { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
+
+    console.log('Company validated:', company.name);
+
+    // Update last_used_at for the token
+    await supabase
+      .from('upload_tokens')
+      .update({ last_used_at: new Date().toISOString() })
+      .eq('id', tokenData.id);
 
     // Parse multipart form data
     const formData = await req.formData();
