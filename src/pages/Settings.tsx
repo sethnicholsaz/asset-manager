@@ -1,5 +1,5 @@
 
-import { Building, Calculator, DollarSign, FileText, Balance } from 'lucide-react';
+import { Building, Calculator, DollarSign, FileText, Scale } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { DepreciationSettings } from '@/components/DepreciationSettings';
@@ -51,7 +51,7 @@ export default function Settings() {
             GL Accounts
           </TabsTrigger>
           <TabsTrigger value="adjustments" className="flex items-center gap-2">
-            <Balance className="h-4 w-4" />
+            <Scale className="h-4 w-4" />
             Balance Adjustments
           </TabsTrigger>
         </TabsList>

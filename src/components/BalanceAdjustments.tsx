@@ -20,7 +20,7 @@ interface BalanceAdjustment {
   adjustment_date: Date;
   prior_period_month: number;
   prior_period_year: number;
-  adjustment_type: 'depreciation_correction' | 'disposition_correction' | 'manual_adjustment';
+  adjustment_type: 'depreciation' | 'disposition' | 'purchase_price' | 'other';
   adjustment_amount: number;
   description: string;
   cow_tag?: string;
@@ -35,7 +35,7 @@ export function BalanceAdjustments() {
   const [isLoading, setIsLoading] = useState(true);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [formData, setFormData] = useState({
-    adjustment_type: 'manual_adjustment',
+    adjustment_type: 'other',
     adjustment_amount: '',
     description: '',
     cow_tag: '',
@@ -69,7 +69,7 @@ export function BalanceAdjustments() {
         adjustment_date: new Date(adj.adjustment_date),
         prior_period_month: adj.prior_period_month,
         prior_period_year: adj.prior_period_year,
-        adjustment_type: adj.adjustment_type,
+        adjustment_type: adj.adjustment_type as 'depreciation' | 'disposition' | 'purchase_price' | 'other',
         adjustment_amount: adj.adjustment_amount,
         description: adj.description,
         cow_tag: adj.cow_tag,
@@ -122,7 +122,7 @@ export function BalanceAdjustments() {
 
       setIsDialogOpen(false);
       setFormData({
-        adjustment_type: 'manual_adjustment',
+        adjustment_type: 'other',
         adjustment_amount: '',
         description: '',
         cow_tag: '',
@@ -196,12 +196,16 @@ export function BalanceAdjustments() {
 
   const getAdjustmentTypeLabel = (type: string) => {
     switch (type) {
-      case 'depreciation_correction':
-        return 'Depreciation Correction';
-      case 'disposition_correction':
-        return 'Disposition Correction';
+      case 'depreciation':
+        return 'Depreciation';
+      case 'disposition':
+        return 'Disposition';
+      case 'purchase_price':
+        return 'Purchase Price';
+      case 'other':
+        return 'Other Adjustment';
       default:
-        return 'Manual Adjustment';
+        return 'Other';
     }
   };
 
@@ -319,9 +323,10 @@ export function BalanceAdjustments() {
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="manual_adjustment">Manual Adjustment</SelectItem>
-                        <SelectItem value="depreciation_correction">Depreciation Correction</SelectItem>
-                        <SelectItem value="disposition_correction">Disposition Correction</SelectItem>
+                        <SelectItem value="other">Other Adjustment</SelectItem>
+                        <SelectItem value="depreciation">Depreciation</SelectItem>
+                        <SelectItem value="disposition">Disposition</SelectItem>
+                        <SelectItem value="purchase_price">Purchase Price</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
