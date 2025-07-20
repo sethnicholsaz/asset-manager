@@ -90,10 +90,9 @@ export default function Reports() {
       </div>
 
       <Tabs defaultValue="depreciation" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-4">
+        <TabsList className="grid w-full grid-cols-3">
           <TabsTrigger value="depreciation">Depreciation Reports</TabsTrigger>
           <TabsTrigger value="dispositions">Disposition Reports</TabsTrigger>
-          <TabsTrigger value="balance">Balance Reconciliation</TabsTrigger>
           <TabsTrigger value="journal">Journal Entries</TabsTrigger>
         </TabsList>
         
@@ -105,10 +104,7 @@ export default function Reports() {
           <DispositionReport cows={cows} />
         </TabsContent>
 
-        <TabsContent value="balance">
-          <BalanceReconciliation />
-        </TabsContent>
-
+        
         <TabsContent value="journal">
           <JournalEntryDetails />
         </TabsContent>
