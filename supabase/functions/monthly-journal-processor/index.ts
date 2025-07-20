@@ -113,8 +113,8 @@ serve(async (req) => {
         if (!hasDepreciationEntry) {
           console.log(`Creating depreciation entry for ${company.name}`);
           
-          // Fetch all active cows for this company as of the report date
-          const reportDate = new Date(targetYear, targetMonth, 0); // Last day of the month
+          // Fetch all active cows for this company as of the end of the target month
+          const reportDate = new Date(targetYear, targetMonth - 1, 31); // Last day of target month
           
           const { data: allCows, error: cowsError } = await supabase
             .from('cows')
@@ -123,11 +123,8 @@ serve(async (req) => {
 
           if (cowsError) throw cowsError;
 
-          // Filter active cows that were in service during the reporting period
-          const activeCows = allCows?.filter((cow: any) => 
-            cow.status === 'active' && 
-            new Date(cow.freshen_date) <= reportDate
-          );
+          // Filter active cows (remove date filter to include all active cows)
+          const activeCows = allCows?.filter((cow: any) => cow.status === 'active');
 
           console.log(`Found ${activeCows?.length || 0} active cows for depreciation`);
 
