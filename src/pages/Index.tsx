@@ -1,60 +1,94 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Cow } from '@/types/cow';
 import { CowDataTable } from '@/components/CowDataTable';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { BarChart3, TrendingUp, DollarSign, Calendar } from 'lucide-react';
-
-// Sample data for demo
-const sampleCows: Cow[] = [
-  {
-    id: 'cow-001',
-    tagNumber: '001',
-    name: 'Bessie',
-    birthDate: new Date('2020-03-15'),
-    freshenDate: new Date('2022-04-01'),
-    purchasePrice: 2200,
-    salvageValue: 220,
-    assetType: {
-      id: 'dairy-cow',
-      name: 'Dairy Cow',
-      defaultDepreciationYears: 5,
-      defaultDepreciationMethod: 'straight-line',
-      defaultSalvagePercentage: 10
-    },
-    status: 'active',
-    depreciationMethod: 'straight-line',
-    currentValue: 1980,
-    totalDepreciation: 220,
-    acquisitionType: 'purchased'
-  },
-  {
-    id: 'cow-002',
-    tagNumber: '002',
-    name: 'Daisy',
-    birthDate: new Date('2019-08-20'),
-    freshenDate: new Date('2021-09-15'),
-    purchasePrice: 2100,
-    salvageValue: 210,
-    assetType: {
-      id: 'dairy-cow',
-      name: 'Dairy Cow',
-      defaultDepreciationYears: 5,
-      defaultDepreciationMethod: 'straight-line',
-      defaultSalvagePercentage: 10
-    },
-    status: 'active',
-    depreciationMethod: 'straight-line',
-    currentValue: 1260,
-    totalDepreciation: 840,
-    acquisitionType: 'raised'
-  }
-];
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/contexts/AuthContext';
+import { useToast } from '@/hooks/use-toast';
 
 const Index = () => {
-  const [cows, setCows] = useState<Cow[]>(sampleCows);
+  const [cows, setCows] = useState<Cow[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const { currentCompany } = useAuth();
+  const { toast } = useToast();
 
-  const handleDeleteCow = (cowId: string) => {
-    setCows(prev => prev.filter(cow => cow.id !== cowId));
+  useEffect(() => {
+    if (currentCompany) {
+      fetchCows();
+    }
+  }, [currentCompany]);
+
+  const fetchCows = async () => {
+    if (!currentCompany) return;
+
+    try {
+      const { data, error } = await supabase
+        .from('cows')
+        .select('*')
+        .eq('company_id', currentCompany.id)
+        .eq('status', 'active');
+
+      if (error) throw error;
+
+      // Transform database data to match Cow interface
+      const transformedCows: Cow[] = (data || []).map(cow => ({
+        id: cow.id,
+        tagNumber: cow.tag_number,
+        name: cow.name,
+        birthDate: new Date(cow.birth_date),
+        freshenDate: new Date(cow.freshen_date),
+        purchasePrice: cow.purchase_price,
+        salvageValue: cow.salvage_value,
+        currentValue: cow.current_value,
+        totalDepreciation: cow.total_depreciation,
+        status: (cow.status === 'disposed' ? 'sold' : cow.status) as 'active' | 'sold' | 'deceased' | 'retired',
+        depreciationMethod: cow.depreciation_method as 'straight-line',
+        acquisitionType: cow.acquisition_type as 'purchased' | 'raised',
+        assetType: {
+          id: cow.asset_type_id,
+          name: 'Dairy Cow',
+          defaultDepreciationYears: 5,
+          defaultDepreciationMethod: 'straight-line',
+          defaultSalvagePercentage: 10
+        }
+      }));
+
+      setCows(transformedCows);
+    } catch (error) {
+      console.error('Error fetching cows:', error);
+      toast({
+        title: "Error",
+        description: "Failed to load cow data",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleDeleteCow = async (cowId: string) => {
+    try {
+      const { error } = await supabase
+        .from('cows')
+        .update({ status: 'disposed' })
+        .eq('id', cowId);
+
+      if (error) throw error;
+
+      setCows(prev => prev.filter(cow => cow.id !== cowId));
+      toast({
+        title: "Success",
+        description: "Cow removed from active inventory",
+      });
+    } catch (error) {
+      console.error('Error deleting cow:', error);
+      toast({
+        title: "Error",
+        description: "Failed to remove cow",
+        variant: "destructive",
+      });
+    }
   };
 
   // Calculate summary statistics
@@ -62,6 +96,14 @@ const Index = () => {
   const totalCurrentValue = cows.reduce((sum, cow) => sum + cow.currentValue, 0);
   const totalDepreciation = cows.reduce((sum, cow) => sum + cow.totalDepreciation, 0);
   const activeCows = cows.filter(cow => cow.status === 'active').length;
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">

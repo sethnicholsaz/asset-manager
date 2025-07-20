@@ -7,58 +7,97 @@ import { DispositionForm } from '@/components/DispositionForm';
 import { Cow, CowDisposition } from '@/types/cow';
 import { DepreciationCalculator } from '@/utils/depreciation';
 import { useToast } from '@/hooks/use-toast';
-
-const sampleCows: Cow[] = [
-  {
-    id: 'cow-001',
-    tagNumber: '001',
-    name: 'Bessie',
-    birthDate: new Date('2020-03-15'),
-    freshenDate: new Date('2022-04-01'),
-    purchasePrice: 2200,
-    salvageValue: 220,
-    assetType: {
-      id: 'dairy-cow',
-      name: 'Dairy Cow',
-      defaultDepreciationYears: 5,
-      defaultDepreciationMethod: 'straight-line',
-      defaultSalvagePercentage: 10
-    },
-    status: 'active',
-    depreciationMethod: 'straight-line',
-    currentValue: 1980,
-    totalDepreciation: 220,
-    acquisitionType: 'purchased'
-  },
-  {
-    id: 'cow-002',
-    tagNumber: '002',
-    name: 'Daisy',
-    birthDate: new Date('2019-08-20'),
-    freshenDate: new Date('2021-09-15'),
-    purchasePrice: 2100,
-    salvageValue: 210,
-    assetType: {
-      id: 'dairy-cow',
-      name: 'Dairy Cow',
-      defaultDepreciationYears: 5,
-      defaultDepreciationMethod: 'straight-line',
-      defaultSalvagePercentage: 10
-    },
-    status: 'active',
-    depreciationMethod: 'straight-line',
-    currentValue: 1260,
-    totalDepreciation: 840,
-    acquisitionType: 'raised'
-  }
-];
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/contexts/AuthContext';
 
 export default function Dispositions() {
-  const [cows, setCows] = useState<Cow[]>(sampleCows);
+  const [cows, setCows] = useState<Cow[]>([]);
   const [dispositions, setDispositions] = useState<CowDisposition[]>([]);
   const [selectedCow, setSelectedCow] = useState<Cow | null>(null);
   const [showForm, setShowForm] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const { currentCompany } = useAuth();
   const { toast } = useToast();
+
+  useEffect(() => {
+    if (currentCompany) {
+      fetchData();
+    }
+  }, [currentCompany]);
+
+  const fetchData = async () => {
+    if (!currentCompany) return;
+
+    try {
+      // Fetch cows
+      const { data: cowData, error: cowError } = await supabase
+        .from('cows')
+        .select('*')
+        .eq('company_id', currentCompany.id);
+
+      if (cowError) throw cowError;
+
+      // Transform cow data
+      const transformedCows: Cow[] = (cowData || []).map(cow => ({
+        id: cow.id,
+        tagNumber: cow.tag_number,
+        name: cow.name,
+        birthDate: new Date(cow.birth_date),
+        freshenDate: new Date(cow.freshen_date),
+        purchasePrice: cow.purchase_price,
+        salvageValue: cow.salvage_value,
+        currentValue: cow.current_value,
+        totalDepreciation: cow.total_depreciation,
+        status: cow.status as 'active' | 'sold' | 'deceased' | 'retired',
+        depreciationMethod: cow.depreciation_method as 'straight-line',
+        acquisitionType: cow.acquisition_type as 'purchased' | 'raised',
+        dispositionId: cow.disposition_id,
+        assetType: {
+          id: cow.asset_type_id,
+          name: 'Dairy Cow',
+          defaultDepreciationYears: 5,
+          defaultDepreciationMethod: 'straight-line',
+          defaultSalvagePercentage: 10
+        }
+      }));
+
+      setCows(transformedCows);
+
+      // Fetch dispositions
+      const { data: dispositionData, error: dispositionError } = await supabase
+        .from('cow_dispositions')
+        .select('*')
+        .eq('company_id', currentCompany.id);
+
+      if (dispositionError) throw dispositionError;
+
+      // Transform disposition data
+      const transformedDispositions: CowDisposition[] = (dispositionData || []).map(disp => ({
+        id: disp.id,
+        cowId: disp.cow_id,
+        dispositionDate: new Date(disp.disposition_date),
+        dispositionType: disp.disposition_type as 'sale' | 'death' | 'culled',
+        saleAmount: disp.sale_amount,
+        finalBookValue: disp.final_book_value,
+        gainLoss: disp.gain_loss,
+        notes: disp.notes,
+        journalEntryId: disp.journal_entry_id,
+        createdAt: new Date(disp.created_at),
+        updatedAt: new Date(disp.updated_at)
+      }));
+
+      setDispositions(transformedDispositions);
+    } catch (error) {
+      console.error('Error fetching data:', error);
+      toast({
+        title: "Error",
+        description: "Failed to load disposition data",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const activeCows = cows.filter(cow => cow.status === 'active');
   const disposedCows = cows.filter(cow => cow.status !== 'active');
@@ -93,6 +132,14 @@ export default function Dispositions() {
         return 'secondary';
     }
   };
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+      </div>
+    );
+  }
 
   if (showForm && selectedCow) {
     return (
