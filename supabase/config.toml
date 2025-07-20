@@ -146,3 +146,6 @@ inspector_port = 8083
 
 [functions.upload-csv]
 verify_jwt = false
+
+[functions.automated-upload]
+verify_jwt = false
