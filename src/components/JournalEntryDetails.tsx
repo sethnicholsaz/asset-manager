@@ -138,23 +138,34 @@ export default function JournalEntryDetails() {
     const totalDebits = entry.lines.reduce((sum, line) => sum + line.debit_amount, 0);
     const totalCredits = entry.lines.reduce((sum, line) => sum + line.credit_amount, 0);
     
-    // Create account summary with separate lines for debits and credits
+    // Create account summary grouped by account
+    const accountSummary = entry.lines.reduce((acc, line) => {
+      const key = `${line.account_code} - ${line.account_name}`;
+      if (!acc[key]) {
+        acc[key] = { debits: 0, credits: 0, account_code: line.account_code, account_name: line.account_name };
+      }
+      acc[key].debits += line.debit_amount;
+      acc[key].credits += line.credit_amount;
+      return acc;
+    }, {} as Record<string, { debits: number; credits: number; account_code: string; account_name: string }>);
+
+    // Create separate lines for debits and credits
     const accountSummaryLines: Array<{ account_code: string; account_name: string; amount: number; type: 'debit' | 'credit' }> = [];
     
-    entry.lines.forEach(line => {
-      if (line.debit_amount > 0) {
+    Object.values(accountSummary).forEach(account => {
+      if (account.debits > 0) {
         accountSummaryLines.push({
-          account_code: line.account_code,
-          account_name: line.account_name,
-          amount: line.debit_amount,
+          account_code: account.account_code,
+          account_name: account.account_name,
+          amount: account.debits,
           type: 'debit'
         });
       }
-      if (line.credit_amount > 0) {
+      if (account.credits > 0) {
         accountSummaryLines.push({
-          account_code: line.account_code,
-          account_name: line.account_name,
-          amount: line.credit_amount,
+          account_code: account.account_code,
+          account_name: account.account_name,
+          amount: account.credits,
           type: 'credit'
         });
       }
