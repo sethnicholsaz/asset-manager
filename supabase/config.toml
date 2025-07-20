@@ -149,3 +149,6 @@ verify_jwt = false
 
 [functions.automated-upload]
 verify_jwt = false
+
+[functions.master-file-upload]
+verify_jwt = false
