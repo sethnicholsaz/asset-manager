@@ -27,12 +27,14 @@ export function DispositionForm({ cow, onDisposition, onCancel }: DispositionFor
   const { toast } = useToast();
   const { currentCompany } = useAuth();
 
-  // Calculate current book value
+  // Calculate current book value using actual accumulated depreciation
   const currentDate = new Date(dispositionDate);
   const monthlyDepreciation = DepreciationCalculator.calculateMonthlyDepreciation(cow, currentDate);
   const monthsSinceStart = DepreciationCalculator.getMonthsSinceStart(cow.freshenDate, currentDate);
-  const totalDepreciation = monthlyDepreciation * monthsSinceStart;
-  const bookValue = Math.max(cow.salvageValue, cow.purchasePrice - totalDepreciation);
+  
+  // Use the actual accumulated depreciation from the cow record, or calculate if not available
+  const actualAccumulatedDepreciation = cow.totalDepreciation || (monthlyDepreciation * monthsSinceStart);
+  const bookValue = Math.max(cow.salvageValue, cow.purchasePrice - actualAccumulatedDepreciation);
 
   const saleAmountNum = parseFloat(saleAmount) || 0;
   const gainLoss = saleAmountNum - bookValue;
@@ -87,14 +89,14 @@ export function DispositionForm({ cow, onDisposition, onCancel }: DispositionFor
           createdAt: new Date()
         });
 
-        // Accumulated Depreciation
+        // Accumulated Depreciation - remove the actual accumulated amount
         journalEntry.lines.push({
           id: `jl-accum-dep-${Date.now()}`,
           journalEntryId: journalEntry.id,
           accountCode: '1500.1',
           accountName: 'Accumulated Depreciation - Dairy Cows',
           description: `Removal of accumulated depreciation for cow ${cow.tagNumber}`,
-          debitAmount: totalDepreciation,
+          debitAmount: actualAccumulatedDepreciation,
           creditAmount: 0,
           lineType: 'debit',
           createdAt: new Date()
@@ -128,14 +130,14 @@ export function DispositionForm({ cow, onDisposition, onCancel }: DispositionFor
           });
         }
       } else {
-        // Death/Culling - Loss
+        // Death/Culling - Remove accumulated depreciation
         journalEntry.lines.push({
           id: `jl-accum-dep-${Date.now()}`,
           journalEntryId: journalEntry.id,
           accountCode: '1500.1',
           accountName: 'Accumulated Depreciation - Dairy Cows',
           description: `Removal of accumulated depreciation for cow ${cow.tagNumber}`,
-          debitAmount: totalDepreciation,
+          debitAmount: actualAccumulatedDepreciation,
           creditAmount: 0,
           lineType: 'debit',
           createdAt: new Date()
@@ -247,7 +249,7 @@ export function DispositionForm({ cow, onDisposition, onCancel }: DispositionFor
               </div>
               <div>
                 <span className="text-muted-foreground">Total Depreciation:</span>
-                <span className="ml-2 font-medium">{DepreciationCalculator.formatCurrency(totalDepreciation)}</span>
+                <span className="ml-2 font-medium">{DepreciationCalculator.formatCurrency(actualAccumulatedDepreciation)}</span>
               </div>
               <div>
                 <span className="text-muted-foreground">Freshen Date:</span>
