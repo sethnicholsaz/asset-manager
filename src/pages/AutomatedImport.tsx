@@ -105,7 +105,7 @@ export default function AutomatedImport() {
     for (const row of data) {
       try {
         console.log(`Processing row with EVENT: "${row.EVENT}"`);
-        if (row.EVENT !== 'Fresh') {
+        if (row.EVENT.toUpperCase() !== 'FRESH') {
           result.skipped++;
           continue;
         }
@@ -187,7 +187,7 @@ export default function AutomatedImport() {
     for (const row of data) {
       try {
         console.log(`Processing row with EVENT: "${row.EVENT}"`);
-        if (!['Died', 'Sold'].includes(row.EVENT)) {
+        if (!['DIED', 'SOLD'].includes(row.EVENT.toUpperCase())) {
           result.skipped++;
           continue;
         }
@@ -206,8 +206,8 @@ export default function AutomatedImport() {
         }
 
         const dispositionDate = processDate(row.DATE);
-        const dispositionType = row.EVENT === 'Died' ? 'death' : 'sale';
-        const newStatus = row.EVENT === 'Died' ? 'deceased' : 'sold';
+        const dispositionType = row.EVENT.toUpperCase() === 'DIED' ? 'death' : 'sale';
+        const newStatus = row.EVENT.toUpperCase() === 'DIED' ? 'deceased' : 'sold';
 
         // Create disposition record
         const dispositionData = {
