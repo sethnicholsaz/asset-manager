@@ -316,44 +316,38 @@ serve(async (req) => {
               });
 
               // Gain or Loss handling - for all dispositions
-              // Always create a gain/loss entry to ensure the journal balances
-              const isGain = actualGainLoss > 0;
-              let accountCode = '9000'; // Default loss account
-              let accountName = 'Loss on Sale of Assets';
+              // Calculate the actual gain/loss based on sale price vs book value
+              const actualGainLossAmount = saleAmount - bookValue;
               
-              // Specific accounts based on disposition type
-              if (disposition.disposition_type === 'death') {
-                accountCode = '9001';
-                accountName = 'Loss on Dead Cows';
-              } else if (disposition.disposition_type === 'sale') {
-                if (isGain) {
-                  accountCode = '8000';
-                  accountName = 'Gain on Sale of Cows';
-                } else {
-                  accountCode = '9002';
-                  accountName = 'Loss on Sale of Cows';
+              // Only create gain/loss entry if there's an actual gain or loss
+              if (Math.abs(actualGainLossAmount) > 0.01) {
+                const isGain = actualGainLossAmount > 0;
+                let accountCode = '9000'; // Default loss account
+                let accountName = 'Loss on Sale of Assets';
+                
+                // Specific accounts based on disposition type
+                if (disposition.disposition_type === 'death') {
+                  accountCode = '9001';
+                  accountName = 'Loss on Dead Cows';
+                } else if (disposition.disposition_type === 'sale') {
+                  if (isGain) {
+                    accountCode = '8000';
+                    accountName = 'Gain on Sale of Cows';
+                  } else {
+                    accountCode = '9002';
+                    accountName = 'Loss on Sale of Cows';
+                  }
+                } else if (disposition.disposition_type === 'culled') {
+                  accountCode = '9003';
+                  accountName = 'Loss on Culled Cows';
                 }
-              } else if (disposition.disposition_type === 'culled') {
-                accountCode = '9003';
-                accountName = 'Loss on Culled Cows';
-              }
-              
-              // Always create the gain/loss entry to ensure balance
-              // The gain/loss amount should be calculated to balance the entry
-              const totalDebitsForThisCow = (saleAmount > 0 ? saleAmount : 0) + accumulatedDepreciation;
-              const totalCreditsForThisCow = cow.purchase_price;
-              const balancingAmount = totalCreditsForThisCow - totalDebitsForThisCow;
-              
-              // Only create gain/loss entry if there's an amount to balance
-              if (Math.abs(balancingAmount) > 0.01) {
-                const isGain = balancingAmount < 0; // If credits > debits, we need a debit (loss)
                 
                 allJournalLines.push({
                   account_code: accountCode,
                   account_name: accountName,
                   description: `${isGain ? 'Gain' : 'Loss'} on ${disposition.disposition_type} of cow #${cow.tag_number} (Sale: ${formatCurrency(saleAmount)}, Book: ${formatCurrency(bookValue)})`,
-                  debit_amount: isGain ? 0 : Math.abs(balancingAmount),
-                  credit_amount: isGain ? Math.abs(balancingAmount) : 0,
+                  debit_amount: isGain ? 0 : Math.abs(actualGainLossAmount),
+                  credit_amount: isGain ? Math.abs(actualGainLossAmount) : 0,
                   line_type: isGain ? 'credit' : 'debit'
                 });
               }
