@@ -140,8 +140,16 @@ serve(async (req) => {
 
           if (cowsError) throw cowsError;
 
+          console.log(`Total cows fetched for company: ${allCows?.length || 0}`);
+
           // Include all active cows in depreciation (using actual freshen dates only)
-          const activeCows = allCows?.filter((cow: any) => cow.status === 'active');
+          const activeCows = allCows?.filter((cow: any) => {
+            const isActive = cow.status === 'active';
+            if (!isActive) {
+              console.log(`Cow ${cow.tag_number} excluded - status: ${cow.status}`);
+            }
+            return isActive;
+          });
 
           console.log(`Found ${activeCows?.length || 0} active cows for depreciation`);
 

@@ -64,7 +64,9 @@ export function DepreciationSettings() {
         const parsedSettings = JSON.parse(stored);
         setSettings({
           ...parsedSettings,
-          company_id: currentCompany.id
+          company_id: currentCompany.id,
+          // Ensure new fields have defaults for backward compatibility
+          journal_processing_day: parsedSettings.journal_processing_day || 5
         });
       } else {
         // Set defaults for new company
