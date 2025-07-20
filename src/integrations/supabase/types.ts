@@ -14,7 +14,33 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      purchase_price_defaults: {
+        Row: {
+          birth_year: number
+          created_at: string
+          daily_accrual_rate: number | null
+          default_price: number
+          id: string
+          updated_at: string
+        }
+        Insert: {
+          birth_year: number
+          created_at?: string
+          daily_accrual_rate?: number | null
+          default_price: number
+          id?: string
+          updated_at?: string
+        }
+        Update: {
+          birth_year?: number
+          created_at?: string
+          daily_accrual_rate?: number | null
+          default_price?: number
+          id?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never

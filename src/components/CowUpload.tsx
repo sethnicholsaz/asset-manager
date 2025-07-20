@@ -1,9 +1,11 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { Upload, FileText, AlertCircle, CheckCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useToast } from '@/hooks/use-toast';
+import { supabase } from '@/integrations/supabase/client';
+import { PurchasePriceDefault } from '@/types/cow';
 
 interface CowUploadProps {
   onUpload: (data: any[]) => void;
@@ -13,8 +15,41 @@ export function CowUpload({ onUpload }: CowUploadProps) {
   const [isProcessing, setIsProcessing] = useState(false);
   const [uploadStatus, setUploadStatus] = useState<'idle' | 'success' | 'error'>('idle');
   const [errorMessage, setErrorMessage] = useState('');
+  const [priceDefaults, setPriceDefaults] = useState<PurchasePriceDefault[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
+
+  useEffect(() => {
+    const fetchPriceDefaults = async () => {
+      const { data, error } = await supabase
+        .from('purchase_price_defaults')
+        .select('*')
+        .order('birth_year', { ascending: false });
+      
+      if (error) {
+        console.error('Error fetching price defaults:', error);
+      } else {
+        const defaults = (data || []).map(item => ({
+          ...item,
+          created_at: new Date(item.created_at),
+          updated_at: new Date(item.updated_at)
+        }));
+        setPriceDefaults(defaults);
+      }
+    };
+
+    fetchPriceDefaults();
+  }, []);
+
+  const calculatePurchasePrice = (birthDate: Date, freshenDate: Date, birthYear: number) => {
+    const defaults = priceDefaults.find(d => d.birth_year === birthYear);
+    if (!defaults) return null;
+
+    const daysDiff = Math.floor((freshenDate.getTime() - birthDate.getTime()) / (1000 * 60 * 60 * 24));
+    const accruedValue = daysDiff * defaults.daily_accrual_rate;
+    
+    return defaults.default_price + accruedValue;
+  };
 
   const handleFileSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -36,7 +71,7 @@ export function CowUpload({ onUpload }: CowUploadProps) {
       const headers = rows[0].map(h => h.trim().toLowerCase());
       
       // Validate required headers
-      const requiredHeaders = ['tagnumber', 'birthdate', 'freshendate', 'purchaseprice'];
+      const requiredHeaders = ['tagnumber', 'birthdate', 'freshendate'];
       const missingHeaders = requiredHeaders.filter(h => !headers.includes(h));
       
       if (missingHeaders.length > 0) {
@@ -74,6 +109,18 @@ export function CowUpload({ onUpload }: CowUploadProps) {
                   break;
               }
             });
+
+            // Calculate purchase price if not provided
+            if (!cow.purchasePrice && cow.birthDate && cow.freshenDate) {
+              const birthYear = cow.birthDate.getFullYear();
+              const calculatedPrice = calculatePurchasePrice(cow.birthDate, cow.freshenDate, birthYear);
+              if (calculatedPrice) {
+                cow.purchasePrice = calculatedPrice;
+              } else {
+                // Fallback to a default if no price defaults found
+                cow.purchasePrice = 2000; // Default base price
+              }
+            }
 
             // Generate ID and set defaults
             cow.id = `cow-${cow.tagNumber}-${Date.now()}`;
@@ -188,13 +235,16 @@ export function CowUpload({ onUpload }: CowUploadProps) {
             <li>tagNumber - Unique identifier for the cow</li>
             <li>birthDate - Birth date (MM/DD/YYYY or YYYY-MM-DD)</li>
             <li>freshenDate - First freshen date (depreciation start)</li>
-            <li>purchasePrice - Initial cost/value</li>
           </ul>
           <p className="font-medium mt-3">Optional columns:</p>
           <ul className="list-disc list-inside space-y-1">
             <li>name - Cow name</li>
+            <li>purchasePrice - Initial cost/value (auto-calculated if not provided)</li>
             <li>salvageValue - End-of-life value (defaults to 10% of purchase price)</li>
           </ul>
+          <p className="text-xs text-muted-foreground mt-2">
+            <strong>Auto-calculation:</strong> If purchasePrice is not provided, it will be calculated using birth year defaults plus daily accrual rate from birth to freshen date.
+          </p>
         </div>
       </CardContent>
     </Card>

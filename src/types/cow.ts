@@ -50,6 +50,15 @@ export interface JournalLine {
 export type CowStatus = 'active' | 'sold' | 'deceased' | 'retired';
 export type DepreciationMethod = 'straight-line' | 'declining-balance' | 'sum-of-years';
 
+export interface PurchasePriceDefault {
+  id: string;
+  birth_year: number;
+  default_price: number;
+  daily_accrual_rate: number;
+  created_at: Date;
+  updated_at: Date;
+}
+
 export interface DepreciationReport {
   month: number;
   year: number;
