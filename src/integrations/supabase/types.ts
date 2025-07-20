@@ -269,6 +269,36 @@ export type Database = {
           },
         ]
       }
+      gl_account_settings: {
+        Row: {
+          account_code: string
+          account_name: string
+          account_type: string
+          company_id: string
+          created_at: string
+          id: string
+          updated_at: string
+        }
+        Insert: {
+          account_code: string
+          account_name: string
+          account_type: string
+          company_id: string
+          created_at?: string
+          id?: string
+          updated_at?: string
+        }
+        Update: {
+          account_code?: string
+          account_name?: string
+          account_type?: string
+          company_id?: string
+          created_at?: string
+          id?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       journal_entries: {
         Row: {
           company_id: string | null
