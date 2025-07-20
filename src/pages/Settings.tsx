@@ -1,6 +1,7 @@
-import { Settings as SettingsIcon, User, Bell, Lock, Database } from 'lucide-react';
+import { Settings as SettingsIcon, User, Bell, Lock, Database, DollarSign } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { PurchasePriceSettings } from '@/components/PurchasePriceSettings';
 
 export default function Settings() {
   return (
@@ -82,6 +83,17 @@ export default function Settings() {
             </Button>
           </CardContent>
         </Card>
+      </div>
+
+      {/* Purchase Price Defaults Section */}
+      <div className="space-y-4">
+        <div>
+          <h2 className="text-xl font-semibold">Purchase Price Configuration</h2>
+          <p className="text-sm text-muted-foreground">
+            Configure default purchase prices and daily accrual rates for automatic price calculations
+          </p>
+        </div>
+        <PurchasePriceSettings />
       </div>
     </div>
   );
