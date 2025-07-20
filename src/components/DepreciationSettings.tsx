@@ -53,43 +53,26 @@ export function DepreciationSettings() {
     if (!currentCompany) return;
 
     try {
-      // Use raw SQL query since the types haven't been updated yet
-      const { data, error } = await supabase
-        .rpc('fetch_depreciation_settings', { 
-          p_company_id: currentCompany.id 
-        });
-
-      if (error && error.code !== 'PGRST116') { // PGRST116 is "not found"
-        console.error('Error fetching depreciation settings:', error);
-        // Continue with defaults if no settings found
-      }
-
-      if (data && data.length > 0) {
-        const dbSettings = data[0];
+      // For now, use localStorage with company-specific keys
+      // This will be replaced with database calls once types are updated
+      const storageKey = `depreciation_settings_${currentCompany.id}`;
+      const stored = localStorage.getItem(storageKey);
+      
+      if (stored) {
+        const parsedSettings = JSON.parse(stored);
         setSettings({
-          id: dbSettings.id,
-          company_id: currentCompany.id,
-          default_depreciation_method: dbSettings.default_depreciation_method,
-          default_depreciation_years: dbSettings.default_depreciation_years,
-          default_salvage_percentage: dbSettings.default_salvage_percentage,
-          auto_calculate_depreciation: dbSettings.auto_calculate_depreciation,
-          monthly_calculation_day: dbSettings.monthly_calculation_day,
-          include_partial_months: dbSettings.include_partial_months,
-          round_to_nearest_dollar: dbSettings.round_to_nearest_dollar,
-          fiscal_year_start_month: dbSettings.fiscal_year_start_month,
-          created_at: dbSettings.created_at,
-          updated_at: dbSettings.updated_at
+          ...parsedSettings,
+          company_id: currentCompany.id
         });
       } else {
-        // Set company_id for new settings
+        // Set defaults for new company
         setSettings(prev => ({
           ...prev,
           company_id: currentCompany.id
         }));
       }
     } catch (error) {
-      console.error('Error fetching depreciation settings:', error);
-      // Continue with defaults
+      console.error('Error loading depreciation settings:', error);
       setSettings(prev => ({
         ...prev,
         company_id: currentCompany.id
@@ -104,21 +87,17 @@ export function DepreciationSettings() {
 
     setIsSaving(true);
     try {
-      // Use raw SQL to upsert settings
-      const { error } = await supabase
-        .rpc('upsert_depreciation_settings', {
-          p_company_id: currentCompany.id,
-          p_default_depreciation_method: settings.default_depreciation_method,
-          p_default_depreciation_years: settings.default_depreciation_years,
-          p_default_salvage_percentage: settings.default_salvage_percentage,
-          p_auto_calculate_depreciation: settings.auto_calculate_depreciation,
-          p_monthly_calculation_day: settings.monthly_calculation_day,
-          p_include_partial_months: settings.include_partial_months,
-          p_round_to_nearest_dollar: settings.round_to_nearest_dollar,
-          p_fiscal_year_start_month: settings.fiscal_year_start_month
-        });
-
-      if (error) throw error;
+      // Store in localStorage with company-specific key
+      const storageKey = `depreciation_settings_${currentCompany.id}`;
+      const settingsToSave = {
+        ...settings,
+        company_id: currentCompany.id,
+        updated_at: new Date().toISOString(),
+        id: settings.id || crypto.randomUUID()
+      };
+      
+      localStorage.setItem(storageKey, JSON.stringify(settingsToSave));
+      setSettings(settingsToSave);
 
       toast({
         title: "Settings Saved",

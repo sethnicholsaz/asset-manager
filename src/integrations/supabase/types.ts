@@ -430,6 +430,37 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      fetch_depreciation_settings: {
+        Args: { p_company_id: string }
+        Returns: {
+          id: string
+          company_id: string
+          default_depreciation_method: string
+          default_depreciation_years: number
+          default_salvage_percentage: number
+          auto_calculate_depreciation: boolean
+          monthly_calculation_day: number
+          include_partial_months: boolean
+          round_to_nearest_dollar: boolean
+          fiscal_year_start_month: number
+          created_at: string
+          updated_at: string
+        }[]
+      }
+      upsert_depreciation_settings: {
+        Args: {
+          p_company_id: string
+          p_default_depreciation_method: string
+          p_default_depreciation_years: number
+          p_default_salvage_percentage: number
+          p_auto_calculate_depreciation: boolean
+          p_monthly_calculation_day: number
+          p_include_partial_months: boolean
+          p_round_to_nearest_dollar: boolean
+          p_fiscal_year_start_month: number
+        }
+        Returns: string
+      }
       user_has_company_access: {
         Args: { company_uuid: string }
         Returns: boolean

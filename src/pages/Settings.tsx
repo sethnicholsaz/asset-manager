@@ -1,7 +1,8 @@
-import { Settings as SettingsIcon, User, Bell, Lock, Database, DollarSign } from 'lucide-react';
+import { Settings as SettingsIcon, User, Bell, Lock, Database, DollarSign, TrendingDown } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { PurchasePriceSettings } from '@/components/PurchasePriceSettings';
+import { DepreciationSettings } from '@/components/DepreciationSettings';
 
 export default function Settings() {
   return (
@@ -83,6 +84,17 @@ export default function Settings() {
             </Button>
           </CardContent>
         </Card>
+      </div>
+
+      {/* Depreciation Settings Section */}
+      <div className="space-y-4">
+        <div>
+          <h2 className="text-xl font-semibold">Depreciation Configuration</h2>
+          <p className="text-sm text-muted-foreground">
+            Configure how depreciation is calculated and scheduled for your dairy cow assets
+          </p>
+        </div>
+        <DepreciationSettings />
       </div>
 
       {/* Purchase Price Defaults Section */}
