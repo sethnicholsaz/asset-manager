@@ -256,7 +256,7 @@ Deno.serve(async (req) => {
     const { data: insertedCows, error: insertError } = await supabase
       .from('cows')
       .upsert(processedCows, {
-        onConflict: 'tag_number,company_id',
+        onConflict: 'tag_number',
         ignoreDuplicates: false
       })
       .select();
