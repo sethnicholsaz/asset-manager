@@ -92,11 +92,12 @@ Deno.serve(async (req) => {
 
     console.log(`Generating depreciation report for company ${companyId}, ${month}/${year}`);
 
-    // Fetch all cows for the company
+    // Fetch all cows for the company (no limit)
     const { data: cows, error: cowsError } = await supabase
       .from('cows')
       .select('*')
-      .eq('company_id', companyId);
+      .eq('company_id', companyId)
+      .order('tag_number');
 
     if (cowsError) {
       console.error('Error fetching cows:', cowsError);
