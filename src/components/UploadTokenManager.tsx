@@ -152,57 +152,15 @@ export function UploadTokenManager() {
   }
 
   return (
-    <div className="space-y-6">
-      {/* Company Information */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Company Information</CardTitle>
-          <CardDescription>
-            Your company details and identifiers
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-4">
-            <div>
-              <Label className="text-sm font-medium">Company Name</Label>
-              <div className="text-sm text-muted-foreground mt-1">
-                {currentCompany?.name || 'No company selected'}
-              </div>
-            </div>
-            <div>
-              <Label className="text-sm font-medium">Company UUID</Label>
-              <div className="flex items-center space-x-2 mt-1">
-                <code className="bg-muted px-2 py-1 rounded text-sm font-mono">
-                  {currentCompany?.id || 'No company selected'}
-                </code>
-                {currentCompany?.id && (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => copyToken(currentCompany.id)}
-                  >
-                    <Copy className="w-4 h-4" />
-                  </Button>
-                )}
-              </div>
-              <div className="text-xs text-muted-foreground mt-1">
-                Use this UUID for API integrations and external systems
-              </div>
-            </div>
+    <Card>
+      <CardHeader>
+        <div className="flex items-center justify-between">
+          <div>
+            <CardTitle>CSV Upload Tokens</CardTitle>
+            <CardDescription>
+              Manage access tokens for CSV upload API endpoint
+            </CardDescription>
           </div>
-        </CardContent>
-      </Card>
-
-      {/* Upload Tokens */}
-      <Card>
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <div>
-              <CardTitle>CSV Upload Tokens</CardTitle>
-              <CardDescription>
-                Manage access tokens for CSV upload API endpoint
-              </CardDescription>
-            </div>
           <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
             <DialogTrigger asChild>
               <Button>
@@ -304,6 +262,5 @@ export function UploadTokenManager() {
         )}
       </CardContent>
     </Card>
-    </div>
   );
 }

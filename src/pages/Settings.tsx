@@ -1,5 +1,5 @@
 
-import { Building, Calculator, DollarSign, FileText, Scale } from 'lucide-react';
+import { Building, Calculator, DollarSign, FileText, Scale, Copy } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { DepreciationSettings } from '@/components/DepreciationSettings';
@@ -8,9 +8,20 @@ import { GLAccountSettings } from '@/components/GLAccountSettings';
 import { BalanceAdjustments } from '@/components/BalanceAdjustments';
 import { UploadTokenManager } from '@/components/UploadTokenManager';
 import { useAuth } from '@/contexts/AuthContext';
+import { Button } from '@/components/ui/button';
+import { useToast } from '@/hooks/use-toast';
 
 export default function Settings() {
   const { currentCompany } = useAuth();
+  const { toast } = useToast();
+
+  const copyToClipboard = (text: string, description: string) => {
+    navigator.clipboard.writeText(text);
+    toast({
+      title: "Copied",
+      description,
+    });
+  };
 
   if (!currentCompany) {
     return (
@@ -84,6 +95,27 @@ export default function Settings() {
                     <p className="text-lg">{new Date(currentCompany.trial_ends_at).toLocaleDateString()}</p>
                   </div>
                 )}
+              </div>
+              
+              <div className="border-t pt-4">
+                <div>
+                  <label className="text-sm font-medium text-muted-foreground">Company UUID</label>
+                  <div className="flex items-center space-x-2 mt-1">
+                    <code className="bg-muted px-2 py-1 rounded text-sm font-mono flex-1">
+                      {currentCompany.id}
+                    </code>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => copyToClipboard(currentCompany.id, "Company UUID copied to clipboard")}
+                    >
+                      <Copy className="w-4 h-4" />
+                    </Button>
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Use this UUID for API integrations and external systems
+                  </p>
+                </div>
               </div>
             </CardContent>
           </Card>
