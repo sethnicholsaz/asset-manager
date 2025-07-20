@@ -34,10 +34,10 @@ export default function Settings() {
       </div>
 
       <Tabs defaultValue="company" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-5">
+        <TabsList className="grid w-full grid-cols-4">
           <TabsTrigger value="company" className="flex items-center gap-2">
             <Building className="h-4 w-4" />
-            Company
+            Company & API
           </TabsTrigger>
           <TabsTrigger value="depreciation" className="flex items-center gap-2">
             <Calculator className="h-4 w-4" />
@@ -50,10 +50,6 @@ export default function Settings() {
           <TabsTrigger value="accounts" className="flex items-center gap-2">
             <FileText className="h-4 w-4" />
             GL Accounts
-          </TabsTrigger>
-          <TabsTrigger value="api" className="flex items-center gap-2">
-            <Database className="h-4 w-4" />
-            API Access
           </TabsTrigger>
         </TabsList>
 
@@ -93,6 +89,16 @@ export default function Settings() {
               </div>
             </CardContent>
           </Card>
+
+          <div className="space-y-4">
+            <div>
+              <h3 className="text-lg font-semibold">API Access Tokens</h3>
+              <p className="text-sm text-muted-foreground">
+                Manage access tokens for CSV upload API endpoint and external integrations
+              </p>
+            </div>
+            <UploadTokenManager />
+          </div>
         </TabsContent>
 
         <TabsContent value="depreciation" className="space-y-6">
@@ -123,16 +129,6 @@ export default function Settings() {
             </p>
           </div>
           <GLAccountSettings />
-        </TabsContent>
-
-        <TabsContent value="api" className="space-y-6">
-          <div>
-            <h2 className="text-xl font-semibold">API Access Tokens</h2>
-            <p className="text-sm text-muted-foreground mt-1">
-              Manage access tokens for CSV upload API endpoint and external integrations
-            </p>
-          </div>
-          <UploadTokenManager />
         </TabsContent>
       </Tabs>
     </div>
