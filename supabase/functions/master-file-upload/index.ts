@@ -173,21 +173,39 @@ const handler = async (req: Request): Promise<Response> => {
     const masterData = parseCsvData(csvContent);
     console.log(`Parsed ${masterData.length} records from master file`);
 
-    // Get all active cows from database for the company
-    const { data: activeCows, error: cowsError } = await supabase
-      .from('cows')
-      .select('id, tag_number, birth_date, freshen_date, status')
-      .eq('company_id', companyId)
-      .eq('status', 'active')
-      .limit(50000); // Set a high limit to ensure we get all cows
+    // Get ALL active cows from database using pagination to avoid limits
+    let allActiveCows: any[] = [];
+    let hasMore = true;
+    let offset = 0;
+    const pageSize = 1000;
+    
+    while (hasMore) {
+      const { data: pageData, error: pageError } = await supabase
+        .from('cows')
+        .select('id, tag_number, birth_date, freshen_date, status')
+        .eq('company_id', companyId)
+        .eq('status', 'active')
+        .range(offset, offset + pageSize - 1);
 
-    if (cowsError) {
-      console.error('Database error:', cowsError);
-      throw cowsError;
+      if (pageError) {
+        console.error('Database error:', pageError);
+        throw pageError;
+      }
+
+      if (pageData && pageData.length > 0) {
+        allActiveCows = allActiveCows.concat(pageData);
+        offset += pageSize;
+        hasMore = pageData.length === pageSize;
+        console.log(`Loaded page: ${pageData.length} cows, total so far: ${allActiveCows.length}`);
+      } else {
+        hasMore = false;
+      }
     }
 
-    console.log(`Found ${activeCows?.length || 0} active cows in database`);
-    console.log(`Expected 8253 active cows, got ${activeCows?.length || 0} - potential limit issue!`);
+    console.log(`Found ${allActiveCows.length} active cows in database`);
+    console.log(`Expected 8253 active cows, got ${allActiveCows.length} - ${allActiveCows.length === 8253 ? 'SUCCESS!' : 'potential limit issue!'}`);
+    
+    const activeCows = allActiveCows;
 
     // Prepare staging records
     const stagingRecords = [];
