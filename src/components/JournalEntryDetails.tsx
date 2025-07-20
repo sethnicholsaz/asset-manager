@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
-import { Download, Eye } from 'lucide-react';
+import { Download, Eye, Printer } from 'lucide-react';
 import { DepreciationCalculator } from '@/utils/depreciation';
 
 interface JournalEntry {
@@ -131,6 +131,182 @@ export default function JournalEntryDetails() {
     }
   };
 
+  const printJournalEntry = (entry: JournalEntryWithLines) => {
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) return;
+
+    const totalDebits = entry.lines.reduce((sum, line) => sum + line.debit_amount, 0);
+    const totalCredits = entry.lines.reduce((sum, line) => sum + line.credit_amount, 0);
+
+    const printContent = `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <title>Journal Entry - ${getMonthName(entry.month)} ${entry.year}</title>
+          <style>
+            body {
+              font-family: Arial, sans-serif;
+              margin: 40px;
+              color: #333;
+            }
+            .header {
+              text-align: center;
+              border-bottom: 2px solid #333;
+              padding-bottom: 20px;
+              margin-bottom: 30px;
+            }
+            .company-name {
+              font-size: 24px;
+              font-weight: bold;
+              margin-bottom: 5px;
+            }
+            .report-title {
+              font-size: 18px;
+              margin-bottom: 10px;
+            }
+            .entry-info {
+              display: flex;
+              justify-content: space-between;
+              margin-bottom: 20px;
+              padding: 15px;
+              background-color: #f5f5f5;
+              border-radius: 5px;
+            }
+            .entry-details {
+              flex: 1;
+            }
+            .entry-meta {
+              text-align: right;
+            }
+            table {
+              width: 100%;
+              border-collapse: collapse;
+              margin-bottom: 20px;
+            }
+            th, td {
+              border: 1px solid #ddd;
+              padding: 12px;
+              text-align: left;
+            }
+            th {
+              background-color: #f8f9fa;
+              font-weight: bold;
+            }
+            .amount {
+              text-align: right;
+              font-family: monospace;
+            }
+            .totals {
+              margin-top: 20px;
+              padding: 15px;
+              background-color: #f8f9fa;
+              border-radius: 5px;
+            }
+            .total-row {
+              display: flex;
+              justify-content: space-between;
+              margin-bottom: 5px;
+            }
+            .footer {
+              margin-top: 40px;
+              text-align: center;
+              font-size: 12px;
+              color: #666;
+              border-top: 1px solid #ddd;
+              padding-top: 20px;
+            }
+            .status-badge {
+              display: inline-block;
+              padding: 4px 8px;
+              border-radius: 4px;
+              font-size: 12px;
+              font-weight: bold;
+              ${entry.status === 'posted' ? 'background-color: #d4edda; color: #155724;' : 
+                entry.status === 'draft' ? 'background-color: #fff3cd; color: #856404;' : 
+                'background-color: #d1ecf1; color: #0c5460;'}
+            }
+            @media print {
+              body { margin: 20px; }
+              .header { page-break-after: avoid; }
+            }
+          </style>
+        </head>
+        <body>
+          <div class="header">
+            <div class="company-name">${currentCompany?.name || 'Company Name'}</div>
+            <div class="report-title">Journal Entry Report</div>
+          </div>
+
+          <div class="entry-info">
+            <div class="entry-details">
+              <h3>${getMonthName(entry.month)} ${entry.year} - ${entry.entry_type.charAt(0).toUpperCase() + entry.entry_type.slice(1)}</h3>
+              <p><strong>Description:</strong> ${entry.description}</p>
+              <p><strong>Entry Date:</strong> ${new Date(entry.entry_date).toLocaleDateString()}</p>
+              <p><strong>Status:</strong> <span class="status-badge">${entry.status.toUpperCase()}</span></p>
+            </div>
+            <div class="entry-meta">
+              <p><strong>Entry ID:</strong> ${entry.id.substring(0, 8)}</p>
+              <p><strong>Created:</strong> ${new Date(entry.created_at).toLocaleDateString()}</p>
+              <p><strong>Total Amount:</strong> ${DepreciationCalculator.formatCurrency(entry.total_amount)}</p>
+            </div>
+          </div>
+
+          <table>
+            <thead>
+              <tr>
+                <th>Account Code</th>
+                <th>Account Name</th>
+                <th>Description</th>
+                <th class="amount">Debit</th>
+                <th class="amount">Credit</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${entry.lines.map(line => `
+                <tr>
+                  <td>${line.account_code}</td>
+                  <td>${line.account_name}</td>
+                  <td>${line.description}</td>
+                  <td class="amount">${line.debit_amount > 0 ? DepreciationCalculator.formatCurrency(line.debit_amount) : '-'}</td>
+                  <td class="amount">${line.credit_amount > 0 ? DepreciationCalculator.formatCurrency(line.credit_amount) : '-'}</td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+
+          <div class="totals">
+            <div class="total-row">
+              <strong>Total Debits:</strong>
+              <strong>${DepreciationCalculator.formatCurrency(totalDebits)}</strong>
+            </div>
+            <div class="total-row">
+              <strong>Total Credits:</strong>
+              <strong>${DepreciationCalculator.formatCurrency(totalCredits)}</strong>
+            </div>
+            <div class="total-row" style="border-top: 1px solid #ddd; padding-top: 10px; margin-top: 10px;">
+              <strong>Balance Check:</strong>
+              <strong>${totalDebits === totalCredits ? 'BALANCED ✓' : 'UNBALANCED ⚠️'}</strong>
+            </div>
+          </div>
+
+          <div class="footer">
+            <p>Generated on ${new Date().toLocaleString()}</p>
+            <p>This is a computer-generated report from the ${currentCompany?.name || 'Company'} accounting system.</p>
+          </div>
+        </body>
+      </html>
+    `;
+
+    printWindow.document.write(printContent);
+    printWindow.document.close();
+    printWindow.focus();
+    
+    // Auto-print after a short delay to ensure content is loaded
+    setTimeout(() => {
+      printWindow.print();
+    }, 500);
+  };
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -173,6 +349,14 @@ export default function JournalEntryDetails() {
                   <Badge className={getStatusColor(entry.status)}>
                     {entry.status}
                   </Badge>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => printJournalEntry(entry)}
+                  >
+                    <Printer className="w-4 h-4 mr-2" />
+                    Print
+                  </Button>
                   <Button
                     variant="ghost"
                     size="sm"
