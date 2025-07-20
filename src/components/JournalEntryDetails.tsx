@@ -149,41 +149,7 @@ export default function JournalEntryDetails() {
       return acc;
     }, {} as Record<string, { debits: number; credits: number; account_code: string; account_name: string }>);
 
-    // Create separate lines for debits and credits
-    const accountSummaryLines: Array<{ account_code: string; account_name: string; amount: number; type: 'debit' | 'credit' }> = [];
-    
-    Object.values(accountSummary).forEach(account => {
-      if (account.debits > 0) {
-        accountSummaryLines.push({
-          account_code: account.account_code,
-          account_name: account.account_name,
-          amount: account.debits,
-          type: 'debit'
-        });
-      }
-      if (account.credits > 0) {
-        accountSummaryLines.push({
-          account_code: account.account_code,
-          account_name: account.account_name,
-          amount: account.credits,
-          type: 'credit'
-        });
-      }
-    });
-
-    // Sort: debits descending, credits ascending
-    const sortedAccountLines = accountSummaryLines.sort((a, b) => {
-      // First sort by type: debits first, then credits
-      if (a.type !== b.type) {
-        return a.type === 'debit' ? -1 : 1;
-      }
-      // Within type, sort by amount: debits descending, credits ascending
-      if (a.type === 'debit') {
-        return b.amount - a.amount; // descending
-      } else {
-        return a.amount - b.amount; // ascending
-      }
-    });
+    const accountSummaryArray = Object.values(accountSummary).sort((a, b) => a.account_code.localeCompare(b.account_code));
 
     const printContent = `
       <!DOCTYPE html>
@@ -348,17 +314,17 @@ export default function JournalEntryDetails() {
                 <tr>
                   <th>Acct</th>
                   <th>Account Name</th>
-                  <th class="amount">Amount</th>
-                  <th class="amount">Type</th>
+                  <th class="amount">Debits</th>
+                  <th class="amount">Credits</th>
                 </tr>
               </thead>
               <tbody>
-                ${sortedAccountLines.map(line => `
+                ${accountSummaryArray.map(account => `
                   <tr>
-                    <td>${line.account_code}</td>
-                    <td>${line.account_name}</td>
-                    <td class="amount">${DepreciationCalculator.formatCurrency(line.amount)}</td>
-                    <td class="amount" style="${line.type === 'debit' ? 'color: #d73527;' : 'color: #28a745;'}">${line.type === 'debit' ? 'DR' : 'CR'}</td>
+                    <td>${account.account_code}</td>
+                    <td>${account.account_name}</td>
+                    <td class="amount">${account.debits > 0 ? DepreciationCalculator.formatCurrency(account.debits) : '-'}</td>
+                    <td class="amount">${account.credits > 0 ? DepreciationCalculator.formatCurrency(account.credits) : '-'}</td>
                   </tr>
                 `).join('')}
               </tbody>
