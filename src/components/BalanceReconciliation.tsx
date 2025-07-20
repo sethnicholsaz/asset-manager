@@ -98,12 +98,12 @@ export function BalanceReconciliation() {
 
     for (const month of monthsWithEntries) {
       try {
-        // Get current cow data for this month
+        // Get current cow data for this month with all required fields
         const reportDate = new Date(selectedYear, month, 0); // Last day of month
         
         const { data: cowData, error: cowError } = await supabase
           .from('cows')
-          .select('status, purchase_price, current_value, total_depreciation, freshen_date')
+          .select('status, purchase_price, current_value, total_depreciation, freshen_date, salvage_value, tag_number')
           .eq('company_id', currentCompany.id);
 
         if (cowError) throw cowError;
@@ -126,15 +126,16 @@ export function BalanceReconciliation() {
           .filter(e => e.entry_type === 'disposition')
           .reduce((sum, e) => sum + e.total_amount, 0);
 
-        // Check for discrepancies
+        // Check for discrepancies using the same calculation as the journal processor
         const discrepancies: string[] = [];
         
-        // Depreciation should match calculated amount
+        // Calculate expected depreciation using the same logic as journal processor
         let expectedDepreciation = 0;
         activeCows.forEach(cow => {
-          const depreciableAmount = cow.purchase_price - (cow.purchase_price * 0.1); // 10% salvage
-          const monthlyDepreciation = depreciableAmount / (5 * 12); // 5 year straight line
-          expectedDepreciation += monthlyDepreciation;
+          const depreciableAmount = cow.purchase_price - cow.salvage_value;
+          const depreciationYears = 5; // Same as journal processor
+          const monthlyDepreciation = depreciableAmount / (depreciationYears * 12);
+          expectedDepreciation += Math.max(0, monthlyDepreciation);
         });
 
         const depreciationVariance = Math.abs(journalDepreciation - expectedDepreciation);
