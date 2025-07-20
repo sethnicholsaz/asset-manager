@@ -14,6 +14,54 @@ export type Database = {
   }
   public: {
     Tables: {
+      balance_adjustments: {
+        Row: {
+          adjustment_amount: number
+          adjustment_date: string
+          adjustment_type: string
+          applied_to_current_month: boolean
+          company_id: string
+          cow_tag: string | null
+          created_at: string
+          description: string
+          id: string
+          journal_entry_id: string | null
+          prior_period_month: number
+          prior_period_year: number
+          updated_at: string
+        }
+        Insert: {
+          adjustment_amount: number
+          adjustment_date?: string
+          adjustment_type: string
+          applied_to_current_month?: boolean
+          company_id: string
+          cow_tag?: string | null
+          created_at?: string
+          description: string
+          id?: string
+          journal_entry_id?: string | null
+          prior_period_month: number
+          prior_period_year: number
+          updated_at?: string
+        }
+        Update: {
+          adjustment_amount?: number
+          adjustment_date?: string
+          adjustment_type?: string
+          applied_to_current_month?: boolean
+          company_id?: string
+          cow_tag?: string | null
+          created_at?: string
+          description?: string
+          id?: string
+          journal_entry_id?: string | null
+          prior_period_month?: number
+          prior_period_year?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       companies: {
         Row: {
           created_at: string
