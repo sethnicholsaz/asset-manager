@@ -62,13 +62,13 @@ export function DispositionReport({ cows }: DispositionReportProps) {
 
       setDispositions(transformedDispositions);
 
-      // Fetch cow data for the disposed cows using proper cow IDs
+      // Fetch cow data for the disposed cows using tag numbers
       if (transformedDispositions.length > 0) {
-        const cowIds = transformedDispositions.map(d => d.cowId);
+        const cowTagNumbers = transformedDispositions.map(d => d.cowId);
         const { data: cowData, error: cowError } = await supabase
           .from('cows')
           .select('*')
-          .in('id', cowIds);
+          .in('tag_number', cowTagNumbers);
 
         if (cowError) throw cowError;
 
@@ -123,7 +123,7 @@ export function DispositionReport({ cows }: DispositionReportProps) {
     console.log(`Available cow data: ${dispositionCows.length} cows`);
 
     dispositions.forEach((disposition) => {
-      const cow = dispositionCows.find(c => c.id === disposition.cowId);
+      const cow = dispositionCows.find(c => c.tagNumber === disposition.cowId);
       if (!cow) {
         console.log(`No cow data found for disposition ${disposition.id}, cow ID: ${disposition.cowId}`);
         return;
@@ -295,7 +295,7 @@ export function DispositionReport({ cows }: DispositionReportProps) {
   });
 
   const exportData = dispositions.map(d => {
-    const cow = dispositionCows.find(c => c.id === d.cowId);
+    const cow = dispositionCows.find(c => c.tagNumber === d.cowId);
     if (!cow) return {
       CowTag: d.cowId,
       DispositionDate: DepreciationCalculator.formatDate(d.dispositionDate),
@@ -507,7 +507,7 @@ export function DispositionReport({ cows }: DispositionReportProps) {
                     </TableHeader>
                     <TableBody>
                       {dispositions.map((disposition) => {
-                        const cow = dispositionCows.find(c => c.id === disposition.cowId);
+                        const cow = dispositionCows.find(c => c.tagNumber === disposition.cowId);
                         if (!cow) return null;
                         
                         // Fix invalid freshen dates for display calculation
