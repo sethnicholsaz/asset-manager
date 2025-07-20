@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { Upload, FileText, AlertCircle, CheckCircle } from 'lucide-react';
+import { Upload, FileText, AlertCircle, CheckCircle, Download, Eye } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
@@ -8,7 +8,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { PurchasePriceDefault } from '@/types/cow';
 
 interface CowUploadProps {
-  onUpload: (data: any[]) => void;
+  onUpload: (data: any[]) => Promise<void>;
 }
 
 export function CowUpload({ onUpload }: CowUploadProps) {
@@ -49,6 +49,33 @@ export function CowUpload({ onUpload }: CowUploadProps) {
     const accruedValue = daysDiff * defaults.daily_accrual_rate;
     
     return defaults.default_price + accruedValue;
+  };
+
+  const generateSampleCSV = () => {
+    const sampleData = [
+      ['tagNumber', 'name', 'birthDate', 'freshenDate', 'purchasePrice', 'salvageValue', 'acquisitionType'],
+      ['001', 'Bessie', '2020-03-15', '2022-01-10', '2500', '250', 'purchased'],
+      ['002', 'Molly', '2019-08-22', '2021-05-15', '', '', 'raised'],
+      ['003', '', '2020-11-05', '2022-08-20', '2800', '280', 'purchased'],
+      ['004', 'Daisy', '2021-01-12', '2022-10-18', '', '300', 'raised'],
+      ['005', 'Luna', '2019-06-30', '2021-03-25', '3000', '300', 'purchased']
+    ];
+
+    const csvContent = sampleData.map(row => row.join(',')).join('\n');
+    const blob = new Blob([csvContent], { type: 'text/csv' });
+    const url = window.URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = 'sample_cow_data.csv';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    window.URL.revokeObjectURL(url);
+
+    toast({
+      title: "Sample Downloaded",
+      description: "Sample CSV file has been downloaded to help you format your data.",
+    });
   };
 
   const handleFileSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -159,12 +186,9 @@ export function CowUpload({ onUpload }: CowUploadProps) {
         throw new Error('No valid data rows found');
       }
 
-      onUpload(data);
+      await onUpload(data);
       setUploadStatus('success');
-      toast({
-        title: "Upload Successful",
-        description: `Successfully imported ${data.length} cows`,
-      });
+      // Don't show the toast here as the parent component will handle it
 
     } catch (error) {
       setUploadStatus('error');
@@ -195,11 +219,31 @@ export function CowUpload({ onUpload }: CowUploadProps) {
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
-        <div className="border-2 border-dashed border-border rounded-lg p-8 text-center">
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <p className="text-sm text-muted-foreground">
+              Need a template? Download our sample CSV file to get started.
+            </p>
+          </div>
+          <Button 
+            variant="outline" 
+            size="sm"
+            onClick={generateSampleCSV}
+            className="flex items-center gap-2"
+          >
+            <Download className="h-4 w-4" />
+            Download Sample
+          </Button>
+        </div>
+
+        <div className="border-2 border-dashed border-border rounded-lg p-8 text-center hover:border-primary/50 transition-colors">
           <FileText className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
           <div className="space-y-2">
             <p className="text-sm text-muted-foreground">
               Select a CSV file to upload cow data
+            </p>
+            <p className="text-xs text-muted-foreground">
+              Supports .csv files up to 10MB
             </p>
             <Button 
               onClick={handleUploadClick}

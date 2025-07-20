@@ -3,12 +3,70 @@ import { Cow } from '@/types/cow';
 import { CowUpload } from '@/components/CowUpload';
 import { CowForm } from '@/components/CowForm';
 import { Separator } from '@/components/ui/separator';
+import { Button } from '@/components/ui/button';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/contexts/AuthContext';
+import { useToast } from '@/hooks/use-toast';
+import { Save, CheckCircle } from 'lucide-react';
 
 export default function Import() {
   const [cows, setCows] = useState<Cow[]>([]);
+  const [isSaving, setIsSaving] = useState(false);
+  const { currentCompany } = useAuth();
+  const { toast } = useToast();
 
-  const handleCowUpload = (uploadedCows: Cow[]) => {
-    setCows(prev => [...prev, ...uploadedCows]);
+  const handleCowUpload = async (uploadedCows: Cow[]) => {
+    if (!currentCompany) {
+      toast({
+        title: "Error",
+        description: "Please select a company first",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsSaving(true);
+    try {
+      // Transform the cow data for database insertion
+      const cowData = uploadedCows.map(cow => ({
+        id: cow.tagNumber, // Use tag number as ID
+        tag_number: cow.tagNumber,
+        name: cow.name || null,
+        birth_date: cow.birthDate.toISOString().split('T')[0],
+        freshen_date: cow.freshenDate.toISOString().split('T')[0],
+        purchase_price: cow.purchasePrice,
+        salvage_value: cow.salvageValue,
+        current_value: cow.purchasePrice,
+        total_depreciation: 0,
+        status: 'active',
+        depreciation_method: 'straight-line',
+        acquisition_type: cow.acquisitionType,
+        asset_type_id: 'dairy-cow',
+        company_id: currentCompany.id
+      }));
+
+      const { error } = await supabase
+        .from('cows')
+        .insert(cowData);
+
+      if (error) throw error;
+
+      setCows(prev => [...prev, ...uploadedCows]);
+      
+      toast({
+        title: "Success!",
+        description: `Successfully imported ${uploadedCows.length} cows to your inventory`,
+      });
+    } catch (error) {
+      console.error('Error saving cows:', error);
+      toast({
+        title: "Error",
+        description: "Failed to save cows to database. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const handleAddCow = (cow: Cow) => {
