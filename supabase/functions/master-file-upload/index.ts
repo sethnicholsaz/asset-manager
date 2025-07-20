@@ -190,9 +190,13 @@ const handler = async (req: Request): Promise<Response> => {
       }
     });
 
-    // Create lookup for master data
+    // Create lookup for master data - normalize keys for comparison
     const masterLookup = new Set(
-      masterData.map(m => `${m.id}_${processDate(m.birthdate)}`)
+      masterData.map(m => {
+        const processedDate = processDate(m.birthdate);
+        const key = `${m.id.trim()}_${processedDate}`;
+        return key;
+      })
     );
     
     console.log('Master data sample:', masterData.slice(0, 3));
@@ -200,7 +204,7 @@ const handler = async (req: Request): Promise<Response> => {
 
     // Check for cows in DB but not in master (potentially need disposal)
     activeCows?.forEach(cow => {
-      const key = `${cow.tag_number}_${cow.birth_date}`;
+      const key = `${cow.tag_number.trim()}_${cow.birth_date}`;
       if (!masterLookup.has(key)) {
         stagingRecords.push({
           company_id: companyId,
@@ -216,9 +220,9 @@ const handler = async (req: Request): Promise<Response> => {
       }
     });
 
-    // Create lookup for DB data
+    // Create lookup for DB data - normalize keys for comparison
     const dbLookup = new Set(
-      activeCows?.map(cow => `${cow.tag_number}_${cow.birth_date}`) || []
+      activeCows?.map(cow => `${cow.tag_number.trim()}_${cow.birth_date}`) || []
     );
     
     console.log('DB data sample:', activeCows?.slice(0, 3));
