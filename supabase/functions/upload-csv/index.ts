@@ -186,11 +186,19 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Get purchase price defaults
+    // Get purchase price defaults and acquisition settings
     const { data: priceDefaults } = await supabase
       .from('purchase_price_defaults')
       .select('*')
       .eq('company_id', companyId);
+
+    const { data: acquisitionSettings } = await supabase
+      .from('acquisition_settings')
+      .select('default_acquisition_type')
+      .eq('company_id', companyId)
+      .maybeSingle();
+    
+    const defaultAcquisitionType = acquisitionSettings?.default_acquisition_type || 'purchased';
 
     // Handle large files by processing in chunks - no file size limit
     console.log(`Processing ${dataRows.length} total rows automatically in chunks`);
@@ -255,7 +263,7 @@ Deno.serve(async (req) => {
             asset_type_id: rowData.asset_type_id || 'dairy-cow',
             status: cowStatus, // Use determined status from filename
             depreciation_method: rowData.depreciation_method || 'straight-line',
-            acquisition_type: rowData.acquisition_type || 'purchased',
+            acquisition_type: rowData.acquisition_type || defaultAcquisitionType || 'purchased',
             company_id: companyId
           };
 
