@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Cow } from '@/types/cow';
 import { DepreciationReport } from '@/components/DepreciationReport';
 import { DispositionReport } from '@/components/DispositionReport';
+import { BalanceReconciliation } from '@/components/BalanceReconciliation';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
@@ -88,9 +89,10 @@ export default function Reports() {
       </div>
 
       <Tabs defaultValue="depreciation" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-2">
+        <TabsList className="grid w-full grid-cols-3">
           <TabsTrigger value="depreciation">Depreciation Reports</TabsTrigger>
           <TabsTrigger value="dispositions">Disposition Reports</TabsTrigger>
+          <TabsTrigger value="balance">Balance Reconciliation</TabsTrigger>
         </TabsList>
         
         <TabsContent value="depreciation">
@@ -99,6 +101,10 @@ export default function Reports() {
         
         <TabsContent value="dispositions">
           <DispositionReport cows={cows} />
+        </TabsContent>
+
+        <TabsContent value="balance">
+          <BalanceReconciliation />
         </TabsContent>
       </Tabs>
     </div>
