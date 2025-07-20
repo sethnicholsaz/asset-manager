@@ -179,73 +179,104 @@ Deno.serve(async (req) => {
       .select('*')
       .eq('company_id', companyId);
 
-    // Process each row
-    const processedCows: CowData[] = [];
-    const errors: string[] = [];
+    // For large datasets, process in smaller chunks to avoid timeouts
+    const maxRowsPerRequest = 1000;
+    if (dataRows.length > maxRowsPerRequest) {
+      return new Response(
+        JSON.stringify({ 
+          error: `File too large. Maximum ${maxRowsPerRequest} rows per upload. Your file has ${dataRows.length} rows. Please split into smaller files.`,
+          suggested_batches: Math.ceil(dataRows.length / maxRowsPerRequest)
+        }),
+        { status: 413, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
 
     // Process rows in batches for better performance
-    const batchSize = 100;
+    const processedCows: CowData[] = [];
+    const errors: string[] = [];
+    const batchSize = 250;
+    
     console.log(`Processing ${dataRows.length} rows in batches of ${batchSize}`);
 
-    for (let i = 0; i < dataRows.length; i++) {
-      try {
-        const values = dataRows[i].split(',').map(v => v.trim().replace(/"/g, ''));
-        const rowData: Record<string, string> = {};
-        
-        // Map original headers to data using the mapping
-        headers.forEach((header, index) => {
-          const mappedHeader = headerMapping[header] || header.toLowerCase();
-          rowData[mappedHeader] = values[index] || '';
-        });
+    for (let batchStart = 0; batchStart < dataRows.length; batchStart += batchSize) {
+      const batchEnd = Math.min(batchStart + batchSize, dataRows.length);
+      const batchCows: CowData[] = [];
+      
+      console.log(`Processing batch ${Math.floor(batchStart / batchSize) + 1}/${Math.ceil(dataRows.length / batchSize)} (rows ${batchStart + 1}-${batchEnd})`);
 
-        // Only log every 100th row to reduce CPU usage
-        if (i % 100 === 0) {
-          console.log(`Processing row ${i + 1}/${dataRows.length}`);
-        }
-
-        // Parse dates using mapped headers
-        const birthDate = new Date(rowData['birth_date'] || rowData['BDAT']);
-        const freshenDate = new Date(rowData['freshen_date'] || rowData['Date']);
-        
-        if (isNaN(birthDate.getTime()) || isNaN(freshenDate.getTime())) {
-          errors.push(`Row ${i + 2}: Invalid date format. Birth: ${rowData['birth_date'] || rowData['BDAT']}, Freshen: ${rowData['freshen_date'] || rowData['Date']}`);
-          continue;
-        }
-
-        // Calculate purchase price if not provided
-        let purchasePrice = parseFloat(rowData.purchase_price) || 0;
-        if (purchasePrice === 0 && priceDefaults && priceDefaults.length > 0) {
-          const birthYear = birthDate.getFullYear();
-          const matchingDefault = priceDefaults.find(pd => pd.birth_year === birthYear);
+      for (let i = batchStart; i < batchEnd; i++) {
+        try {
+          const values = dataRows[i].split(',').map(v => v.trim().replace(/"/g, ''));
+          const rowData: Record<string, string> = {};
           
-          if (matchingDefault) {
-            const daysDiff = Math.floor((freshenDate.getTime() - birthDate.getTime()) / (1000 * 60 * 60 * 24));
-            purchasePrice = matchingDefault.default_price + (daysDiff * (matchingDefault.daily_accrual_rate || 0));
-          } else {
-            purchasePrice = 2000; // Default fallback
+          // Map original headers to data using the mapping
+          headers.forEach((header, index) => {
+            const mappedHeader = headerMapping[header] || header.toLowerCase();
+            rowData[mappedHeader] = values[index] || '';
+          });
+
+          // Parse dates using mapped headers
+          const birthDate = new Date(rowData['birth_date'] || rowData['BDAT']);
+          const freshenDate = new Date(rowData['freshen_date'] || rowData['Date']);
+          
+          if (isNaN(birthDate.getTime()) || isNaN(freshenDate.getTime())) {
+            errors.push(`Row ${i + 2}: Invalid date format. Birth: ${rowData['birth_date'] || rowData['BDAT']}, Freshen: ${rowData['freshen_date'] || rowData['Date']}`);
+            continue;
           }
+
+          // Calculate purchase price if not provided
+          let purchasePrice = parseFloat(rowData.purchase_price) || 0;
+          if (purchasePrice === 0 && priceDefaults && priceDefaults.length > 0) {
+            const birthYear = birthDate.getFullYear();
+            const matchingDefault = priceDefaults.find(pd => pd.birth_year === birthYear);
+            
+            if (matchingDefault) {
+              const daysDiff = Math.floor((freshenDate.getTime() - birthDate.getTime()) / (1000 * 60 * 60 * 24));
+              purchasePrice = matchingDefault.default_price + (daysDiff * (matchingDefault.daily_accrual_rate || 0));
+            } else {
+              purchasePrice = 2000; // Default fallback
+            }
+          }
+
+          const cowData: CowData = {
+            id: rowData.id || `cow_${Date.now()}_${i}`,
+            tag_number: rowData.tag_number,
+            name: rowData.name || null,
+            birth_date: birthDate.toISOString().split('T')[0],
+            freshen_date: freshenDate.toISOString().split('T')[0],
+            purchase_price: purchasePrice,
+            salvage_value: parseFloat(rowData.salvage_value) || (purchasePrice * 0.1),
+            current_value: purchasePrice,
+            total_depreciation: 0,
+            asset_type_id: rowData.asset_type_id || 'dairy-cow',
+            status: rowData.status || 'active',
+            depreciation_method: rowData.depreciation_method || 'straight-line',
+            acquisition_type: rowData.acquisition_type || 'purchased',
+            company_id: companyId
+          };
+
+          batchCows.push(cowData);
+        } catch (error) {
+          errors.push(`Row ${i + 2}: ${error.message}`);
         }
+      }
 
-        const cowData: CowData = {
-          id: rowData.id || `cow_${Date.now()}_${i}`,
-          tag_number: rowData.tag_number,
-          name: rowData.name || null,
-          birth_date: birthDate.toISOString().split('T')[0],
-          freshen_date: freshenDate.toISOString().split('T')[0],
-          purchase_price: purchasePrice,
-          salvage_value: parseFloat(rowData.salvage_value) || (purchasePrice * 0.1),
-          current_value: purchasePrice,
-          total_depreciation: 0,
-          asset_type_id: rowData.asset_type_id || 'dairy-cow',
-          status: rowData.status || 'active',
-          depreciation_method: rowData.depreciation_method || 'straight-line',
-          acquisition_type: rowData.acquisition_type || 'purchased',
-          company_id: companyId
-        };
+      // Insert batch if we have data
+      if (batchCows.length > 0) {
+        const { error: batchError } = await supabase
+          .from('cows')
+          .upsert(batchCows, {
+            onConflict: 'tag_number,company_id',
+            ignoreDuplicates: false
+          });
 
-        processedCows.push(cowData);
-      } catch (error) {
-        errors.push(`Row ${i + 2}: ${error.message}`);
+        if (batchError) {
+          console.error(`Batch ${Math.floor(batchStart / batchSize) + 1} error:`, batchError);
+          errors.push(`Batch ${Math.floor(batchStart / batchSize) + 1}: ${batchError.message}`);
+        } else {
+          processedCows.push(...batchCows);
+          console.log(`Batch ${Math.floor(batchStart / batchSize) + 1} completed: ${batchCows.length} records`);
+        }
       }
     }
 
@@ -256,26 +287,6 @@ Deno.serve(async (req) => {
           errors: errors
         }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
-    // Insert or update cows in database using upsert with company-specific constraint
-    const { data: insertedCows, error: insertError } = await supabase
-      .from('cows')
-      .upsert(processedCows, {
-        onConflict: 'tag_number,company_id',
-        ignoreDuplicates: false
-      })
-      .select();
-
-    if (insertError) {
-      console.error('Database upsert error:', insertError);
-      return new Response(
-        JSON.stringify({ 
-          error: 'Failed to save cow data',
-          details: insertError.message
-        }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
