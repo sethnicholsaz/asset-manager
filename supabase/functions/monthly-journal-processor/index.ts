@@ -132,25 +132,38 @@ serve(async (req) => {
           // Fetch all active cows for this company as of the end of the target month
           const reportDate = new Date(targetYear, targetMonth - 1, 31); // Last day of target month
           
-          const { data: allCows, error: cowsError } = await supabase
-            .from('cows')
-            .select('*')
-            .eq('company_id', company.id);
+          // Fetch all cows with pagination to avoid limits
+          let allCows: any[] = [];
+          let offset = 0;
+          const limit = 1000;
+          
+          while (true) {
+            const { data: cowBatch, error: cowsError } = await supabase
+              .from('cows')
+              .select('*')
+              .eq('company_id', company.id)
+              .range(offset, offset + limit - 1);
 
-          if (cowsError) throw cowsError;
+            if (cowsError) throw cowsError;
+            
+            if (!cowBatch || cowBatch.length === 0) break;
+            
+            allCows.push(...cowBatch);
+            console.log(`Fetched ${cowBatch.length} cows (${offset} to ${offset + cowBatch.length - 1}), total so far: ${allCows.length}`);
+            
+            if (cowBatch.length < limit) break;
+            offset += limit;
+          }
 
-          console.log(`Total cows fetched for company: ${allCows?.length || 0}`);
+          console.log(`Total cows fetched for company: ${allCows.length}`);
 
           // Include all active cows in depreciation (using actual freshen dates only)
-          const activeCows = allCows?.filter((cow: any) => {
+          const activeCows = allCows.filter((cow: any) => {
             const isActive = cow.status === 'active';
-            if (!isActive) {
-              console.log(`Cow ${cow.tag_number} excluded - status: ${cow.status}`);
-            }
             return isActive;
           });
 
-          console.log(`Found ${activeCows?.length || 0} active cows for depreciation`);
+          console.log(`ALL active cows (no date filter): ${activeCows.length}`);
 
           if (activeCows && activeCows.length > 0) {
             // Calculate total monthly depreciation
