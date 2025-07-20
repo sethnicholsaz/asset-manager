@@ -216,6 +216,59 @@ export type Database = {
           },
         ]
       }
+      depreciation_settings: {
+        Row: {
+          auto_calculate_depreciation: boolean
+          company_id: string
+          created_at: string
+          default_depreciation_method: string
+          default_depreciation_years: number
+          default_salvage_percentage: number
+          fiscal_year_start_month: number
+          id: string
+          include_partial_months: boolean
+          monthly_calculation_day: number
+          round_to_nearest_dollar: boolean
+          updated_at: string
+        }
+        Insert: {
+          auto_calculate_depreciation?: boolean
+          company_id: string
+          created_at?: string
+          default_depreciation_method?: string
+          default_depreciation_years?: number
+          default_salvage_percentage?: number
+          fiscal_year_start_month?: number
+          id?: string
+          include_partial_months?: boolean
+          monthly_calculation_day?: number
+          round_to_nearest_dollar?: boolean
+          updated_at?: string
+        }
+        Update: {
+          auto_calculate_depreciation?: boolean
+          company_id?: string
+          created_at?: string
+          default_depreciation_method?: string
+          default_depreciation_years?: number
+          default_salvage_percentage?: number
+          fiscal_year_start_month?: number
+          id?: string
+          include_partial_months?: boolean
+          monthly_calculation_day?: number
+          round_to_nearest_dollar?: boolean
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "depreciation_settings_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: true
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       journal_entries: {
         Row: {
           company_id: string | null
