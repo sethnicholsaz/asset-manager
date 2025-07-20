@@ -20,6 +20,7 @@ interface CowData {
   depreciation_method: string
   acquisition_type: string
   company_id: string
+  disposition_type?: string | null
 }
 
 Deno.serve(async (req) => {
@@ -120,15 +121,15 @@ Deno.serve(async (req) => {
 
     // Determine status and disposition type from filename
     const fileName = csvFile.name.toUpperCase();
-    let cowStatus = 'active';
-    let dispositionType: string | null = null;
+    let defaultCowStatus = 'active';
+    let defaultDispositionType: string | null = null;
     
     if (fileName.includes('SOLD')) {
-      cowStatus = 'sold';
-      dispositionType = 'sale';
+      defaultCowStatus = 'sold';
+      defaultDispositionType = 'sale';
     } else if (fileName.includes('DIED') || fileName.includes('DEAD')) {
-      cowStatus = 'deceased';
-      dispositionType = 'death';
+      defaultCowStatus = 'deceased';
+      defaultDispositionType = 'death';
     }
 
     // Validate file type
@@ -236,6 +237,24 @@ Deno.serve(async (req) => {
             continue;
           }
 
+          // Determine disposition type from row data
+          let cowStatus = defaultCowStatus;
+          let dispositionType = defaultDispositionType;
+          
+          // Check Event or Remark fields for disposition information
+          const event = (rowData.event || '').toLowerCase();
+          const remark = (rowData.notes || rowData.remark || '').toLowerCase();
+          const status = (rowData.status || '').toLowerCase();
+          
+          // Look for keywords that indicate disposition type
+          if (event.includes('sold') || remark.includes('sold') || status.includes('sold')) {
+            cowStatus = 'sold';
+            dispositionType = 'sale';
+          } else if (event.includes('died') || event.includes('dead') || remark.includes('died') || remark.includes('dead') || status.includes('died') || status.includes('dead')) {
+            cowStatus = 'deceased';
+            dispositionType = 'death';
+          }
+
           // Calculate purchase price if not provided
           let purchasePrice = parseFloat(rowData.purchase_price) || 0;
           if (purchasePrice === 0 && priceDefaults && priceDefaults.length > 0) {
@@ -261,10 +280,11 @@ Deno.serve(async (req) => {
             current_value: purchasePrice,
             total_depreciation: 0,
             asset_type_id: rowData.asset_type_id || 'dairy-cow',
-            status: cowStatus, // Use determined status from filename
+            status: cowStatus, // Use determined status from row data
             depreciation_method: rowData.depreciation_method || 'straight-line',
             acquisition_type: rowData.acquisition_type || defaultAcquisitionType || 'purchased',
-            company_id: companyId
+            company_id: companyId,
+            disposition_type: dispositionType // Add disposition type to cow data
           };
 
           batchCows.push(cowData);
@@ -289,21 +309,23 @@ Deno.serve(async (req) => {
           processedCows.push(...batchCows);
           console.log(`Batch ${Math.floor(batchStart / batchSize) + 1} completed: ${batchCows.length} records`);
           
-          // Create disposition records for sold/deceased cows
-          if (dispositionType && cowStatus !== 'active') {
-            const dispositionRecords = batchCows.map(cow => ({
+          // Create disposition records for sold/deceased cows that have disposition types
+          const dispositionRecords = batchCows
+            .filter(cow => cow.disposition_type && cow.status !== 'active')
+            .map(cow => ({
               cow_id: cow.tag_number, // Using tag_number as cow_id for dispositions
               company_id: companyId,
               disposition_date: cow.freshen_date, // Use freshen_date as disposition date
-              disposition_type: dispositionType,
-              sale_amount: dispositionType === 'sale' ? cow.purchase_price * 0.8 : 0, // Estimated sale amount
+              disposition_type: cow.disposition_type,
+              sale_amount: cow.disposition_type === 'sale' ? cow.purchase_price * 0.8 : 0, // Estimated sale amount
               final_book_value: cow.current_value,
-              gain_loss: dispositionType === 'sale' ? (cow.purchase_price * 0.8) - cow.current_value : -cow.current_value,
+              gain_loss: cow.disposition_type === 'sale' ? (cow.purchase_price * 0.8) - cow.current_value : -cow.current_value,
               notes: `Imported from ${csvFile.name}`,
               created_at: new Date().toISOString(),
               updated_at: new Date().toISOString()
             }));
 
+          if (dispositionRecords.length > 0) {
             const { error: dispositionError } = await supabase
               .from('cow_dispositions')
               .insert(dispositionRecords);
@@ -312,7 +334,7 @@ Deno.serve(async (req) => {
               console.error(`Disposition batch ${Math.floor(batchStart / batchSize) + 1} error:`, dispositionError);
               errors.push(`Disposition batch ${Math.floor(batchStart / batchSize) + 1}: ${dispositionError.message}`);
             } else {
-              console.log(`Disposition batch ${Math.floor(batchStart / batchSize) + 1} completed: ${dispositionRecords.length} records`);
+              console.log(`Disposition batch ${Math.floor(batchStart / batchSize) + 1} completed: ${dispositionRecords.length} disposition records`);
             }
           }
         }
