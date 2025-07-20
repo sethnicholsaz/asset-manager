@@ -1,9 +1,11 @@
 import { useState, useEffect } from 'react';
 import { Cow } from '@/types/cow';
 import { DepreciationReport } from '@/components/DepreciationReport';
+import { DispositionReport } from '@/components/DispositionReport';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 export default function Reports() {
   const [cows, setCows] = useState<Cow[]>([]);
@@ -24,8 +26,7 @@ export default function Reports() {
       const { data, error } = await supabase
         .from('cows')
         .select('*')
-        .eq('company_id', currentCompany.id)
-        .eq('status', 'active'); // Only active cows for depreciation reports
+        .eq('company_id', currentCompany.id); // Get all cows for both reports
 
       if (error) throw error;
 
@@ -78,14 +79,27 @@ export default function Reports() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Depreciation Reports</h1>
+          <h1 className="text-3xl font-bold tracking-tight">Reports</h1>
           <p className="text-muted-foreground">
-            Generate monthly depreciation schedules and journal entries for your {cows.length} active cows
+            Generate depreciation schedules and disposition reports with journal entries
           </p>
         </div>
       </div>
 
-      <DepreciationReport cows={cows} />
+      <Tabs defaultValue="depreciation" className="space-y-6">
+        <TabsList className="grid w-full grid-cols-2">
+          <TabsTrigger value="depreciation">Depreciation Reports</TabsTrigger>
+          <TabsTrigger value="dispositions">Disposition Reports</TabsTrigger>
+        </TabsList>
+        
+        <TabsContent value="depreciation">
+          <DepreciationReport cows={cows} />
+        </TabsContent>
+        
+        <TabsContent value="dispositions">
+          <DispositionReport cows={cows} />
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }

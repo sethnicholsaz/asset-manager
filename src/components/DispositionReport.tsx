@@ -1,0 +1,457 @@
+import { useState, useEffect } from 'react';
+import { Calendar, Download, FileText, Calculator, TrendingDown } from 'lucide-react';
+import { Cow, CowDisposition, JournalEntry } from '@/types/cow';
+import { DepreciationCalculator } from '@/utils/depreciation';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/contexts/AuthContext';
+import { useToast } from '@/hooks/use-toast';
+
+interface DispositionReportProps {
+  cows: Cow[];
+}
+
+export function DispositionReport({ cows }: DispositionReportProps) {
+  const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1);
+  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
+  const [dispositions, setDispositions] = useState<CowDisposition[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const { currentCompany } = useAuth();
+  const { toast } = useToast();
+
+  useEffect(() => {
+    fetchDispositions();
+  }, [selectedMonth, selectedYear, currentCompany]);
+
+  const fetchDispositions = async () => {
+    if (!currentCompany) return;
+    
+    setIsLoading(true);
+    try {
+      const startDate = new Date(selectedYear, selectedMonth - 1, 1);
+      const endDate = new Date(selectedYear, selectedMonth, 0);
+      
+      const { data, error } = await supabase
+        .from('cow_dispositions')
+        .select('*')
+        .eq('company_id', currentCompany.id)
+        .gte('disposition_date', startDate.toISOString().split('T')[0])
+        .lte('disposition_date', endDate.toISOString().split('T')[0]);
+
+      if (error) throw error;
+
+      const transformedDispositions: CowDisposition[] = (data || []).map(d => ({
+        id: d.id,
+        cowId: d.cow_id,
+        dispositionDate: new Date(d.disposition_date),
+        dispositionType: d.disposition_type as 'sale' | 'death' | 'culled',
+        saleAmount: d.sale_amount || 0,
+        finalBookValue: d.final_book_value,
+        gainLoss: d.gain_loss,
+        notes: d.notes,
+        journalEntryId: d.journal_entry_id,
+        createdAt: new Date(d.created_at),
+        updatedAt: new Date(d.updated_at)
+      }));
+
+      setDispositions(transformedDispositions);
+    } catch (error) {
+      console.error('Error fetching dispositions:', error);
+      toast({
+        title: "Error",
+        description: "Failed to load disposition data",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const getMonthName = (month: number): string => {
+    return new Date(2000, month - 1, 1).toLocaleString('en-US', { month: 'long' });
+  };
+
+  // Generate journal entries for writebacks
+  const generateJournalEntries = (): JournalEntry[] => {
+    const journalEntries: JournalEntry[] = [];
+
+    dispositions.forEach((disposition) => {
+      const cow = cows.find(c => c.id === disposition.cowId);
+      if (!cow) return;
+
+      const journalEntry: JournalEntry = {
+        id: `je-disposition-${disposition.id}`,
+        entryDate: disposition.dispositionDate,
+        description: `${disposition.dispositionType === 'sale' ? 'Sale' : 'Write-off'} of Dairy Cow #${cow.tagNumber}`,
+        totalAmount: Math.abs(disposition.gainLoss),
+        entryType: 'disposition',
+        lines: [],
+        createdAt: new Date(),
+        updatedAt: new Date()
+      };
+
+      // Cash/Sale entry (if sale)
+      if (disposition.dispositionType === 'sale' && disposition.saleAmount > 0) {
+        journalEntry.lines.push({
+          id: `jl-cash-${disposition.id}`,
+          journalEntryId: journalEntry.id,
+          accountCode: '1000',
+          accountName: 'Cash',
+          description: `Cash received from sale of cow #${cow.tagNumber}`,
+          debitAmount: disposition.saleAmount,
+          creditAmount: 0,
+          lineType: 'debit',
+          createdAt: new Date()
+        });
+      }
+
+      // Accumulated Depreciation removal
+      const accumulatedDepreciation = cow.totalDepreciation;
+      if (accumulatedDepreciation > 0) {
+        journalEntry.lines.push({
+          id: `jl-accum-dep-${disposition.id}`,
+          journalEntryId: journalEntry.id,
+          accountCode: '1500.1',
+          accountName: 'Accumulated Depreciation - Dairy Cows',
+          description: `Remove accumulated depreciation for cow #${cow.tagNumber}`,
+          debitAmount: accumulatedDepreciation,
+          creditAmount: 0,
+          lineType: 'debit',
+          createdAt: new Date()
+        });
+      }
+
+      // Asset removal (credit the original cost)
+      journalEntry.lines.push({
+        id: `jl-asset-${disposition.id}`,
+        journalEntryId: journalEntry.id,
+        accountCode: '1500',
+        accountName: 'Dairy Cows',
+        description: `Remove cow asset #${cow.tagNumber}`,
+        debitAmount: 0,
+        creditAmount: cow.purchasePrice,
+        lineType: 'credit',
+        createdAt: new Date()
+      });
+
+      // Gain or Loss
+      if (disposition.gainLoss !== 0) {
+        const isGain = disposition.gainLoss > 0;
+        journalEntry.lines.push({
+          id: `jl-gainloss-${disposition.id}`,
+          journalEntryId: journalEntry.id,
+          accountCode: isGain ? '8000' : '9000',
+          accountName: isGain ? 'Gain on Sale of Assets' : 'Loss on Sale of Assets',
+          description: `${isGain ? 'Gain' : 'Loss'} on ${disposition.dispositionType} of cow #${cow.tagNumber}`,
+          debitAmount: isGain ? 0 : Math.abs(disposition.gainLoss),
+          creditAmount: isGain ? disposition.gainLoss : 0,
+          lineType: isGain ? 'credit' : 'debit',
+          createdAt: new Date()
+        });
+      }
+
+      journalEntries.push(journalEntry);
+    });
+
+    return journalEntries;
+  };
+
+  const journalEntries = generateJournalEntries();
+
+  const totalGainLoss = dispositions.reduce((sum, d) => sum + d.gainLoss, 0);
+  const totalSaleAmount = dispositions.reduce((sum, d) => sum + (d.saleAmount || 0), 0);
+
+  const exportToCSV = (data: any[], filename: string) => {
+    const csvContent = convertToCSV(data);
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = filename;
+    link.click();
+  };
+
+  const convertToCSV = (data: any[]): string => {
+    if (data.length === 0) return '';
+    
+    const headers = Object.keys(data[0]).join(',');
+    const rows = data.map(row => 
+      Object.values(row).map(value => {
+        if (typeof value === 'string' && value.includes(',')) {
+          return `"${value}"`;
+        }
+        return value;
+      }).join(',')
+    );
+    
+    return [headers, ...rows].join('\n');
+  };
+
+  const months = Array.from({ length: 12 }, (_, i) => ({
+    value: i + 1,
+    label: getMonthName(i + 1)
+  }));
+
+  const years = Array.from({ length: 5 }, (_, i) => {
+    const year = new Date().getFullYear() - 2 + i;
+    return { value: year, label: year.toString() };
+  });
+
+  const exportData = dispositions.map(d => {
+    const cow = cows.find(c => c.id === d.cowId);
+    return {
+      CowTag: cow?.tagNumber || d.cowId,
+      DispositionDate: DepreciationCalculator.formatDate(d.dispositionDate),
+      DispositionType: d.dispositionType,
+      SaleAmount: d.saleAmount || 0,
+      FinalBookValue: d.finalBookValue,
+      GainLoss: d.gainLoss,
+      Notes: d.notes || ''
+    };
+  });
+
+  return (
+    <div className="space-y-6">
+      {/* Report Controls */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <TrendingDown className="h-5 w-5" />
+            Disposition Report - Sold & Died Cows
+          </CardTitle>
+          <CardDescription>
+            Track dispositions and generate journal entries for asset writebacks
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="flex gap-4 items-end">
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Month</label>
+              <Select value={selectedMonth.toString()} onValueChange={(value) => setSelectedMonth(parseInt(value))}>
+                <SelectTrigger className="w-40">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {months.map(month => (
+                    <SelectItem key={month.value} value={month.value.toString()}>
+                      {month.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Year</label>
+              <Select value={selectedYear.toString()} onValueChange={(value) => setSelectedYear(parseInt(value))}>
+                <SelectTrigger className="w-32">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {years.map(year => (
+                    <SelectItem key={year.value} value={year.value.toString()}>
+                      {year.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <Button
+              onClick={() => exportToCSV(exportData, `dispositions-${selectedYear}-${selectedMonth.toString().padStart(2, '0')}.csv`)}
+              variant="outline"
+              className="flex items-center gap-2"
+              disabled={dispositions.length === 0}
+            >
+              <Download className="h-4 w-4" />
+              Export CSV
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Summary */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex items-center space-x-2">
+              <div className="w-8 h-8 bg-destructive/10 rounded-lg flex items-center justify-center">
+                <TrendingDown className="h-4 w-4 text-destructive" />
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground">Total Dispositions</p>
+                <p className="text-2xl font-bold">{dispositions.length}</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex items-center space-x-2">
+              <div className="w-8 h-8 bg-success/10 rounded-lg flex items-center justify-center">
+                <FileText className="h-4 w-4 text-success" />
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground">Total Sale Amount</p>
+                <p className="text-2xl font-bold">{DepreciationCalculator.formatCurrency(totalSaleAmount)}</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex items-center space-x-2">
+              <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${
+                totalGainLoss >= 0 ? 'bg-success/10' : 'bg-destructive/10'
+              }`}>
+                <Calculator className={`h-4 w-4 ${
+                  totalGainLoss >= 0 ? 'text-success' : 'text-destructive'
+                }`} />
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground">Total Gain/Loss</p>
+                <p className={`text-2xl font-bold ${
+                  totalGainLoss >= 0 ? 'text-success' : 'text-destructive'
+                }`}>
+                  {DepreciationCalculator.formatCurrency(totalGainLoss)}
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Report Content */}
+      <Tabs defaultValue="dispositions" className="space-y-4">
+        <TabsList>
+          <TabsTrigger value="dispositions">Disposition Summary</TabsTrigger>
+          <TabsTrigger value="journal">Journal Entries</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="dispositions">
+          <Card>
+            <CardHeader>
+              <CardTitle>Disposition Summary - {getMonthName(selectedMonth)} {selectedYear}</CardTitle>
+              <CardDescription>
+                All cow dispositions (sales, deaths, culls) for the selected period
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              {isLoading ? (
+                <div className="text-center py-12">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
+                </div>
+              ) : (
+                <div className="rounded-md border">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Cow Tag</TableHead>
+                        <TableHead>Date</TableHead>
+                        <TableHead>Type</TableHead>
+                        <TableHead>Sale Amount</TableHead>
+                        <TableHead>Book Value</TableHead>
+                        <TableHead>Gain/Loss</TableHead>
+                        <TableHead>Notes</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {dispositions.map((disposition) => {
+                        const cow = cows.find(c => c.id === disposition.cowId);
+                        return (
+                          <TableRow key={disposition.id}>
+                            <TableCell className="font-medium">{cow?.tagNumber || disposition.cowId}</TableCell>
+                            <TableCell>{DepreciationCalculator.formatDate(disposition.dispositionDate)}</TableCell>
+                            <TableCell className="capitalize">{disposition.dispositionType}</TableCell>
+                            <TableCell>{DepreciationCalculator.formatCurrency(disposition.saleAmount || 0)}</TableCell>
+                            <TableCell>{DepreciationCalculator.formatCurrency(disposition.finalBookValue)}</TableCell>
+                            <TableCell className={disposition.gainLoss >= 0 ? 'text-success' : 'text-destructive'}>
+                              {DepreciationCalculator.formatCurrency(disposition.gainLoss)}
+                            </TableCell>
+                            <TableCell className="max-w-xs truncate">{disposition.notes || '-'}</TableCell>
+                          </TableRow>
+                        );
+                      })}
+                    </TableBody>
+                  </Table>
+                  
+                  {dispositions.length === 0 && (
+                    <div className="text-center py-12 text-muted-foreground">
+                      <p>No dispositions found for the selected period</p>
+                    </div>
+                  )}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="journal">
+          <Card>
+            <CardHeader>
+              <CardTitle>Journal Entries - {getMonthName(selectedMonth)} {selectedYear}</CardTitle>
+              <CardDescription>
+                Asset writebacks and gain/loss recognition for disposed cows
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-6">
+                {journalEntries.map((entry) => (
+                  <div key={entry.id} className="space-y-4 p-4 border rounded-lg">
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <h4 className="font-medium">{entry.description}</h4>
+                        <p className="text-sm text-muted-foreground">
+                          Date: {DepreciationCalculator.formatDate(entry.entryDate)}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="grid md:grid-cols-2 gap-4">
+                      <div>
+                        <h5 className="font-medium text-sm mb-2">Debits</h5>
+                        <div className="space-y-2">
+                          {entry.lines.filter(line => line.lineType === 'debit' && line.debitAmount > 0).map((line) => (
+                            <div key={line.id} className="text-sm">
+                              <div className="font-medium">{line.accountCode} - {line.accountName}</div>
+                              <div className="text-muted-foreground">{line.description}</div>
+                              <div className="font-medium">{DepreciationCalculator.formatCurrency(line.debitAmount)}</div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+
+                      <div>
+                        <h5 className="font-medium text-sm mb-2">Credits</h5>
+                        <div className="space-y-2">
+                          {entry.lines.filter(line => line.lineType === 'credit' && line.creditAmount > 0).map((line) => (
+                            <div key={line.id} className="text-sm">
+                              <div className="font-medium">{line.accountCode} - {line.accountName}</div>
+                              <div className="text-muted-foreground">{line.description}</div>
+                              <div className="font-medium">{DepreciationCalculator.formatCurrency(line.creditAmount)}</div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+
+                {journalEntries.length === 0 && (
+                  <div className="text-center py-12 text-muted-foreground">
+                    <p>No journal entries for the selected period</p>
+                  </div>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
+    </div>
+  );
+}
