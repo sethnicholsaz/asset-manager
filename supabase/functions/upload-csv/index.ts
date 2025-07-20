@@ -21,6 +21,7 @@ interface CowData {
   acquisition_type: string
   company_id: string
   disposition_type?: string | null
+  event_date?: string | null
 }
 
 Deno.serve(async (req) => {
@@ -159,8 +160,10 @@ Deno.serve(async (req) => {
     const headerMapping = {
       'ID': 'tag_number',
       'BDAT': 'birth_date', 
-      'Date': 'freshen_date',
-      'DIM': 'freshen_date', // fallback if Date is not freshen date
+      'Date': 'event_date', // This is the disposition/event date for disposition files
+      'SDATE': 'event_date', // Sale date
+      'DDATE': 'event_date', // Death date
+      'DIM': 'freshen_date', // Days in milk - use as freshen date fallback
       'Event': 'event',
       'Remark': 'notes'
     };
@@ -171,8 +174,8 @@ Deno.serve(async (req) => {
     console.log('Original headers:', headers);
     console.log('Mapped headers:', mappedHeaders);
 
-    // Required mapped headers
-    const requiredHeaders = ['tag_number', 'birth_date', 'freshen_date'];
+    // Required mapped headers - event_date is optional for disposition files
+    const requiredHeaders = ['tag_number', 'birth_date'];
     const missingHeaders = requiredHeaders.filter(h => !mappedHeaders.includes(h));
     
     if (missingHeaders.length > 0) {
@@ -230,23 +233,27 @@ Deno.serve(async (req) => {
 
           // Parse dates using mapped headers - STRICT PARSING
           const birthDateStr = rowData['birth_date'] || rowData['BDAT'];
-          const freshenDateStr = rowData['freshen_date'] || rowData['Date'];
+          const freshenDateStr = rowData['freshen_date'] || rowData['DIM'];
+          const eventDateStr = rowData['event_date'] || rowData['Date'];
           
-          // Validate date strings exist
-          if (!birthDateStr || !freshenDateStr) {
-            throw new Error(`Missing required dates. Birth date: '${birthDateStr}', Freshen date: '${freshenDateStr}'`);
+          // Validate required date strings
+          if (!birthDateStr) {
+            throw new Error(`Missing required birth date. Birth date: '${birthDateStr}'`);
           }
           
           const birthDate = new Date(birthDateStr);
-          const freshenDate = new Date(freshenDateStr);
+          let freshenDate = freshenDateStr ? new Date(freshenDateStr) : null;
+          const eventDate = eventDateStr ? new Date(eventDateStr) : null;
           
-          // STRICT: Fail immediately if dates are invalid
+          // STRICT: Fail immediately if birth date is invalid
           if (isNaN(birthDate.getTime())) {
             throw new Error(`Invalid birth date format: '${birthDateStr}'. Expected format: MM/DD/YYYY or YYYY-MM-DD`);
           }
           
-          if (isNaN(freshenDate.getTime())) {
-            throw new Error(`Invalid freshen date format: '${freshenDateStr}'. Expected format: MM/DD/YYYY or YYYY-MM-DD`);
+          // If no freshen date provided, calculate it as birth date + 2 years
+          if (!freshenDate || isNaN(freshenDate.getTime())) {
+            freshenDate = new Date(birthDate);
+            freshenDate.setFullYear(freshenDate.getFullYear() + 2);
           }
           
           // Validate date ranges
@@ -305,7 +312,8 @@ Deno.serve(async (req) => {
             depreciation_method: rowData.depreciation_method || 'straight-line',
             acquisition_type: rowData.acquisition_type || defaultAcquisitionType || 'purchased',
             company_id: companyId,
-            disposition_type: dispositionType // Keep for disposition creation
+            disposition_type: dispositionType, // Keep for disposition creation
+            event_date: eventDate ? eventDate.toISOString().split('T')[0] : null // Store event date
           };
 
           batchCows.push(cowData);
@@ -316,10 +324,10 @@ Deno.serve(async (req) => {
 
       // Insert batch if we have data
       if (batchCows.length > 0) {
-        // Remove disposition_type from cow data before inserting to database
+        // Remove disposition_type and event_date from cow data before inserting to database
         const cowsForInsert = batchCows.map(cow => {
-          const { disposition_type, ...cowWithoutDispositionType } = cow;
-          return cowWithoutDispositionType;
+          const { disposition_type, event_date, ...cowWithoutDispositionFields } = cow;
+          return cowWithoutDispositionFields;
         });
         
         // Deduplicate by tag_number to prevent conflict errors
@@ -366,7 +374,7 @@ Deno.serve(async (req) => {
               return {
                 cow_id: cow.tag_number, // Using tag_number as cow_id for dispositions
                 company_id: companyId,
-                disposition_date: new Date().toISOString().split('T')[0], // Use current date as disposition date
+                disposition_date: cow.event_date || new Date().toISOString().split('T')[0], // Use event date if available
                 disposition_type: cow.disposition_type,
                 sale_amount: saleAmount, // Use actual sale amount from CSV
                 final_book_value: cow.current_value,
