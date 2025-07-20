@@ -295,8 +295,9 @@ Deno.serve(async (req) => {
             throw new Error(`Invalid birth date format: '${birthDateStr}'. Expected format: MM/DD/YYYY, YYYY-MM-DD, or Excel date number`);
           }
           
-          // Use actual freshen date from data - no automatic calculation
-          const freshenDate = eventDate; // Use the event date as freshen date
+          // For dispositions, don't calculate or update freshen date - use current date
+          // For fresh cows, this would need a proper freshen date from the data
+          const freshenDate = birthDate; // Temporary placeholder - disposition uploads shouldn't update this
           
           // Validate date ranges
           if (birthDate > new Date()) {
