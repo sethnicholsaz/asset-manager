@@ -72,12 +72,12 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
-    // Calculate previous month (journal entries are created for the previous month)
+    // Process for current month (July 2025)
     const now = new Date();
-    const prevMonth = now.getMonth() === 0 ? 12 : now.getMonth();
-    const prevYear = now.getMonth() === 0 ? now.getFullYear() - 1 : now.getFullYear();
+    const targetMonth = now.getMonth() + 1; // 1-12 (July = 7)
+    const targetYear = now.getFullYear(); // 2025
 
-    console.log(`Processing monthly journal entries for ${getMonthName(prevMonth)} ${prevYear}`);
+    console.log(`Processing monthly journal entries for ${getMonthName(targetMonth)} ${targetYear}`);
 
     // Fetch all companies
     const { data: companies, error: companiesError } = await supabase
@@ -100,111 +100,21 @@ serve(async (req) => {
           .from('stored_journal_entries')
           .select('entry_type')
           .eq('company_id', company.id)
-          .eq('month', prevMonth)
-          .eq('year', prevYear);
+          .eq('month', targetMonth)
+          .eq('year', targetYear);
+
+        console.log(`Found ${existingEntries?.length || 0} existing entries for ${company.name}`);
 
         const hasDepreciationEntry = existingEntries?.some(e => e.entry_type === 'depreciation');
         const hasDispositionEntry = existingEntries?.some(e => e.entry_type === 'disposition');
         const hasAcquisitionEntry = existingEntries?.some(e => e.entry_type === 'acquisition');
-
-        // Process acquisitions first (cows entering the herd)
-        if (!hasAcquisitionEntry) {
-          console.log(`Creating acquisition entry for ${company.name}`);
-          
-          // Get cows that entered the herd in the previous month
-          const startOfMonth = new Date(prevYear, prevMonth - 1, 1);
-          const endOfMonth = new Date(prevYear, prevMonth, 0);
-
-          const { data: newCows, error: newCowsError } = await supabase
-            .from('cows')
-            .select('*')
-            .eq('company_id', company.id)
-            .gte('freshen_date', startOfMonth.toISOString().split('T')[0])
-            .lte('freshen_date', endOfMonth.toISOString().split('T')[0]);
-
-          if (newCowsError) throw newCowsError;
-
-          console.log(`Found ${newCows?.length || 0} new cows for acquisition`);
-
-          if (newCows && newCows.length > 0) {
-            let totalAcquisitionAmount = 0;
-            const acquisitionJournalLines: any[] = [];
-
-            newCows.forEach((cow: any) => {
-              totalAcquisitionAmount += cow.purchase_price;
-
-              // Add cow asset to books
-              acquisitionJournalLines.push({
-                account_code: '1500',
-                account_name: 'Dairy Cows',
-                description: `Add cow #${cow.tag_number} to herd - ${cow.acquisition_type}`,
-                debit_amount: cow.purchase_price,
-                credit_amount: 0,
-                line_type: 'debit'
-              });
-
-              // Credit appropriate source account
-              let sourceAccountCode = '1400'; // Default for purchased
-              let sourceAccountName = 'Purchased Cows';
-              
-              if (cow.acquisition_type === 'raised') {
-                sourceAccountCode = '1450';
-                sourceAccountName = 'Raised Heifers';
-              }
-
-              acquisitionJournalLines.push({
-                account_code: sourceAccountCode,
-                account_name: sourceAccountName,
-                description: `Transfer cow #${cow.tag_number} to dairy herd`,
-                debit_amount: 0,
-                credit_amount: cow.purchase_price,
-                line_type: 'credit'
-              });
-            });
-
-            if (acquisitionJournalLines.length > 0) {
-              // Create acquisition journal entry
-              const { data: journalEntry, error: journalError } = await supabase
-                .from('stored_journal_entries')
-                .insert({
-                  company_id: company.id,
-                  entry_date: new Date(prevYear, prevMonth - 1, 1),
-                  month: prevMonth,
-                  year: prevYear,
-                  entry_type: 'acquisition',
-                  description: `Cow Acquisitions - ${getMonthName(prevMonth)} ${prevYear}`,
-                  total_amount: totalAcquisitionAmount,
-                  status: 'posted'
-                })
-                .select('id')
-                .single();
-
-              if (journalError) throw journalError;
-
-              // Add journal_entry_id to all lines
-              const journalLinesToInsert = acquisitionJournalLines.map(line => ({
-                ...line,
-                journal_entry_id: journalEntry.id
-              }));
-
-              const { error: linesError } = await supabase
-                .from('stored_journal_lines')
-                .insert(journalLinesToInsert);
-
-              if (linesError) throw linesError;
-
-              console.log(`Created acquisition entry: ${formatCurrency(totalAcquisitionAmount)}`);
-              totalJournalEntriesCreated++;
-            }
-          }
-        }
 
         // Process Depreciation Entries (if not already created)
         if (!hasDepreciationEntry) {
           console.log(`Creating depreciation entry for ${company.name}`);
           
           // Fetch all active cows for this company as of the report date
-          const reportDate = new Date(prevYear, prevMonth, 0); // Last day of the month
+          const reportDate = new Date(targetYear, targetMonth, 0); // Last day of the month
           
           const { data: allCows, error: cowsError } = await supabase
             .from('cows')
@@ -236,11 +146,11 @@ serve(async (req) => {
                 .from('stored_journal_entries')
                 .insert({
                   company_id: company.id,
-                  entry_date: new Date(prevYear, prevMonth - 1, 1),
-                  month: prevMonth,
-                  year: prevYear,
+                  entry_date: new Date(targetYear, targetMonth - 1, 1),
+                  month: targetMonth,
+                  year: targetYear,
                   entry_type: 'depreciation',
-                  description: `Dairy Cow Depreciation - ${getMonthName(prevMonth)} ${prevYear}`,
+                  description: `Dairy Cow Depreciation - ${getMonthName(targetMonth)} ${targetYear}`,
                   total_amount: totalMonthlyDepreciation,
                   status: 'posted'
                 })
@@ -287,8 +197,10 @@ serve(async (req) => {
         if (!hasDispositionEntry) {
           console.log(`Checking dispositions for ${company.name}`);
           
-          const startDate = new Date(prevYear, prevMonth - 1, 1);
-          const endDate = new Date(prevYear, prevMonth, 0);
+          const startDate = new Date(targetYear, targetMonth - 1, 1);
+          const endDate = new Date(targetYear, targetMonth, 0);
+          
+          console.log(`Looking for dispositions between ${startDate.toISOString().split('T')[0]} and ${endDate.toISOString().split('T')[0]}`);
           
           // Fetch dispositions for the month
           const { data: dispositions, error: dispositionsError } = await supabase
@@ -300,8 +212,10 @@ serve(async (req) => {
 
           if (dispositionsError) throw dispositionsError;
 
+          console.log(`Found ${dispositions?.length || 0} dispositions for ${company.name}`);
+
           if (dispositions && dispositions.length > 0) {
-            console.log(`Found ${dispositions.length} dispositions`);
+            console.log(`Processing ${dispositions.length} dispositions`);
 
             // Fetch cow data for dispositions
             const cowTagNumbers = dispositions.map(d => d.cow_id);
@@ -408,11 +322,11 @@ serve(async (req) => {
                 .from('stored_journal_entries')
                 .insert({
                   company_id: company.id,
-                  entry_date: new Date(prevYear, prevMonth - 1, 1),
-                  month: prevMonth,
-                  year: prevYear,
+                  entry_date: new Date(targetYear, targetMonth - 1, 1),
+                  month: targetMonth,
+                  year: targetYear,
                   entry_type: 'disposition',
-                  description: `Cow Dispositions - ${getMonthName(prevMonth)} ${prevYear}`,
+                  description: `Cow Dispositions - ${getMonthName(targetMonth)} ${targetYear}`,
                   total_amount: totalDispositionAmount,
                   status: 'posted'
                 })
@@ -452,7 +366,7 @@ serve(async (req) => {
         success: true,
         companiesProcessed: totalCompaniesProcessed,
         journalEntriesCreated: totalJournalEntriesCreated,
-        period: `${getMonthName(prevMonth)} ${prevYear}`
+        period: `${getMonthName(targetMonth)} ${targetYear}`
       }),
       {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
