@@ -180,7 +180,7 @@ Deno.serve(async (req) => {
       .eq('company_id', companyId);
 
     // For large datasets, process in smaller chunks to avoid timeouts
-    const maxRowsPerRequest = 1000;
+    const maxRowsPerRequest = 5000;
     if (dataRows.length > maxRowsPerRequest) {
       return new Response(
         JSON.stringify({ 
