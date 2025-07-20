@@ -213,12 +213,19 @@ export default function AutomatedImport() {
   };
 
   const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>, fileType: 'fresh' | 'disposition') => {
+    console.log('handleFileSelect called with fileType:', fileType);
     const file = event.target.files?.[0];
-    if (!file) return;
+    console.log('Selected file:', file);
+    
+    if (!file) {
+      console.log('No file selected');
+      return;
+    }
 
-    console.log('File selected:', file.name, 'Type:', fileType);
+    console.log('File selected:', file.name, 'Type:', fileType, 'Size:', file.size);
 
     if (!file.name.toLowerCase().endsWith('.csv')) {
+      console.log('Invalid file extension:', file.name);
       toast({
         title: "Invalid file",
         description: "Please select a CSV file",
@@ -227,9 +234,11 @@ export default function AutomatedImport() {
       return;
     }
 
+    console.log('Setting selectedFile and uploadType state');
     setSelectedFile(file);
     setUploadType(fileType);
     setResult(null);
+    console.log('State should be updated now');
   };
 
   const handleUpload = async () => {
@@ -292,6 +301,10 @@ export default function AutomatedImport() {
         <p className="text-muted-foreground">
           Upload CSV files for automated processing of fresh cows and dispositions
         </p>
+        {/* Debug info */}
+        <div className="text-xs text-muted-foreground">
+          Debug: selectedFile={selectedFile?.name || 'none'}, uploadType={uploadType || 'none'}
+        </div>
       </div>
 
       <div className="grid gap-6 md:grid-cols-2">
@@ -373,7 +386,7 @@ export default function AutomatedImport() {
       </div>
 
       {/* Upload Button */}
-      {selectedFile && (
+      {selectedFile && uploadType && (
         <Card>
           <CardContent className="flex items-center justify-between py-4">
             <div className="flex items-center gap-3">
