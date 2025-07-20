@@ -171,6 +171,7 @@ Deno.serve(async (req) => {
     
     console.log('Original headers:', headers);
     console.log('Mapped headers:', mappedHeaders);
+    console.log('Header mapping applied:', headerMapping);
 
     // Required mapped headers - event_date is optional for disposition files
     const requiredHeaders = ['tag_number', 'birth_date'];
@@ -227,6 +228,14 @@ Deno.serve(async (req) => {
           headers.forEach((header, index) => {
             const mappedHeader = headerMapping[header] || header.toLowerCase();
             rowData[mappedHeader] = values[index] || '';
+          });
+          
+          console.log(`Row ${i + 2}: Full rowData for first few fields:`, {
+            tag_number: rowData.tag_number,
+            birth_date: rowData.birth_date,
+            event_date: rowData.event_date,
+            'Date': rowData['Date'],
+            event: rowData.event
           });
 
           // Parse dates using mapped headers - STRICT PARSING
