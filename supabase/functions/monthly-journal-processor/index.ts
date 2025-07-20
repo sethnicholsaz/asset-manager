@@ -265,7 +265,7 @@ Deno.serve(async (req) => {
 
               totalDispositionAmount += Math.max(saleAmount, cow.purchase_price);
 
-              // Cash entry (only if sale with actual sale amount)
+              // Cash entry (for sales with actual sale amount)
               if (disposition.disposition_type === 'sale' && saleAmount > 0) {
                 allJournalLines.push({
                   account_code: '1000',
@@ -277,19 +277,19 @@ Deno.serve(async (req) => {
                 });
               }
 
-              // Accumulated Depreciation removal (write back)
+              // Accumulated Depreciation removal (write back) - for all dispositions
               if (accumulatedDepreciation > 0) {
                 allJournalLines.push({
                   account_code: '1500.1',
                   account_name: 'Accumulated Depreciation - Dairy Cows',
-                  description: `Remove accumulated depreciation for cow #${cow.tag_number}`,
+                  description: `Remove accumulated depreciation for cow #${cow.tag_number} (${disposition.disposition_type})`,
                   debit_amount: accumulatedDepreciation,
                   credit_amount: 0,
                   line_type: 'debit'
                 });
               }
 
-              // Asset removal (take off books)
+              // Asset removal (take off books) - for all dispositions
               allJournalLines.push({
                 account_code: '1500',
                 account_name: 'Dairy Cows',
@@ -299,27 +299,35 @@ Deno.serve(async (req) => {
                 line_type: 'credit'
               });
 
-              // Gain or Loss handling
-              if (actualGainLoss !== 0) {
+              // Gain or Loss handling - for all dispositions
+              if (Math.abs(actualGainLoss) > 0.01) { // Use small threshold to avoid rounding issues
                 const isGain = actualGainLoss > 0;
                 let accountCode = '9000'; // Default loss account
                 let accountName = 'Loss on Sale of Assets';
                 
-                // Specific account for dead cows
+                // Specific accounts based on disposition type
                 if (disposition.disposition_type === 'death') {
                   accountCode = '9001';
                   accountName = 'Loss on Dead Cows';
-                } else if (isGain) {
-                  accountCode = '8000';
-                  accountName = 'Gain on Sale of Assets';
+                } else if (disposition.disposition_type === 'sale') {
+                  if (isGain) {
+                    accountCode = '8000';
+                    accountName = 'Gain on Sale of Cows';
+                  } else {
+                    accountCode = '9002';
+                    accountName = 'Loss on Sale of Cows';
+                  }
+                } else if (disposition.disposition_type === 'culled') {
+                  accountCode = '9003';
+                  accountName = 'Loss on Culled Cows';
                 }
                 
                 allJournalLines.push({
                   account_code: accountCode,
                   account_name: accountName,
-                  description: `${isGain ? 'Gain' : 'Loss'} on ${disposition.disposition_type} of cow #${cow.tag_number} (Book value: ${formatCurrency(bookValue)})`,
+                  description: `${isGain ? 'Gain' : 'Loss'} on ${disposition.disposition_type} of cow #${cow.tag_number} (Sale: ${formatCurrency(saleAmount)}, Book: ${formatCurrency(bookValue)})`,
                   debit_amount: isGain ? 0 : Math.abs(actualGainLoss),
-                  credit_amount: isGain ? actualGainLoss : 0,
+                  credit_amount: isGain ? Math.abs(actualGainLoss) : 0,
                   line_type: isGain ? 'credit' : 'debit'
                 });
               }
