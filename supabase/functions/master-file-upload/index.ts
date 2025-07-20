@@ -120,12 +120,17 @@ const handler = async (req: Request): Promise<Response> => {
 
     console.log(`Processing file: ${file.name}, size: ${file.size} bytes for company: ${companyId}`);
 
-    // Clear previous staging data for this company (optional - you might want to keep history)
-    await supabase
+    // Clear all existing staging data for this company since master file represents current state
+    console.log(`Clearing all existing staging data for company: ${companyId}`);
+    const { error: clearError } = await supabase
       .from('master_file_staging')
       .delete()
-      .eq('company_id', companyId)
-      .eq('action_taken', 'pending');
+      .eq('company_id', companyId);
+
+    if (clearError) {
+      console.error('Error clearing staging data:', clearError);
+      // Don't throw error, just log it - continue with processing
+    }
 
     // Read and parse CSV content
     const csvContent = await file.text();
