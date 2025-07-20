@@ -26,7 +26,8 @@ export default function Reports() {
       const { data, error } = await supabase
         .from('cows')
         .select('*')
-        .eq('company_id', currentCompany.id); // Get all cows for both reports
+        .eq('company_id', currentCompany.id)
+        .limit(5000); // Increase limit for reports
 
       if (error) throw error;
 
