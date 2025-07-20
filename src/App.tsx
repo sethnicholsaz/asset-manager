@@ -35,12 +35,23 @@ function AppContent() {
 
   if (!currentCompany) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center space-y-4">
-          <h2 className="text-xl font-semibold">No Company Selected</h2>
-          <p className="text-muted-foreground">
-            You need to be a member of a company to continue.
-          </p>
+      <div className="min-h-screen flex flex-col">
+        {/* Header with Sign Out */}
+        <header className="h-14 border-b bg-background flex items-center px-4 justify-between">
+          <div className="flex items-center">
+            <h1 className="text-lg font-semibold">Cow Asset Manager</h1>
+          </div>
+          <CompanySelector />
+        </header>
+        
+        {/* Main Content */}
+        <div className="flex-1 flex items-center justify-center">
+          <div className="text-center space-y-4">
+            <h2 className="text-xl font-semibold">No Company Selected</h2>
+            <p className="text-muted-foreground">
+              You need to be a member of a company to continue.
+            </p>
+          </div>
         </div>
       </div>
     );
