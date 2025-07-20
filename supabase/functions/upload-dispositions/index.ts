@@ -356,8 +356,7 @@ Deno.serve(async (req) => {
     return new Response(
       JSON.stringify({
         message: 'Disposition upload completed successfully',
-        summary,
-        errors: errors.length > 0 ? errors : undefined
+        summary
       }),
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
