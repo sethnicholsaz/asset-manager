@@ -36,9 +36,26 @@ export default function AutomatedImport() {
 
   const parseCsvData = (csvContent: string): AutomatedCowData[] => {
     const lines = csvContent.trim().split('\n');
-    const headers = lines[0].split(',').map(h => h.trim()); // Back to comma delimiter
+    const firstLine = lines[0];
+    
+    console.log('First line raw:', JSON.stringify(firstLine));
+    console.log('First line length:', firstLine.length);
+    console.log('Contains comma:', firstLine.includes(','));
+    console.log('Contains tab:', firstLine.includes('\t'));
+    
+    // Auto-detect delimiter
+    let delimiter = ',';
+    if (firstLine.includes('\t') && !firstLine.includes(',')) {
+      delimiter = '\t';
+      console.log('Using tab delimiter');
+    } else {
+      console.log('Using comma delimiter');
+    }
+    
+    const headers = firstLine.split(delimiter).map(h => h.trim().replace(/"/g, ''));
     
     console.log('Raw headers from CSV:', headers);
+    console.log('Number of headers:', headers.length);
     
     // Validate headers (case-insensitive)
     const expectedHeaders = ['ID', 'BDAT', 'EVENT', 'DIM', 'DATE', 'REMARK', 'PROTOCOLS', 'TECHNICIAN'];
@@ -52,11 +69,11 @@ export default function AutomatedImport() {
     console.log('Missing headers:', missingHeaders);
     
     if (missingHeaders.length > 0) {
-      throw new Error(`Invalid headers. Expected: ${expectedHeaders.join(', ')}. Found: ${headers.join(', ')}`);
+      throw new Error(`Invalid headers. Expected: ${expectedHeaders.join(', ')}. Found: ${headers.join(', ')}. Missing: ${missingHeaders.join(', ')}`);
     }
 
     return lines.slice(1).map(line => {
-      const values = line.split(',').map(v => v.trim()); // Back to comma delimiter
+      const values = line.split(delimiter).map(v => v.trim().replace(/"/g, ''));
       const row: any = {};
       headers.forEach((header, index) => {
         // Normalize header names to uppercase for consistent access
