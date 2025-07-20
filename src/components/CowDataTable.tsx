@@ -101,67 +101,7 @@ export function CowDataTable({ cows, summaryStats, onEditCow, onDeleteCow, onSea
   const totalDepreciation = summaryStats?.total_depreciation ?? (totalValue - totalCurrentValue);
 
   return (
-    <div className="space-y-6">
-      {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center space-x-2">
-              <div className="w-8 h-8 bg-primary/10 rounded-lg flex items-center justify-center">
-                <Calendar className="h-4 w-4 text-primary" />
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground">Total Cows</p>
-                <p className="text-2xl font-bold">{totalCows.toLocaleString()}</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center space-x-2">
-              <div className="w-8 h-8 bg-success/10 rounded-lg flex items-center justify-center">
-                <DollarSign className="h-4 w-4 text-success" />
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground">Original Value</p>
-                <p className="text-2xl font-bold">{DepreciationCalculator.formatCurrency(totalValue)}</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center space-x-2">
-              <div className="w-8 h-8 bg-accent/10 rounded-lg flex items-center justify-center">
-                <DollarSign className="h-4 w-4 text-accent" />
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground">Current Value</p>
-                <p className="text-2xl font-bold">{DepreciationCalculator.formatCurrency(totalCurrentValue)}</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center space-x-2">
-              <div className="w-8 h-8 bg-warning/10 rounded-lg flex items-center justify-center">
-                <TrendingDown className="h-4 w-4 text-warning" />
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground">Total Depreciation</p>
-                <p className="text-2xl font-bold">{DepreciationCalculator.formatCurrency(totalDepreciation)}</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Data Table */}
+    <div className="space-y-6">{/* Data Table */}
       <Card>
         <CardHeader>
           <div className="flex items-center justify-between">
