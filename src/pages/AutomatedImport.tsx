@@ -218,7 +218,7 @@ export default function AutomatedImport() {
 
     console.log('File selected:', file.name, 'Type:', fileType);
 
-    if (!file.name.endsWith('.csv')) {
+    if (!file.name.toLowerCase().endsWith('.csv')) {
       toast({
         title: "Invalid file",
         description: "Please select a CSV file",
