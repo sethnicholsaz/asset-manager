@@ -590,6 +590,92 @@ export type Database = {
           },
         ]
       }
+      stored_journal_entries: {
+        Row: {
+          company_id: string
+          created_at: string
+          description: string
+          entry_date: string
+          entry_type: string
+          id: string
+          month: number
+          status: string
+          total_amount: number
+          updated_at: string
+          year: number
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          description: string
+          entry_date: string
+          entry_type: string
+          id?: string
+          month: number
+          status?: string
+          total_amount?: number
+          updated_at?: string
+          year: number
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          description?: string
+          entry_date?: string
+          entry_type?: string
+          id?: string
+          month?: number
+          status?: string
+          total_amount?: number
+          updated_at?: string
+          year?: number
+        }
+        Relationships: []
+      }
+      stored_journal_lines: {
+        Row: {
+          account_code: string
+          account_name: string
+          created_at: string
+          credit_amount: number
+          debit_amount: number
+          description: string
+          id: string
+          journal_entry_id: string
+          line_type: string
+        }
+        Insert: {
+          account_code: string
+          account_name: string
+          created_at?: string
+          credit_amount?: number
+          debit_amount?: number
+          description: string
+          id?: string
+          journal_entry_id: string
+          line_type: string
+        }
+        Update: {
+          account_code?: string
+          account_name?: string
+          created_at?: string
+          credit_amount?: number
+          debit_amount?: number
+          description?: string
+          id?: string
+          journal_entry_id?: string
+          line_type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "stored_journal_lines_journal_entry_id_fkey"
+            columns: ["journal_entry_id"]
+            isOneToOne: false
+            referencedRelation: "stored_journal_entries"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       upload_tokens: {
         Row: {
           company_id: string
