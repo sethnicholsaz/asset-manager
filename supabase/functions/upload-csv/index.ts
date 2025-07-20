@@ -233,6 +233,8 @@ Deno.serve(async (req) => {
           const birthDateStr = rowData['birth_date'] || rowData['BDAT'];
           const eventDateStr = rowData['event_date'] || rowData['Date'];
           
+          console.log(`Row ${i + 2}: birthDateStr='${birthDateStr}', eventDateStr='${eventDateStr}'`);
+          
           // Validate required date strings
           if (!birthDateStr) {
             throw new Error(`Missing required birth date. Birth date: '${birthDateStr}'`);
@@ -257,6 +259,8 @@ Deno.serve(async (req) => {
           
           const birthDate = parseDate(birthDateStr);
           const eventDate = eventDateStr ? parseDate(eventDateStr) : null;
+          
+          console.log(`Row ${i + 2}: Parsed eventDate=${eventDate ? eventDate.toISOString() : 'null'}`);
           
           // STRICT: Fail immediately if birth date is invalid
           if (isNaN(birthDate.getTime())) {
