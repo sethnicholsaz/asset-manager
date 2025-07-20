@@ -290,8 +290,7 @@ Deno.serve(async (req) => {
         const { error: dispositionError } = await supabase
           .from('cow_dispositions')
           .upsert(batchDispositions, { 
-            onConflict: 'cow_id,company_id,disposition_date,disposition_type',
-            ignoreDuplicates: true 
+            onConflict: 'cow_id,company_id,disposition_date,disposition_type'
           });
 
         if (dispositionError) {
