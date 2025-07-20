@@ -70,7 +70,7 @@ Deno.serve(async (req) => {
       .eq('company_id', companyId)
       .eq('token_value', uploadToken)
       .eq('is_active', true)
-      .single();
+      .maybeSingle();
 
     console.log('Token query result:', { tokenData, tokenError });
 
