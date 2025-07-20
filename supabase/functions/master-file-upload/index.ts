@@ -176,6 +176,9 @@ const handler = async (req: Request): Promise<Response> => {
     const masterLookup = new Set(
       masterData.map(m => `${m.id}_${processDate(m.birthdate)}`)
     );
+    
+    console.log('Master data sample:', masterData.slice(0, 3));
+    console.log('Master lookup sample:', Array.from(masterLookup).slice(0, 3));
 
     // Check for cows in DB but not in master (potentially need disposal)
     activeCows?.forEach(cow => {
@@ -199,14 +202,18 @@ const handler = async (req: Request): Promise<Response> => {
     const dbLookup = new Set(
       activeCows?.map(cow => `${cow.tag_number}_${cow.birth_date}`) || []
     );
+    
+    console.log('DB data sample:', activeCows?.slice(0, 3));
+    console.log('DB lookup sample:', Array.from(dbLookup).slice(0, 3));
 
     // Check for cows in master but not in DB (missing from database)
     masterData.forEach(master => {
       const key = `${master.id}_${processDate(master.birthdate)}`;
       if (!dbLookup.has(key)) {
+        console.log(`Cow ${master.id} found in master but not in DB. Master key: ${key}`);
         stagingRecords.push({
           company_id: companyId,
-          discrepancy_type: 'missing_from_master',
+          discrepancy_type: 'missing_from_database',
           cow_id: null,
           tag_number: master.id,
           birth_date: processDate(master.birthdate),
@@ -241,7 +248,7 @@ const handler = async (req: Request): Promise<Response> => {
           birthDate: r.birth_date,
           status: r.current_status || ''
         })),
-        cowsMissingFromMaster: stagingRecords.filter(r => r.discrepancy_type === 'missing_from_master').map(r => ({
+        cowsMissingFromMaster: stagingRecords.filter(r => r.discrepancy_type === 'missing_from_database').map(r => ({
           id: r.cow_id || '',
           tagNumber: r.tag_number,
           birthDate: r.birth_date,
