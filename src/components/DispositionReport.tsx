@@ -109,21 +109,28 @@ export function DispositionReport({ cows }: DispositionReportProps) {
         });
       }
 
-      // Accumulated Depreciation removal
-      const accumulatedDepreciation = cow.totalDepreciation;
-      if (accumulatedDepreciation > 0) {
-        journalEntry.lines.push({
-          id: `jl-accum-dep-${disposition.id}`,
-          journalEntryId: journalEntry.id,
-          accountCode: '1500.1',
-          accountName: 'Accumulated Depreciation - Dairy Cows',
-          description: `Remove accumulated depreciation for cow #${cow.tagNumber}`,
-          debitAmount: accumulatedDepreciation,
-          creditAmount: 0,
-          lineType: 'debit',
-          createdAt: new Date()
-        });
+      // Accumulated Depreciation removal - calculate if not stored
+      let accumulatedDepreciation = cow.totalDepreciation || 0;
+      
+      // If no accumulated depreciation stored, calculate it
+      if (accumulatedDepreciation === 0) {
+        const monthlyDepreciation = DepreciationCalculator.calculateMonthlyDepreciation(cow, disposition.dispositionDate);
+        const monthsSinceStart = DepreciationCalculator.getMonthsSinceStart(cow.freshenDate, disposition.dispositionDate);
+        accumulatedDepreciation = monthlyDepreciation * monthsSinceStart;
       }
+      
+      // Always add accumulated depreciation removal (even if 0, for transparency)
+      journalEntry.lines.push({
+        id: `jl-accum-dep-${disposition.id}`,
+        journalEntryId: journalEntry.id,
+        accountCode: '1500.1',
+        accountName: 'Accumulated Depreciation - Dairy Cows',
+        description: `Remove accumulated depreciation for cow #${cow.tagNumber}`,
+        debitAmount: accumulatedDepreciation,
+        creditAmount: 0,
+        lineType: 'debit',
+        createdAt: new Date()
+      });
 
       // Asset removal (credit the original cost)
       journalEntry.lines.push({
