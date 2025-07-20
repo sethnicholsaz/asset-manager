@@ -318,18 +318,31 @@ Deno.serve(async (req) => {
           // Create disposition records for sold/deceased cows that have disposition types
           const dispositionRecords = batchCows
             .filter(cow => cow.disposition_type && cow.status !== 'active')
-            .map(cow => ({
-              cow_id: cow.tag_number, // Using tag_number as cow_id for dispositions
-              company_id: companyId,
-              disposition_date: cow.freshen_date, // Use freshen_date as disposition date
-              disposition_type: cow.disposition_type,
-              sale_amount: cow.disposition_type === 'sale' ? cow.purchase_price * 0.8 : 0, // Estimated sale amount
-              final_book_value: cow.current_value,
-              gain_loss: cow.disposition_type === 'sale' ? (cow.purchase_price * 0.8) - cow.current_value : -cow.current_value,
-              notes: `Imported from ${csvFile.name}`,
-              created_at: new Date().toISOString(),
-              updated_at: new Date().toISOString()
-            }));
+            .map((cow, index) => {
+              // Get the original row data to access sale_amount
+              const originalRowIndex = batchStart + batchCows.indexOf(cow);
+              const values = dataRows[originalRowIndex].split(',').map(v => v.trim().replace(/"/g, ''));
+              const rowData: Record<string, string> = {};
+              headers.forEach((header, idx) => {
+                const mappedHeader = headerMapping[header] || header.toLowerCase();
+                rowData[mappedHeader] = values[idx] || '';
+              });
+              
+              const saleAmount = parseFloat(rowData.sale_amount || rowData.amount || '0') || 0;
+              
+              return {
+                cow_id: cow.tag_number, // Using tag_number as cow_id for dispositions
+                company_id: companyId,
+                disposition_date: cow.freshen_date, // Use freshen_date as disposition date
+                disposition_type: cow.disposition_type,
+                sale_amount: saleAmount, // Use actual sale amount from CSV
+                final_book_value: cow.current_value,
+                gain_loss: saleAmount - cow.current_value,
+                notes: `Imported from ${csvFile.name}`,
+                created_at: new Date().toISOString(),
+                updated_at: new Date().toISOString()
+              };
+            });
 
           if (dispositionRecords.length > 0) {
             const { error: dispositionError } = await supabase
