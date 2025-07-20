@@ -32,7 +32,7 @@ const Index = () => {
         .select('*', { count: 'exact' })
         .eq('company_id', currentCompany.id)
         .eq('status', 'active')
-        .limit(25000);
+        .range(0, 24999);
 
       console.log('Query result - count:', count, 'data length:', data?.length);
       
