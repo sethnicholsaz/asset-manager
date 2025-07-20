@@ -123,10 +123,25 @@ Deno.serve(async (req) => {
 
     // Filter active cows that should be included in the report
     const currentDate = new Date(year, month - 1, 1);
-    const activeCows = allCows.filter((cow: Cow) => 
-      cow.status === 'active' && 
-      new Date(cow.freshen_date) <= currentDate
-    );
+    console.log(`Current date for filtering: ${currentDate.toISOString()}`);
+    
+    // First, let's see how many are actually active
+    const totalActiveCows = allCows.filter((cow: Cow) => cow.status === 'active');
+    console.log(`Total active cows (before date filter): ${totalActiveCows.length}`);
+    
+    // Now filter by date and log details
+    const activeCows = allCows.filter((cow: Cow) => {
+      const isActive = cow.status === 'active';
+      const freshenDate = new Date(cow.freshen_date);
+      const isValidDate = !isNaN(freshenDate.getTime());
+      const isBeforeCurrentDate = isValidDate && freshenDate <= currentDate;
+      
+      if (isActive && !isValidDate) {
+        console.log(`Invalid freshen date for cow ${cow.tag_number}: ${cow.freshen_date}`);
+      }
+      
+      return isActive && isBeforeCurrentDate;
+    });
 
     console.log(`Filtered to ${activeCows.length} active cows for ${month}/${year}`);
 
