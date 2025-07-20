@@ -230,6 +230,13 @@ Deno.serve(async (req) => {
             rowData[mappedHeader] = values[index] || '';
           });
           
+          // Debug: Show raw values for first row to understand the structure
+          if (i === 0) {
+            console.log(`FIRST ROW DEBUG - Raw values:`, values);
+            console.log(`FIRST ROW DEBUG - Headers:`, headers);
+            console.log(`FIRST ROW DEBUG - Mapped rowData:`, rowData);
+          }
+          
           console.log(`Row ${i + 2}: Full rowData for first few fields:`, {
             tag_number: rowData.tag_number,
             birth_date: rowData.birth_date,
