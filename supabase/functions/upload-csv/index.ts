@@ -228,13 +228,34 @@ Deno.serve(async (req) => {
             rowData[mappedHeader] = values[index] || '';
           });
 
-          // Parse dates using mapped headers
-          const birthDate = new Date(rowData['birth_date'] || rowData['BDAT']);
-          const freshenDate = new Date(rowData['freshen_date'] || rowData['Date']);
+          // Parse dates using mapped headers - STRICT PARSING
+          const birthDateStr = rowData['birth_date'] || rowData['BDAT'];
+          const freshenDateStr = rowData['freshen_date'] || rowData['Date'];
           
-          if (isNaN(birthDate.getTime()) || isNaN(freshenDate.getTime())) {
-            errors.push(`Row ${i + 2}: Invalid date format. Birth: ${rowData['birth_date'] || rowData['BDAT']}, Freshen: ${rowData['freshen_date'] || rowData['Date']}`);
-            continue;
+          // Validate date strings exist
+          if (!birthDateStr || !freshenDateStr) {
+            throw new Error(`Missing required dates. Birth date: '${birthDateStr}', Freshen date: '${freshenDateStr}'`);
+          }
+          
+          const birthDate = new Date(birthDateStr);
+          const freshenDate = new Date(freshenDateStr);
+          
+          // STRICT: Fail immediately if dates are invalid
+          if (isNaN(birthDate.getTime())) {
+            throw new Error(`Invalid birth date format: '${birthDateStr}'. Expected format: MM/DD/YYYY or YYYY-MM-DD`);
+          }
+          
+          if (isNaN(freshenDate.getTime())) {
+            throw new Error(`Invalid freshen date format: '${freshenDateStr}'. Expected format: MM/DD/YYYY or YYYY-MM-DD`);
+          }
+          
+          // Validate date ranges
+          if (birthDate > new Date()) {
+            throw new Error(`Birth date '${birthDateStr}' cannot be in the future`);
+          }
+          
+          if (freshenDate < birthDate) {
+            throw new Error(`Freshen date '${freshenDateStr}' cannot be before birth date '${birthDateStr}'`);
           }
 
           // Determine disposition type from row data
