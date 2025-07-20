@@ -113,6 +113,32 @@ export function DepreciationReport({ cows }: DepreciationReportProps) {
     return [headers, ...rows].join('\n');
   };
 
+  const exportJournalToCSV = (entries: JournalEntry[], filename: string) => {
+    const journalData: any[] = [];
+    
+    entries.forEach(entry => {
+      entry.lines.forEach(line => {
+        journalData.push({
+          Date: DepreciationCalculator.formatDate(entry.entryDate),
+          'Account Code': line.accountCode,
+          'Account Name': line.accountName,
+          Description: line.description,
+          'Debit Amount': line.debitAmount > 0 ? line.debitAmount.toFixed(2) : '',
+          'Credit Amount': line.creditAmount > 0 ? line.creditAmount.toFixed(2) : '',
+          'Journal Entry ID': entry.id,
+          'Entry Type': entry.entryType
+        });
+      });
+    });
+
+    const csvContent = convertToCSV(journalData);
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = filename;
+    link.click();
+  };
+
 
   const months = Array.from({ length: 12 }, (_, i) => ({
     value: i + 1,
@@ -177,7 +203,17 @@ export function DepreciationReport({ cows }: DepreciationReportProps) {
               className="flex items-center gap-2"
             >
               <Download className="h-4 w-4" />
-              Export CSV
+              Export Schedule
+            </Button>
+
+            <Button
+              onClick={() => exportJournalToCSV(journalEntries, `journal-entries-${selectedYear}-${selectedMonth.toString().padStart(2, '0')}.csv`)}
+              variant="outline"
+              className="flex items-center gap-2"
+              disabled={journalEntries.length === 0}
+            >
+              <FileText className="h-4 w-4" />
+              Export Journal
             </Button>
           </div>
         </CardContent>
