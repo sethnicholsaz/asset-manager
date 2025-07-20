@@ -118,6 +118,19 @@ Deno.serve(async (req) => {
       );
     }
 
+    // Determine status and disposition type from filename
+    const fileName = csvFile.name.toUpperCase();
+    let cowStatus = 'active';
+    let dispositionType: string | null = null;
+    
+    if (fileName.includes('SOLD')) {
+      cowStatus = 'sold';
+      dispositionType = 'sale';
+    } else if (fileName.includes('DIED') || fileName.includes('DEAD')) {
+      cowStatus = 'deceased';
+      dispositionType = 'death';
+    }
+
     // Validate file type
     if (!csvFile.name.toLowerCase().endsWith('.csv') && csvFile.type !== 'text/csv') {
       return new Response(
@@ -240,7 +253,7 @@ Deno.serve(async (req) => {
             current_value: purchasePrice,
             total_depreciation: 0,
             asset_type_id: rowData.asset_type_id || 'dairy-cow',
-            status: rowData.status || 'active',
+            status: cowStatus, // Use determined status from filename
             depreciation_method: rowData.depreciation_method || 'straight-line',
             acquisition_type: rowData.acquisition_type || 'purchased',
             company_id: companyId
@@ -267,6 +280,36 @@ Deno.serve(async (req) => {
         } else {
           processedCows.push(...batchCows);
           console.log(`Batch ${Math.floor(batchStart / batchSize) + 1} completed: ${batchCows.length} records`);
+          
+          // Create disposition records for sold/deceased cows
+          if (dispositionType && cowStatus !== 'active') {
+            const dispositionRecords = batchCows.map(cow => ({
+              cow_id: cow.tag_number, // Using tag_number as cow_id for dispositions
+              company_id: companyId,
+              disposition_date: cow.freshen_date, // Use freshen_date as disposition date
+              disposition_type: dispositionType,
+              sale_amount: dispositionType === 'sale' ? cow.purchase_price * 0.8 : 0, // Estimated sale amount
+              final_book_value: cow.current_value,
+              gain_loss: dispositionType === 'sale' ? (cow.purchase_price * 0.8) - cow.current_value : -cow.current_value,
+              notes: `Imported from ${csvFile.name}`,
+              created_at: new Date().toISOString(),
+              updated_at: new Date().toISOString()
+            }));
+
+            const { error: dispositionError } = await supabase
+              .from('cow_dispositions')
+              .upsert(dispositionRecords, {
+                onConflict: 'cow_id,company_id',
+                ignoreDuplicates: false
+              });
+
+            if (dispositionError) {
+              console.error(`Disposition batch ${Math.floor(batchStart / batchSize) + 1} error:`, dispositionError);
+              errors.push(`Disposition batch ${Math.floor(batchStart / batchSize) + 1}: ${dispositionError.message}`);
+            } else {
+              console.log(`Disposition batch ${Math.floor(batchStart / batchSize) + 1} completed: ${dispositionRecords.length} records`);
+            }
+          }
         }
       }
     }
