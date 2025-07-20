@@ -187,6 +187,7 @@ const handler = async (req: Request): Promise<Response> => {
     }
 
     console.log(`Found ${activeCows?.length || 0} active cows in database`);
+    console.log(`Expected 8253 active cows, got ${activeCows?.length || 0} - potential limit issue!`);
 
     // Prepare staging records
     const stagingRecords = [];
