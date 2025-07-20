@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
-import { ArrowLeft, Trash2, TrendingUp, TrendingDown, Calendar } from 'lucide-react';
+import { ArrowLeft, Trash2, TrendingUp, TrendingDown, Calendar, Search } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
 import { DispositionForm } from '@/components/DispositionForm';
 import { Cow, CowDisposition } from '@/types/cow';
 import { DepreciationCalculator } from '@/utils/depreciation';
@@ -16,6 +17,8 @@ export default function Dispositions() {
   const [selectedCow, setSelectedCow] = useState<Cow | null>(null);
   const [showForm, setShowForm] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [activeCowSearch, setActiveCowSearch] = useState('');
+  const [dispositionSearch, setDispositionSearch] = useState('');
   const { currentCompany } = useAuth();
   const { toast } = useToast();
 
@@ -101,6 +104,29 @@ export default function Dispositions() {
 
   const activeCows = cows.filter(cow => cow.status === 'active');
   const disposedCows = cows.filter(cow => cow.status !== 'active');
+
+  // Filter active cows based on search
+  const filteredActiveCows = activeCows.filter(cow => {
+    if (!activeCowSearch) return true;
+    const query = activeCowSearch.toLowerCase();
+    return (
+      cow.tagNumber.toLowerCase().includes(query) ||
+      (cow.name && cow.name.toLowerCase().includes(query))
+    );
+  });
+
+  // Filter dispositions based on search
+  const filteredDispositions = dispositions.filter(disposition => {
+    if (!dispositionSearch) return true;
+    const query = dispositionSearch.toLowerCase();
+    const cow = cows.find(c => c.id === disposition.cowId);
+    return (
+      (cow?.tagNumber && cow.tagNumber.toLowerCase().includes(query)) ||
+      (cow?.name && cow.name.toLowerCase().includes(query)) ||
+      disposition.dispositionType.toLowerCase().includes(query) ||
+      (disposition.notes && disposition.notes.toLowerCase().includes(query))
+    );
+  });
 
   const totalGains = dispositions
     .filter(d => d.gainLoss > 0)
@@ -241,19 +267,43 @@ export default function Dispositions() {
       {/* Active Cows - Available for Disposition */}
       <Card>
         <CardHeader>
-          <CardTitle>Active Cows</CardTitle>
-          <CardDescription>
-            Select a cow to record a disposition (sale, death, or culling)
-          </CardDescription>
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle>Active Cows</CardTitle>
+              <CardDescription>
+                Select a cow to record a disposition (sale, death, or culling)
+              </CardDescription>
+            </div>
+            <div className="flex items-center space-x-2">
+              <div className="relative">
+                <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Search active cows..."
+                  value={activeCowSearch}
+                  onChange={(e) => setActiveCowSearch(e.target.value)}
+                  className="pl-8 w-[250px]"
+                />
+              </div>
+            </div>
+          </div>
         </CardHeader>
         <CardContent>
+          {filteredActiveCows.length === 0 && activeCowSearch && (
+            <p className="text-center text-muted-foreground py-8">
+              No active cows found matching "{activeCowSearch}"
+            </p>
+          )}
           {activeCows.length === 0 ? (
+            <p className="text-center text-muted-foreground py-8">
+              No active cows available for disposition
+            </p>
+          ) : filteredActiveCows.length === 0 && !activeCowSearch ? (
             <p className="text-center text-muted-foreground py-8">
               No active cows available for disposition
             </p>
           ) : (
             <div className="space-y-3">
-              {activeCows.map((cow) => {
+              {filteredActiveCows.map((cow) => {
                 const currentDate = new Date();
                 const monthlyDepreciation = DepreciationCalculator.calculateMonthlyDepreciation(cow, currentDate);
                 const monthsSinceStart = DepreciationCalculator.getMonthsSinceStart(cow.freshenDate, currentDate);
@@ -305,19 +355,43 @@ export default function Dispositions() {
       {/* Disposition History */}
       <Card>
         <CardHeader>
-          <CardTitle>Disposition History</CardTitle>
-          <CardDescription>
-            Previous cow dispositions and their financial impact
-          </CardDescription>
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle>Disposition History</CardTitle>
+              <CardDescription>
+                Previous cow dispositions and their financial impact
+              </CardDescription>
+            </div>
+            <div className="flex items-center space-x-2">
+              <div className="relative">
+                <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Search dispositions..."
+                  value={dispositionSearch}
+                  onChange={(e) => setDispositionSearch(e.target.value)}
+                  className="pl-8 w-[250px]"
+                />
+              </div>
+            </div>
+          </div>
         </CardHeader>
         <CardContent>
+          {filteredDispositions.length === 0 && dispositionSearch && (
+            <p className="text-center text-muted-foreground py-8">
+              No dispositions found matching "{dispositionSearch}"
+            </p>
+          )}
           {dispositions.length === 0 ? (
+            <p className="text-center text-muted-foreground py-8">
+              No dispositions recorded yet
+            </p>
+          ) : filteredDispositions.length === 0 && !dispositionSearch ? (
             <p className="text-center text-muted-foreground py-8">
               No dispositions recorded yet
             </p>
           ) : (
             <div className="space-y-3">
-              {dispositions.map((disposition) => {
+              {filteredDispositions.map((disposition) => {
                 const cow = cows.find(c => c.id === disposition.cowId);
                 return (
                   <div
