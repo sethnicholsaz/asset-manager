@@ -138,18 +138,41 @@ export default function JournalEntryDetails() {
     const totalDebits = entry.lines.reduce((sum, line) => sum + line.debit_amount, 0);
     const totalCredits = entry.lines.reduce((sum, line) => sum + line.credit_amount, 0);
     
-    // Create account summary
-    const accountSummary = entry.lines.reduce((acc, line) => {
-      const key = `${line.account_code} - ${line.account_name}`;
-      if (!acc[key]) {
-        acc[key] = { debits: 0, credits: 0, account_code: line.account_code, account_name: line.account_name };
+    // Create account summary with separate lines for debits and credits
+    const accountSummaryLines: Array<{ account_code: string; account_name: string; amount: number; type: 'debit' | 'credit' }> = [];
+    
+    entry.lines.forEach(line => {
+      if (line.debit_amount > 0) {
+        accountSummaryLines.push({
+          account_code: line.account_code,
+          account_name: line.account_name,
+          amount: line.debit_amount,
+          type: 'debit'
+        });
       }
-      acc[key].debits += line.debit_amount;
-      acc[key].credits += line.credit_amount;
-      return acc;
-    }, {} as Record<string, { debits: number; credits: number; account_code: string; account_name: string }>);
+      if (line.credit_amount > 0) {
+        accountSummaryLines.push({
+          account_code: line.account_code,
+          account_name: line.account_name,
+          amount: line.credit_amount,
+          type: 'credit'
+        });
+      }
+    });
 
-    const accountSummaryArray = Object.values(accountSummary).sort((a, b) => a.account_code.localeCompare(b.account_code));
+    // Sort: debits descending, credits ascending
+    const sortedAccountLines = accountSummaryLines.sort((a, b) => {
+      // First sort by type: debits first, then credits
+      if (a.type !== b.type) {
+        return a.type === 'debit' ? -1 : 1;
+      }
+      // Within type, sort by amount: debits descending, credits ascending
+      if (a.type === 'debit') {
+        return b.amount - a.amount; // descending
+      } else {
+        return a.amount - b.amount; // ascending
+      }
+    });
 
     const printContent = `
       <!DOCTYPE html>
@@ -314,24 +337,19 @@ export default function JournalEntryDetails() {
                 <tr>
                   <th>Acct</th>
                   <th>Account Name</th>
-                  <th class="amount">Debits</th>
-                  <th class="amount">Credits</th>
-                  <th class="amount">Net</th>
+                  <th class="amount">Amount</th>
+                  <th class="amount">Type</th>
                 </tr>
               </thead>
               <tbody>
-                ${accountSummaryArray.map(account => {
-                  const netAmount = account.debits - account.credits;
-                  return `
-                    <tr>
-                      <td>${account.account_code}</td>
-                      <td>${account.account_name}</td>
-                      <td class="amount">${account.debits > 0 ? DepreciationCalculator.formatCurrency(account.debits) : '-'}</td>
-                      <td class="amount">${account.credits > 0 ? DepreciationCalculator.formatCurrency(account.credits) : '-'}</td>
-                      <td class="amount" style="${netAmount > 0 ? 'color: #d73527;' : netAmount < 0 ? 'color: #28a745;' : ''}">${netAmount !== 0 ? DepreciationCalculator.formatCurrency(Math.abs(netAmount)) + (netAmount > 0 ? ' DR' : ' CR') : '-'}</td>
-                    </tr>
-                  `;
-                }).join('')}
+                ${sortedAccountLines.map(line => `
+                  <tr>
+                    <td>${line.account_code}</td>
+                    <td>${line.account_name}</td>
+                    <td class="amount">${DepreciationCalculator.formatCurrency(line.amount)}</td>
+                    <td class="amount" style="${line.type === 'debit' ? 'color: #d73527;' : 'color: #28a745;'}">${line.type === 'debit' ? 'DR' : 'CR'}</td>
+                  </tr>
+                `).join('')}
               </tbody>
             </table>
           </div>
