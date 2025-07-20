@@ -301,9 +301,21 @@ Deno.serve(async (req) => {
           return cowWithoutDispositionType;
         });
         
+        // Deduplicate by tag_number to prevent conflict errors
+        const uniqueCowsMap = new Map();
+        cowsForInsert.forEach(cow => {
+          const key = `${cow.tag_number}_${cow.company_id}`;
+          if (!uniqueCowsMap.has(key)) {
+            uniqueCowsMap.set(key, cow);
+          } else {
+            console.log(`Duplicate tag number found in batch: ${cow.tag_number}, keeping first occurrence`);
+          }
+        });
+        const uniqueCows = Array.from(uniqueCowsMap.values());
+        
         const { error: batchError } = await supabase
           .from('cows')
-          .upsert(cowsForInsert, {
+          .upsert(uniqueCows, {
             onConflict: 'tag_number,company_id',
             ignoreDuplicates: false
           });
