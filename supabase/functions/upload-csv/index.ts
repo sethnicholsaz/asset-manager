@@ -252,11 +252,11 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Insert or update cows in database using upsert
+    // Insert or update cows in database using upsert with company-specific constraint
     const { data: insertedCows, error: insertError } = await supabase
       .from('cows')
       .upsert(processedCows, {
-        onConflict: 'tag_number',
+        onConflict: 'tag_number,company_id',
         ignoreDuplicates: false
       })
       .select();
