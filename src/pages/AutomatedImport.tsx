@@ -96,8 +96,15 @@ export default function AutomatedImport() {
   const processFreshCows = async (data: AutomatedCowData[]): Promise<ProcessedResult> => {
     const result: ProcessedResult = { processed: 0, skipped: 0, errors: [] };
     
+    // Debug: Show all unique EVENT values
+    const eventValues = data.map(row => row.EVENT);
+    const uniqueEvents = [...new Set(eventValues)];
+    console.log('All EVENT values found in CSV:', eventValues.slice(0, 10)); // First 10
+    console.log('Unique EVENT values:', uniqueEvents);
+    
     for (const row of data) {
       try {
+        console.log(`Processing row with EVENT: "${row.EVENT}"`);
         if (row.EVENT !== 'Fresh') {
           result.skipped++;
           continue;
@@ -171,8 +178,15 @@ export default function AutomatedImport() {
   const processDispositions = async (data: AutomatedCowData[]): Promise<ProcessedResult> => {
     const result: ProcessedResult = { processed: 0, skipped: 0, errors: [] };
     
+    // Debug: Show all unique EVENT values
+    const eventValues = data.map(row => row.EVENT);
+    const uniqueEvents = [...new Set(eventValues)];
+    console.log('All EVENT values found in CSV:', eventValues.slice(0, 10)); // First 10
+    console.log('Unique EVENT values:', uniqueEvents);
+    
     for (const row of data) {
       try {
+        console.log(`Processing row with EVENT: "${row.EVENT}"`);
         if (!['Died', 'Sold'].includes(row.EVENT)) {
           result.skipped++;
           continue;
