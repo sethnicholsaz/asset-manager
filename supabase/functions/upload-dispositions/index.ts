@@ -340,7 +340,10 @@ Deno.serve(async (req) => {
       filename: csvFile.name
     };
 
+    console.log(`Processing summary: ${processedDispositions.length} processed, ${errors.length} errors`);
+    
     if (errors.length > 0 && processedDispositions.length === 0) {
+      console.log('No valid data processed, returning 400');
       return new Response(
         JSON.stringify({ 
           error: 'No valid disposition data to process',
