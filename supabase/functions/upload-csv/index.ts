@@ -61,10 +61,10 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Verify upload token and company
+    // Verify upload token is valid and active
     const { data: tokenData, error: tokenError } = await supabase
       .from('upload_tokens')
-      .select('id, company_id, token_name, is_active, company:companies(id, name)')
+      .select('id, company_id, token_name, is_active')
       .eq('company_id', companyId)
       .eq('token_value', uploadToken)
       .eq('is_active', true)
@@ -78,7 +78,20 @@ Deno.serve(async (req) => {
       );
     }
 
-    const company = tokenData.company;
+    // Get company information
+    const { data: company, error: companyError } = await supabase
+      .from('companies')
+      .select('id, name')
+      .eq('id', companyId)
+      .single();
+
+    if (companyError || !company) {
+      console.error('Company verification failed:', companyError);
+      return new Response(
+        JSON.stringify({ error: 'Invalid company ID' }),
+        { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
 
     // Parse multipart form data
     const formData = await req.formData();
