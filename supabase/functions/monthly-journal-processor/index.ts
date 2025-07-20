@@ -72,9 +72,9 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
-    // Process starting from May 2025 (for historical catch-up processing)
+    // Process starting from June 2025 (for historical catch-up processing)
     const now = new Date();
-    const targetMonth = 5; // May
+    const targetMonth = 6; // June
     const targetYear = 2025;
 
     console.log(`Processing monthly journal entries for ${getMonthName(targetMonth)} ${targetYear}`);
