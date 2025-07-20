@@ -14,8 +14,83 @@ export type Database = {
   }
   public: {
     Tables: {
+      companies: {
+        Row: {
+          created_at: string
+          id: string
+          name: string
+          slug: string
+          subscription_status: string | null
+          trial_ends_at: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          name: string
+          slug: string
+          subscription_status?: string | null
+          trial_ends_at?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          name?: string
+          slug?: string
+          subscription_status?: string | null
+          trial_ends_at?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      company_memberships: {
+        Row: {
+          accepted_at: string | null
+          company_id: string
+          created_at: string
+          id: string
+          invited_at: string | null
+          invited_by: string | null
+          role: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          accepted_at?: string | null
+          company_id: string
+          created_at?: string
+          id?: string
+          invited_at?: string | null
+          invited_by?: string | null
+          role?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          accepted_at?: string | null
+          company_id?: string
+          created_at?: string
+          id?: string
+          invited_at?: string | null
+          invited_by?: string | null
+          role?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "company_memberships_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       cow_dispositions: {
         Row: {
+          company_id: string | null
           cow_id: string
           created_at: string
           disposition_date: string
@@ -29,6 +104,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          company_id?: string | null
           cow_id: string
           created_at?: string
           disposition_date: string
@@ -42,6 +118,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          company_id?: string | null
           cow_id?: string
           created_at?: string
           disposition_date?: string
@@ -54,13 +131,22 @@ export type Database = {
           sale_amount?: number | null
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "cow_dispositions_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       cows: {
         Row: {
           acquisition_type: string
           asset_type_id: string
           birth_date: string
+          company_id: string | null
           created_at: string
           current_value: number
           depreciation_method: string
@@ -79,6 +165,7 @@ export type Database = {
           acquisition_type?: string
           asset_type_id?: string
           birth_date: string
+          company_id?: string | null
           created_at?: string
           current_value: number
           depreciation_method?: string
@@ -97,6 +184,7 @@ export type Database = {
           acquisition_type?: string
           asset_type_id?: string
           birth_date?: string
+          company_id?: string | null
           created_at?: string
           current_value?: number
           depreciation_method?: string
@@ -113,6 +201,13 @@ export type Database = {
         }
         Relationships: [
           {
+            foreignKeyName: "cows_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "cows_disposition_id_fkey"
             columns: ["disposition_id"]
             isOneToOne: false
@@ -123,6 +218,7 @@ export type Database = {
       }
       journal_entries: {
         Row: {
+          company_id: string | null
           created_at: string
           description: string
           entry_date: string
@@ -132,6 +228,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          company_id?: string | null
           created_at?: string
           description: string
           entry_date: string
@@ -141,6 +238,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          company_id?: string | null
           created_at?: string
           description?: string
           entry_date?: string
@@ -149,7 +247,15 @@ export type Database = {
           total_amount?: number
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "journal_entries_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       journal_lines: {
         Row: {
@@ -195,9 +301,43 @@ export type Database = {
           },
         ]
       }
+      profiles: {
+        Row: {
+          avatar_url: string | null
+          created_at: string
+          email: string
+          first_name: string | null
+          id: string
+          last_name: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          avatar_url?: string | null
+          created_at?: string
+          email: string
+          first_name?: string | null
+          id?: string
+          last_name?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          avatar_url?: string | null
+          created_at?: string
+          email?: string
+          first_name?: string | null
+          id?: string
+          last_name?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       purchase_price_defaults: {
         Row: {
           birth_year: number
+          company_id: string | null
           created_at: string
           daily_accrual_rate: number | null
           default_price: number
@@ -206,6 +346,7 @@ export type Database = {
         }
         Insert: {
           birth_year: number
+          company_id?: string | null
           created_at?: string
           daily_accrual_rate?: number | null
           default_price: number
@@ -214,13 +355,22 @@ export type Database = {
         }
         Update: {
           birth_year?: number
+          company_id?: string | null
           created_at?: string
           daily_accrual_rate?: number | null
           default_price?: number
           id?: string
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "purchase_price_defaults_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
       }
     }
     Views: {
