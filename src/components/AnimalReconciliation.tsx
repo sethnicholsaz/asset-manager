@@ -117,6 +117,9 @@ export function AnimalReconciliation() {
     return { value: month, label: getMonthName(month) };
   });
 
+  // Filter data to only show months up to selected month
+  const filteredReconciliationData = reconciliationData.filter(r => r.month <= selectedMonth);
+  
   // Get current month data for summary cards
   const currentMonthData = reconciliationData.find(r => r.month === selectedMonth);
 
@@ -249,7 +252,7 @@ export function AnimalReconciliation() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {reconciliationData.map((data) => (
+                  {filteredReconciliationData.map((data) => (
                     <TableRow key={`${data.year}-${data.month}`}>
                       <TableCell className="font-medium">{getMonthName(data.month)}</TableCell>
                       <TableCell className="text-right">{data.previousMonthBalance.toLocaleString()}</TableCell>
@@ -273,7 +276,7 @@ export function AnimalReconciliation() {
                 </TableBody>
               </Table>
               
-              {reconciliationData.length === 0 && (
+              {filteredReconciliationData.length === 0 && (
                 <div className="text-center py-12 text-muted-foreground">
                   <p>No animal activity found for {selectedYear}</p>
                 </div>
