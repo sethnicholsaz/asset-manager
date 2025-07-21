@@ -70,9 +70,8 @@ const handler = async (req: Request): Promise<Response> => {
     const historicalCutoff = new Date('2024-12-31');
     const monthlyStartDate = new Date('2025-01-01');
     
-    // Don't go before 2024
-    const earliestDate = new Date('2024-01-01');
-    const startDate = freshenDate < earliestDate ? earliestDate : freshenDate;
+    // Start from the actual freshen date (no artificial cutoff)
+    const startDate = freshenDate;
 
     const entriesCreated = [];
     let accumulatedDepreciation = 0;
@@ -113,7 +112,7 @@ const handler = async (req: Request): Promise<Response> => {
       // Create single bulk journal entry for all 2024 periods
       if (bulkPeriods.length > 0) {
         const journalEntry = {
-          description: `Historical Depreciation through 2024 - Cow #${cow.tag_number} (${bulkPeriods.length} periods)`,
+          description: `Historical Depreciation from Freshen to 2024 - Cow #${cow.tag_number} (${bulkPeriods.length} periods)`,
           entry_date: '2024-12-31',
           entry_type: 'depreciation',
           total_amount: bulkDepreciation,
