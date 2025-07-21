@@ -302,18 +302,30 @@ async function processCowBatch(supabase: any, cows: any[]) {
     }
   }
 
-  // Use upsert for depreciation records to handle duplicates
-  console.log(`Upserting ${depreciationRecords.length} depreciation records`);
+  // Delete existing depreciation records for these cows first
+  const cowIds = cows.map(cow => cow.id);
+  console.log(`Deleting existing depreciation records for ${cowIds.length} cows`);
+  
+  const { error: deleteError } = await supabase
+    .from("cow_monthly_depreciation")
+    .delete()
+    .in('cow_id', cowIds)
+    .eq('company_id', cowIds[0] ? cows[0].company_id : '');
+  
+  if (deleteError) {
+    console.error("Error deleting existing records:", deleteError);
+    // Continue anyway - maybe there were no existing records
+  }
+
+  // Insert new depreciation records
+  console.log(`Inserting ${depreciationRecords.length} depreciation records`);
   if (depreciationRecords.length > 0) {
     const { error: depreciationError } = await supabase
       .from("cow_monthly_depreciation")
-      .upsert(depreciationRecords, { 
-        onConflict: 'cow_id,company_id,year,month',
-        ignoreDuplicates: false 
-      });
+      .insert(depreciationRecords);
     
     if (depreciationError) {
-      console.error("Error upserting depreciation records:", depreciationError);
+      console.error("Error inserting depreciation records:", depreciationError);
       throw depreciationError;
     }
   }
