@@ -38,14 +38,14 @@ const Index = () => {
     try {
       console.log('Fetching cows for company:', currentCompany.id);
       
-      // Get aggregated statistics (only if not searching)
+      // Get aggregated statistics using new server-side function (only if not searching)
       if (!searchQuery) {
         const { data: statsData, error: statsError } = await supabase
-          .rpc('get_active_cow_stats' as any, { p_company_id: currentCompany.id });
+          .rpc('get_accurate_cow_stats', { p_company_id: currentCompany.id });
 
         if (statsError || !statsData || statsData.length === 0) {
           console.error('Stats query error:', statsError);
-          // Fallback to count only if aggregation fails
+          // Fallback to basic count only if function fails
           const { count: activeCount } = await supabase
             .from('cows')
             .select('*', { count: 'exact', head: true })
@@ -60,9 +60,10 @@ const Index = () => {
           });
         } else {
           const stats = statsData[0] as any;
+          console.log('Server-side stats result:', stats);
           setSummaryStats({
-            active_count: Number(stats.count || 0),
-            total_asset_value: Number(stats.total_purchase_price || 0),
+            active_count: Number(stats.active_count || 0),
+            total_asset_value: Number(stats.total_asset_value || 0),
             total_current_value: Number(stats.total_current_value || 0),
             total_depreciation: Number(stats.total_depreciation || 0)
           });

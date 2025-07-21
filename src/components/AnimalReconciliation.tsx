@@ -37,160 +37,49 @@ export function AnimalReconciliation() {
 
     setIsLoading(true);
     try {
-      // Fetch ALL cows using pagination to bypass the 1000 record limit
-      let allCows: any[] = [];
-      let offset = 0;
-      const limit = 1000;
-      let hasMore = true;
-      let pageCount = 0;
-
-      console.log('Starting cow data fetch with pagination...');
-
-      while (hasMore && pageCount < 10) { // Safety limit to prevent infinite loops
-        console.log(`Fetching page ${pageCount + 1}, offset: ${offset}`);
-        
-        const { data: cowBatch, error } = await supabase
-          .rpc('search_cows', {
-            p_company_id: currentCompany.id,
-            p_search_query: '',
-            p_limit: limit,
-            p_offset: offset
-          });
-        
-        if (error) {
-          console.error('Error fetching cow batch:', error);
-          break;
-        }
-        
-        console.log(`Page ${pageCount + 1} returned ${cowBatch?.length || 0} records`);
-        
-        if (cowBatch && cowBatch.length > 0) {
-          allCows = [...allCows, ...cowBatch];
-          hasMore = cowBatch.length === limit; // Continue if we got a full batch
-          offset += limit;
-          pageCount++;
-        } else {
-          hasMore = false;
-        }
-      }
+      console.log('Using server-side reconciliation function...');
       
-      const activeCowsOnly = allCows.filter(cow => cow.status === 'active');
-
-      console.log('=== VERIFICATION ===');
-      console.log('Total pages fetched:', pageCount);
-      console.log('Total cows fetched across all pages:', allCows.length);
-      console.log('Active cows from that result:', activeCowsOnly.length);
-      console.log('Sample active cows:', activeCowsOnly.slice(0, 5));
-
-        // Check if there are disposed cows that might not be marked correctly
-        const { data: disposedCows } = await supabase
-          .from('cows')
-          .select('id, status, disposition_id')
-          .eq('company_id', currentCompany.id)
-          .neq('status', 'active')
-          .limit(10000); // High limit
-
-      console.log('Non-active cows by status:');
-      const statusCounts = {};
-      disposedCows?.forEach(cow => {
-        statusCounts[cow.status] = (statusCounts[cow.status] || 0) + 1;
-      });
-      console.log(statusCounts);
-
-        // Check dispositions table
-        const { data: allDispositions } = await supabase
-          .from('cow_dispositions')
-          .select('*')
-          .eq('company_id', currentCompany.id)
-          .limit(10000); // High limit
-
-      console.log('Total dispositions in system:', allDispositions?.length || 0);
-
-      const reconciliations: AnimalReconciliation[] = [];
-      let runningBalance = 0;
-
-      // Calculate for each month in the selected year
-      for (let month = 1; month <= 12; month++) {
-        const currentMonthStart = new Date(selectedYear, month - 1, 1);
-        const currentMonthEnd = new Date(selectedYear, month, 0);
-        const previousMonthEnd = new Date(selectedYear, month - 1, 0);
-
-        console.log(`Calculating for ${month}/${selectedYear}`);
-
-        // For the first month, calculate the actual previous month balance
-        let previousMonthBalance = runningBalance;
-        if (month === 1) {
-          // Get ALL cows and calculate how many were active at end of previous year
-          const { data: allCows } = await supabase
-            .from('cows')
-            .select('id, status, freshen_date, disposition_id')
-            .eq('company_id', currentCompany.id)
-            .limit(50000); // Explicit high limit
-
-          previousMonthBalance = (allCows || []).filter(cow => {
-            const freshenDate = new Date(cow.freshen_date);
-            // Must have freshened by end of previous month and still be active
-            return freshenDate <= previousMonthEnd && cow.status === 'active';
-          }).length;
-          
-          console.log(`Starting balance for ${selectedYear}:`, previousMonthBalance);
-        }
-
-        // New cows: freshened during current month
-        const { data: newCowsData } = await supabase
-          .from('cows')
-          .select('id')
-          .eq('company_id', currentCompany.id)
-          .gte('freshen_date', currentMonthStart.toISOString().split('T')[0])
-          .lte('freshen_date', currentMonthEnd.toISOString().split('T')[0])
-          .limit(10000); // High limit
-
-        const newCows = newCowsData?.length || 0;
-
-        // Dispositions during current month
-        const { data: dispositionsData } = await supabase
-          .from('cow_dispositions')
-          .select('disposition_type')
-          .eq('company_id', currentCompany.id)
-          .gte('disposition_date', currentMonthStart.toISOString().split('T')[0])
-          .lte('disposition_date', currentMonthEnd.toISOString().split('T')[0])
-          .limit(5000); // High limit
-
-        const sold = (dispositionsData || []).filter(d => d.disposition_type === 'sale').length;
-        const dead = (dispositionsData || []).filter(d => d.disposition_type === 'death').length;
-        const culled = (dispositionsData || []).filter(d => d.disposition_type === 'culled').length;
-
-        // Calculate ending balance for this month
-        const currentBalance = previousMonthBalance + newCows - sold - dead - culled;
-        
-        console.log(`Month ${month}: ${previousMonthBalance} + ${newCows} - ${sold} - ${dead} - ${culled} = ${currentBalance}`);
-
-        reconciliations.push({
-          month,
-          year: selectedYear,
-          previousMonthBalance,
-          newCows,
-          sold,
-          dead,
-          culled,
-          currentBalance
+      // Use the new server-side reconciliation function
+      const { data: reconciliationResults, error: reconciliationError } = await supabase
+        .rpc('get_monthly_reconciliation', {
+          p_company_id: currentCompany.id,
+          p_year: selectedYear
         });
 
-        // Set running balance for next month
-        runningBalance = currentBalance;
+      if (reconciliationError) {
+        console.error('Reconciliation function error:', reconciliationError);
+        throw reconciliationError;
       }
 
-      // Filter out months with no activity (but keep all months that have any data)
+      console.log('Server-side reconciliation results:', reconciliationResults);
+
+      // Transform the results to match the component's expected format
+      const reconciliations: AnimalReconciliation[] = (reconciliationResults || []).map(row => ({
+        month: row.month_num,
+        year: row.year_num,
+        previousMonthBalance: Number(row.starting_balance),
+        newCows: Number(row.additions),
+        sold: Number(row.disposals), // Simplified - server function combines all disposals
+        dead: 0, // Server function combines all disposals into one number
+        culled: 0, // Server function combines all disposals into one number
+        currentBalance: Number(row.actual_active_count) // Use actual count instead of calculation
+      }));
+
+      // Filter out months with no activity
       const activeReconciliations = reconciliations.filter(r => 
-        r.previousMonthBalance > 0 || r.newCows > 0 || r.sold > 0 || r.dead > 0 || r.culled > 0 || r.currentBalance > 0
+        r.previousMonthBalance > 0 || r.newCows > 0 || r.sold > 0 || r.currentBalance > 0
       );
 
       setReconciliationData(activeReconciliations);
 
       console.log('Final reconciliation data:', activeReconciliations);
       
-      // Use the already fetched paginated cow data for verification
-      console.log('Actual active cows in system:', activeCowsOnly.length);
+      // Get accurate cow stats for verification
+      const { data: statsData } = await supabase
+        .rpc('get_accurate_cow_stats', { p_company_id: currentCompany.id });
+        
+      const actualActiveCows = statsData?.[0]?.active_count || 0;
+      console.log('Actual active cows in system:', actualActiveCows);
       console.log('Last reconciliation balance:', activeReconciliations[activeReconciliations.length - 1]?.currentBalance || 0);
 
     } catch (error) {
