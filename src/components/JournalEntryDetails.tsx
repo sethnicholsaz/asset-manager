@@ -319,14 +319,17 @@ export default function JournalEntryDetails() {
                 </tr>
               </thead>
               <tbody>
-                ${accountSummaryArray.map(account => `
-                  <tr>
-                    <td>${account.account_code}</td>
-                    <td>${account.account_name}</td>
-                    <td class="amount">${account.debits > 0 ? DepreciationCalculator.formatCurrency(account.debits) : '-'}</td>
-                    <td class="amount">${account.credits > 0 ? DepreciationCalculator.formatCurrency(account.credits) : '-'}</td>
-                  </tr>
-                `).join('')}
+                ${accountSummaryArray.map(account => {
+                  const netAmount = account.debits - account.credits;
+                  return `
+                    <tr>
+                      <td>${account.account_code}</td>
+                      <td>${account.account_name}</td>
+                      <td class="amount">${netAmount > 0 ? DepreciationCalculator.formatCurrency(netAmount) : '-'}</td>
+                      <td class="amount">${netAmount < 0 ? DepreciationCalculator.formatCurrency(Math.abs(netAmount)) : '-'}</td>
+                    </tr>
+                  `;
+                }).join('')}
               </tbody>
             </table>
           </div>
