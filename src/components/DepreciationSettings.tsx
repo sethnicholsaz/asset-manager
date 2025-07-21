@@ -147,7 +147,7 @@ export function DepreciationSettings() {
 
     setIsCalculating(true);
     try {
-      const { data, error } = await supabase.functions.invoke('efficient-depreciation-processor', {
+      const { data, error } = await supabase.functions.invoke('simple-depreciation-calculator', {
         body: { 
           company_id: currentCompany.id
         }
