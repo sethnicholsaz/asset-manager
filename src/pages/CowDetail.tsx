@@ -107,6 +107,7 @@ export default function CowDetail() {
       setCow(cowData);
 
       // Load related journal entries for this cow
+      console.log('Searching for journal entries with cow tag:', cowData.tag_number);
       const { data: journalData, error: journalError } = await supabase
         .from('journal_entries')
         .select(`
@@ -130,6 +131,7 @@ export default function CowDetail() {
         .order('entry_date', { ascending: false });
 
       if (journalError) throw journalError;
+      console.log('Journal entries found:', journalData?.length || 0);
       setJournalEntries(journalData || []);
 
       // Load disposition if exists
