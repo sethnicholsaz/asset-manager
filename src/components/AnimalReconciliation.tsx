@@ -37,23 +37,25 @@ export function AnimalReconciliation() {
 
     setIsLoading(true);
     try {
-      // First, let's verify the actual current active count
+      // First, let's verify the actual current active count with explicit high limit
       const { data: currentActiveCows } = await supabase
         .from('cows')
         .select('id, tag_number, status, freshen_date')
         .eq('company_id', currentCompany.id)
-        .eq('status', 'active');
+        .eq('status', 'active')
+        .limit(50000); // Explicit high limit to override any defaults
 
       console.log('=== VERIFICATION ===');
       console.log('Actual active cows RIGHT NOW:', currentActiveCows?.length || 0);
       console.log('Sample active cows:', currentActiveCows?.slice(0, 5));
 
-      // Check if there are disposed cows that might not be marked correctly
-      const { data: disposedCows } = await supabase
-        .from('cows')
-        .select('id, status, disposition_id')
-        .eq('company_id', currentCompany.id)
-        .neq('status', 'active');
+        // Check if there are disposed cows that might not be marked correctly
+        const { data: disposedCows } = await supabase
+          .from('cows')
+          .select('id, status, disposition_id')
+          .eq('company_id', currentCompany.id)
+          .neq('status', 'active')
+          .limit(10000); // High limit
 
       console.log('Non-active cows by status:');
       const statusCounts = {};
@@ -62,11 +64,12 @@ export function AnimalReconciliation() {
       });
       console.log(statusCounts);
 
-      // Check dispositions table
-      const { data: allDispositions } = await supabase
-        .from('cow_dispositions')
-        .select('*')
-        .eq('company_id', currentCompany.id);
+        // Check dispositions table
+        const { data: allDispositions } = await supabase
+          .from('cow_dispositions')
+          .select('*')
+          .eq('company_id', currentCompany.id)
+          .limit(10000); // High limit
 
       console.log('Total dispositions in system:', allDispositions?.length || 0);
 
@@ -88,7 +91,8 @@ export function AnimalReconciliation() {
           const { data: allCows } = await supabase
             .from('cows')
             .select('id, status, freshen_date, disposition_id')
-            .eq('company_id', currentCompany.id);
+            .eq('company_id', currentCompany.id)
+            .limit(50000); // Explicit high limit
 
           previousMonthBalance = (allCows || []).filter(cow => {
             const freshenDate = new Date(cow.freshen_date);
@@ -105,7 +109,8 @@ export function AnimalReconciliation() {
           .select('id')
           .eq('company_id', currentCompany.id)
           .gte('freshen_date', currentMonthStart.toISOString().split('T')[0])
-          .lte('freshen_date', currentMonthEnd.toISOString().split('T')[0]);
+          .lte('freshen_date', currentMonthEnd.toISOString().split('T')[0])
+          .limit(10000); // High limit
 
         const newCows = newCowsData?.length || 0;
 
@@ -115,7 +120,8 @@ export function AnimalReconciliation() {
           .select('disposition_type')
           .eq('company_id', currentCompany.id)
           .gte('disposition_date', currentMonthStart.toISOString().split('T')[0])
-          .lte('disposition_date', currentMonthEnd.toISOString().split('T')[0]);
+          .lte('disposition_date', currentMonthEnd.toISOString().split('T')[0])
+          .limit(5000); // High limit
 
         const sold = (dispositionsData || []).filter(d => d.disposition_type === 'sale').length;
         const dead = (dispositionsData || []).filter(d => d.disposition_type === 'death').length;
@@ -155,7 +161,8 @@ export function AnimalReconciliation() {
         .from('cows')
         .select('id')
         .eq('company_id', currentCompany.id)
-        .eq('status', 'active');
+        .eq('status', 'active')
+        .limit(50000); // High limit
       
       console.log('Actual active cows in system:', currentCows?.length || 0);
       console.log('Last reconciliation balance:', activeReconciliations[activeReconciliations.length - 1]?.currentBalance || 0);
