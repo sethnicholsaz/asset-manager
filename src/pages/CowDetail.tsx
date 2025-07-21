@@ -381,24 +381,91 @@ export default function CowDetail() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {monthlyDepreciation.map((record) => (
-                      <TableRow key={record.id}>
-                        <TableCell>{record.posting_period}</TableCell>
-                        <TableCell>{formatCurrency(record.monthly_depreciation_amount)}</TableCell>
-                        <TableCell>{formatCurrency(record.accumulated_depreciation)}</TableCell>
-                        <TableCell>{formatCurrency(record.asset_value)}</TableCell>
-                        <TableCell>
-                          {record.journal_entry_id ? (
-                            <Badge variant="outline">
-                              <FileText className="h-3 w-3 mr-1" />
-                              Created
-                            </Badge>
-                          ) : (
-                            <span className="text-muted-foreground">-</span>
-                          )}
-                        </TableCell>
-                      </TableRow>
-                    ))}
+                    {(() => {
+                      const processedEntries: any[] = [];
+                      const journalGroups = new Map<string, any[]>();
+                      
+                      // Group records by journal_entry_id for 2024 entries
+                      monthlyDepreciation.forEach((record) => {
+                        if (record.year === 2024 && record.journal_entry_id) {
+                          const journalId = record.journal_entry_id;
+                          if (!journalGroups.has(journalId)) {
+                            journalGroups.set(journalId, []);
+                          }
+                          journalGroups.get(journalId)!.push(record);
+                        } else {
+                          // Add 2025+ entries individually
+                          processedEntries.push({
+                            ...record,
+                            isGrouped: false
+                          });
+                        }
+                      });
+                      
+                      // Add grouped 2024 entries as bulk entries
+                      journalGroups.forEach((records, journalId) => {
+                        if (records.length > 1) {
+                          // Create a bulk entry for 2024
+                          const totalDepreciation = records.reduce((sum, r) => sum + r.monthly_depreciation_amount, 0);
+                          const lastRecord = records.sort((a, b) => b.month - a.month)[0];
+                          
+                          processedEntries.push({
+                            id: `bulk-2024-${journalId}`,
+                            posting_period: '2024 (Historical Bulk)',
+                            monthly_depreciation_amount: totalDepreciation,
+                            accumulated_depreciation: lastRecord.accumulated_depreciation,
+                            asset_value: lastRecord.asset_value,
+                            journal_entry_id: journalId,
+                            year: 2024,
+                            month: 12,
+                            isGrouped: true,
+                            groupedCount: records.length
+                          });
+                        } else {
+                          // Single 2024 entry
+                          processedEntries.push({
+                            ...records[0],
+                            isGrouped: false
+                          });
+                        }
+                      });
+                      
+                      // Sort by year and month descending
+                      return processedEntries
+                        .sort((a, b) => {
+                          if (a.year !== b.year) return b.year - a.year;
+                          return b.month - a.month;
+                        })
+                        .map((record) => (
+                          <TableRow key={record.id}>
+                            <TableCell>
+                              {record.isGrouped ? (
+                                <div>
+                                  <span className="font-medium">{record.posting_period}</span>
+                                  <div className="text-xs text-muted-foreground">
+                                    {record.groupedCount} months combined
+                                  </div>
+                                </div>
+                              ) : (
+                                record.posting_period
+                              )}
+                            </TableCell>
+                            <TableCell>{formatCurrency(record.monthly_depreciation_amount)}</TableCell>
+                            <TableCell>{formatCurrency(record.accumulated_depreciation)}</TableCell>
+                            <TableCell>{formatCurrency(record.asset_value)}</TableCell>
+                            <TableCell>
+                              {record.journal_entry_id ? (
+                                <Badge variant={record.isGrouped ? "default" : "outline"}>
+                                  <FileText className="h-3 w-3 mr-1" />
+                                  {record.isGrouped ? "Bulk Entry" : "Created"}
+                                </Badge>
+                              ) : (
+                                <span className="text-muted-foreground">-</span>
+                              )}
+                            </TableCell>
+                          </TableRow>
+                        ));
+                    })()}
                   </TableBody>
                 </Table>
               ) : (
