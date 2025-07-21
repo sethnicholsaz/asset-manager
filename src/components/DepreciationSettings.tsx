@@ -147,10 +147,9 @@ export function DepreciationSettings() {
 
     setIsCalculating(true);
     try {
-      const { data, error } = await supabase.functions.invoke('bulk-depreciation-processor', {
+      const { data, error } = await supabase.functions.invoke('efficient-depreciation-processor', {
         body: { 
-          company_id: currentCompany.id,
-          batch_size: 50 
+          company_id: currentCompany.id
         }
       });
 
