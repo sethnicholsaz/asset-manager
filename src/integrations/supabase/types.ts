@@ -764,7 +764,8 @@ export type Database = {
           year_num: number
           starting_balance: number
           additions: number
-          disposals: number
+          sales: number
+          deaths: number
           ending_balance: number
           actual_active_count: number
         }[]

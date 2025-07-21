@@ -59,9 +59,9 @@ export function AnimalReconciliation() {
         year: row.year_num,
         previousMonthBalance: Number(row.starting_balance),
         newCows: Number(row.additions),
-        sold: Number(row.disposals), // All disposals combined
-        dead: 0, // Server function combines all disposals into one number
-        culled: 0, // Server function combines all disposals into one number
+        sold: Number(row.sales), // Sales only
+        dead: Number(row.deaths), // Deaths only
+        culled: 0, // No longer tracking culled separately
         currentBalance: Number(row.ending_balance) // Use calculated ending balance for proper flow
       }));
 
