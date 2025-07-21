@@ -177,8 +177,38 @@ export default function CowsNeedingAttention() {
           .eq('id', record.cow_id)
           .single();
 
+        // First, bring the cow's depreciation up to date through the disposal month
+        try {
+          const { data: catchupResult, error: catchupError } = await supabase.functions.invoke('cow-depreciation-catchup', {
+            body: {
+              cow_id: record.cow_id,
+              company_id: currentCompany?.id
+            }
+          });
+
+          if (catchupError) {
+            console.error("Depreciation catch-up error before disposal:", catchupError);
+            toast({
+              title: "Warning",
+              description: `Proceeding with disposal but depreciation catch-up failed: ${catchupError.message}`,
+              variant: "destructive",
+            });
+          } else {
+            console.log("Depreciation catch-up completed before disposal:", catchupResult);
+          }
+        } catch (catchupError) {
+          console.error("Error calling depreciation catch-up before disposal:", catchupError);
+        }
+
+        // Re-fetch cow data after depreciation catch-up to get updated values
+        const { data: updatedCow } = await supabase
+          .from('cows')
+          .select('current_value, tag_number, total_depreciation')
+          .eq('id', record.cow_id)
+          .single();
+
         const saleAmount = parseFloat(actionForm.saleAmount) || 0;
-        const bookValue = cow?.current_value || 0;
+        const bookValue = updatedCow?.current_value || cow?.current_value || 0;
         const gainLoss = saleAmount - bookValue;
 
         // Create journal entry for disposition

@@ -248,13 +248,40 @@ export default function DataImport() {
         const dispositionType = row.EVENT.toUpperCase() === 'DIED' ? 'death' : 'sale';
         const newStatus = row.EVENT.toUpperCase() === 'DIED' ? 'deceased' : 'sold';
 
+        // First, bring the cow's depreciation up to date through the disposal month
+        try {
+          const { data: catchupResult, error: catchupError } = await supabase.functions.invoke('cow-depreciation-catchup', {
+            body: {
+              cow_id: existingCow.id,
+              company_id: currentCompany?.id
+            }
+          });
+
+          if (catchupError) {
+            console.error(`Depreciation catch-up error for cow ${row.ID}:`, catchupError);
+          } else {
+            console.log(`Depreciation catch-up completed for cow ${row.ID}:`, catchupResult);
+          }
+        } catch (catchupError) {
+          console.error(`Error calling depreciation catch-up for cow ${row.ID}:`, catchupError);
+        }
+
+        // Re-fetch cow data after depreciation catch-up to get updated values
+        const { data: updatedCow } = await supabase
+          .from('cows')
+          .select('current_value, total_depreciation')
+          .eq('id', existingCow.id)
+          .single();
+
+        const finalBookValue = updatedCow?.current_value || existingCow.current_value;
+
         const dispositionData = {
           cow_id: existingCow.id,
           disposition_date: dispositionDate.toISOString().split('T')[0],
           disposition_type: dispositionType,
           sale_amount: 0,
-          final_book_value: Number(existingCow.current_value),
-          gain_loss: 0 - Number(existingCow.current_value),
+          final_book_value: Number(finalBookValue),
+          gain_loss: 0 - Number(finalBookValue),
           company_id: currentCompany?.id
         };
 
