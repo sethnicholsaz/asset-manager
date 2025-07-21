@@ -233,7 +233,7 @@ export default function CowsNeedingAttention() {
 
       toast({
         title: "Action completed",
-        description: `Successfully ${actionType.replace('_', ' ')} for cow ${record.tag_number}`,
+        description: `Successfully ${actionType === 'unsell_cow' ? 'reinstated' : actionType.replace('_', ' ')} cow ${record.tag_number}`,
       });
 
       setActionDialog(null);
