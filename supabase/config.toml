@@ -155,3 +155,6 @@ verify_jwt = false
 
 [functions.upload-dispositions]
 verify_jwt = false
+
+[functions.cow-depreciation-catchup]
+verify_jwt = false
