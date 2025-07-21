@@ -149,19 +149,123 @@ export default function CowsNeedingAttention() {
       } else if (actionType === 'dispose_cow' && record.cow_id) {
         const { data: cow } = await supabase
           .from('cows')
-          .select('current_value')
+          .select('current_value, tag_number')
           .eq('id', record.cow_id)
           .single();
+
+        const saleAmount = parseFloat(actionForm.saleAmount) || 0;
+        const bookValue = cow?.current_value || 0;
+        const gainLoss = saleAmount - bookValue;
+
+        // Create journal entry for disposition
+        const journalEntry = {
+          description: `${actionForm.dispositionType === 'sale' ? 'Sale' : 'Death'} of Cow #${cow?.tag_number || record.tag_number}`,
+          entry_date: actionForm.dispositionDate,
+          entry_type: 'disposition',
+          total_amount: Math.abs(gainLoss) + bookValue,
+          company_id: currentCompany?.id
+        };
+
+        const { data: newJournalEntry, error: journalError } = await supabase
+          .from('journal_entries')
+          .insert(journalEntry)
+          .select()
+          .single();
+
+        if (journalError) throw journalError;
+
+        // Create journal lines for disposition
+        const journalLines = [];
+
+        if (actionForm.dispositionType === 'sale') {
+          // For sales
+          if (saleAmount > 0) {
+            journalLines.push({
+              journal_entry_id: newJournalEntry.id,
+              account_code: '1100',
+              account_name: 'Cash',
+              description: `Cash received from sale of cow #${cow?.tag_number}`,
+              line_type: 'debit',
+              debit_amount: saleAmount,
+              credit_amount: 0
+            });
+          }
+
+          if (gainLoss < 0) {
+            // Loss on sale
+            journalLines.push({
+              journal_entry_id: newJournalEntry.id,
+              account_code: '7200',
+              account_name: 'Loss on Asset Disposal',
+              description: `Loss on sale of cow #${cow?.tag_number}`,
+              line_type: 'debit',
+              debit_amount: Math.abs(gainLoss),
+              credit_amount: 0
+            });
+          }
+
+          // Credit asset account
+          journalLines.push({
+            journal_entry_id: newJournalEntry.id,
+            account_code: '1500',
+            account_name: 'Dairy Cows',
+            description: `Removal of cow #${cow?.tag_number} from assets`,
+            line_type: 'credit',
+            debit_amount: 0,
+            credit_amount: bookValue
+          });
+
+          if (gainLoss > 0) {
+            // Gain on sale
+            journalLines.push({
+              journal_entry_id: newJournalEntry.id,
+              account_code: '8200',
+              account_name: 'Gain on Asset Disposal',
+              description: `Gain on sale of cow #${cow?.tag_number}`,
+              line_type: 'credit',
+              debit_amount: 0,
+              credit_amount: gainLoss
+            });
+          }
+        } else {
+          // For deaths
+          journalLines.push({
+            journal_entry_id: newJournalEntry.id,
+            account_code: '7200',
+            account_name: 'Loss on Asset Disposal',
+            description: `Loss due to death of cow #${cow?.tag_number}`,
+            line_type: 'debit',
+            debit_amount: bookValue,
+            credit_amount: 0
+          });
+
+          journalLines.push({
+            journal_entry_id: newJournalEntry.id,
+            account_code: '1500',
+            account_name: 'Dairy Cows',
+            description: `Removal of cow #${cow?.tag_number} due to death`,
+            line_type: 'credit',
+            debit_amount: 0,
+            credit_amount: bookValue
+          });
+        }
+
+        const { error: linesError } = await supabase
+          .from('journal_lines')
+          .insert(journalLines);
+
+        if (linesError) throw linesError;
 
         const dispositionData = {
           cow_id: record.cow_id,
           disposition_date: actionForm.dispositionDate,
           disposition_type: actionForm.dispositionType,
-          sale_amount: parseFloat(actionForm.saleAmount) || 0,
-          final_book_value: cow?.current_value || 0,
-          gain_loss: (parseFloat(actionForm.saleAmount) || 0) - (cow?.current_value || 0),
+          sale_amount: saleAmount,
+          final_book_value: bookValue,
+          gain_loss: gainLoss,
           notes: actionForm.notes,
-          company_id: currentCompany?.id
+          company_id: currentCompany?.id,
+          journal_entry_id: newJournalEntry.id
         };
 
         const { error: dispositionError } = await supabase.from('cow_dispositions').insert(dispositionData);
@@ -169,12 +273,57 @@ export default function CowsNeedingAttention() {
 
         const { error: cowUpdateError } = await supabase
           .from('cows')
-          .update({ status: actionForm.dispositionType === 'sale' ? 'sold' : 'deceased' })
+          .update({ 
+            status: actionForm.dispositionType === 'sale' ? 'sold' : 'deceased',
+            disposition_id: dispositionData.cow_id
+          })
           .eq('id', record.cow_id);
 
         if (cowUpdateError) throw cowUpdateError;
 
       } else if (actionType === 'update_freshen' && record.cow_id) {
+        const { data: cow } = await supabase
+          .from('cows')
+          .select('tag_number, current_value')
+          .eq('id', record.cow_id)
+          .single();
+
+        // Create journal entry for freshen date update
+        const journalEntry = {
+          description: `Freshen Date Updated for Cow #${cow?.tag_number || record.tag_number}`,
+          entry_date: actionForm.freshenDate,
+          entry_type: 'freshen_update',
+          total_amount: 0, // No monetary impact, just tracking
+          company_id: currentCompany?.id
+        };
+
+        const { data: newJournalEntry, error: journalError } = await supabase
+          .from('journal_entries')
+          .insert(journalEntry)
+          .select()
+          .single();
+
+        if (journalError) throw journalError;
+
+        // Create informational journal lines
+        const journalLines = [
+          {
+            journal_entry_id: newJournalEntry.id,
+            account_code: '1500',
+            account_name: 'Dairy Cows',
+            description: `Cow #${cow?.tag_number} entered productive phase`,
+            line_type: 'memo',
+            debit_amount: 0,
+            credit_amount: 0
+          }
+        ];
+
+        const { error: linesError } = await supabase
+          .from('journal_lines')
+          .insert(journalLines);
+
+        if (linesError) throw linesError;
+
         const { error: updateError } = await supabase
           .from('cows')
           .update({ freshen_date: actionForm.freshenDate })
