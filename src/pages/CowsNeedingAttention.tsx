@@ -158,12 +158,15 @@ export default function CowsNeedingAttention() {
         const gainLoss = saleAmount - bookValue;
 
         // Create journal entry for disposition
+        const entryDate = new Date(actionForm.dispositionDate);
         const journalEntry = {
           description: `${actionForm.dispositionType === 'sale' ? 'Sale' : 'Death'} of Cow #${cow?.tag_number || record.tag_number}`,
           entry_date: actionForm.dispositionDate,
           entry_type: 'disposition',
           total_amount: Math.abs(gainLoss) + bookValue,
-          company_id: currentCompany?.id
+          company_id: currentCompany?.id,
+          posting_year: entryDate.getFullYear(),
+          posting_month: entryDate.getMonth() + 1
         };
 
         const { data: newJournalEntry, error: journalError } = await supabase
@@ -289,12 +292,15 @@ export default function CowsNeedingAttention() {
           .single();
 
         // Create journal entry for freshen date update
+        const freshenDate = new Date(actionForm.freshenDate);
         const journalEntry = {
           description: `Freshen Date Updated for Cow #${cow?.tag_number || record.tag_number}`,
           entry_date: actionForm.freshenDate,
           entry_type: 'freshen_update',
           total_amount: 0, // No monetary impact, just tracking
-          company_id: currentCompany?.id
+          company_id: currentCompany?.id,
+          posting_year: freshenDate.getFullYear(),
+          posting_month: freshenDate.getMonth() + 1
         };
 
         const { data: newJournalEntry, error: journalError } = await supabase
@@ -379,12 +385,15 @@ export default function CowsNeedingAttention() {
 
         // Create reversal journal entry if original exists
         if (originalJournalEntry) {
+          const reversalDate = new Date();
           const reversalEntry = {
             description: `Reversal: ${originalJournalEntry.description} - Cow #${record.tag_number} Reinstated`,
             entry_date: new Date().toISOString().split('T')[0],
             entry_type: 'disposition_reversal',
             total_amount: originalJournalEntry.total_amount,
-            company_id: currentCompany?.id
+            company_id: currentCompany?.id,
+            posting_year: reversalDate.getFullYear(),
+            posting_month: reversalDate.getMonth() + 1
           };
 
           const { data: newJournalEntry, error: journalError } = await supabase

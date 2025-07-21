@@ -213,6 +213,51 @@ export type Database = {
           },
         ]
       }
+      cow_monthly_depreciation: {
+        Row: {
+          accumulated_depreciation: number
+          asset_value: number
+          company_id: string
+          cow_id: string
+          created_at: string
+          id: string
+          journal_entry_id: string | null
+          month: number
+          monthly_depreciation_amount: number
+          posting_period: string | null
+          updated_at: string
+          year: number
+        }
+        Insert: {
+          accumulated_depreciation?: number
+          asset_value?: number
+          company_id: string
+          cow_id: string
+          created_at?: string
+          id?: string
+          journal_entry_id?: string | null
+          month: number
+          monthly_depreciation_amount?: number
+          posting_period?: string | null
+          updated_at?: string
+          year: number
+        }
+        Update: {
+          accumulated_depreciation?: number
+          asset_value?: number
+          company_id?: string
+          cow_id?: string
+          created_at?: string
+          id?: string
+          journal_entry_id?: string | null
+          month?: number
+          monthly_depreciation_amount?: number
+          posting_period?: string | null
+          updated_at?: string
+          year?: number
+        }
+        Relationships: []
+      }
       cows: {
         Row: {
           acquisition_type: string
@@ -382,6 +427,9 @@ export type Database = {
           entry_date: string
           entry_type: string
           id: string
+          posting_month: number | null
+          posting_period: string | null
+          posting_year: number | null
           total_amount: number
           updated_at: string
         }
@@ -392,6 +440,9 @@ export type Database = {
           entry_date: string
           entry_type: string
           id?: string
+          posting_month?: number | null
+          posting_period?: string | null
+          posting_year?: number | null
           total_amount: number
           updated_at?: string
         }
@@ -402,6 +453,9 @@ export type Database = {
           entry_date?: string
           entry_type?: string
           id?: string
+          posting_month?: number | null
+          posting_period?: string | null
+          posting_year?: number | null
           total_amount?: number
           updated_at?: string
         }
@@ -602,6 +656,9 @@ export type Database = {
           entry_type: string
           id: string
           month: number
+          posting_month: number | null
+          posting_period: string | null
+          posting_year: number | null
           status: string
           total_amount: number
           updated_at: string
@@ -615,6 +672,9 @@ export type Database = {
           entry_type: string
           id?: string
           month: number
+          posting_month?: number | null
+          posting_period?: string | null
+          posting_year?: number | null
           status?: string
           total_amount?: number
           updated_at?: string
@@ -628,6 +688,9 @@ export type Database = {
           entry_type?: string
           id?: string
           month?: number
+          posting_month?: number | null
+          posting_period?: string | null
+          posting_year?: number | null
           status?: string
           total_amount?: number
           updated_at?: string
