@@ -41,7 +41,7 @@ export function AnimalReconciliation() {
       
       // Use the new server-side reconciliation function
       const { data: reconciliationResults, error: reconciliationError } = await supabase
-        .rpc('get_monthly_reconciliation', {
+        .rpc('get_monthly_reconciliation' as any, {
           p_company_id: currentCompany.id,
           p_year: selectedYear
         });
@@ -85,9 +85,9 @@ export function AnimalReconciliation() {
       
       // Get accurate cow stats for verification
       const { data: statsData } = await supabase
-        .rpc('get_accurate_cow_stats', { p_company_id: currentCompany.id });
+        .rpc('get_accurate_cow_stats' as any, { p_company_id: currentCompany.id });
         
-      const actualActiveCows = statsData?.[0]?.active_count || 0;
+      const actualActiveCows = Array.isArray(statsData) ? statsData?.[0]?.active_count || 0 : 0;
       console.log('Actual active cows in system:', actualActiveCows);
       console.log('Last reconciliation balance:', activeReconciliations[activeReconciliations.length - 1]?.currentBalance || 0);
 

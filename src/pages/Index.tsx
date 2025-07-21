@@ -41,9 +41,9 @@ const Index = () => {
       // Get aggregated statistics using new server-side function (only if not searching)
       if (!searchQuery) {
         const { data: statsData, error: statsError } = await supabase
-          .rpc('get_accurate_cow_stats', { p_company_id: currentCompany.id });
+          .rpc('get_accurate_cow_stats' as any, { p_company_id: currentCompany.id });
 
-        if (statsError || !statsData || statsData.length === 0) {
+        if (statsError || !statsData || (Array.isArray(statsData) && statsData.length === 0)) {
           console.error('Stats query error:', statsError);
           // Fallback to basic count only if function fails
           const { count: activeCount } = await supabase
