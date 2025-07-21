@@ -30,75 +30,96 @@ export function AnimalReconciliation() {
     if (currentCompany) {
       fetchReconciliationData();
     }
-  }, [currentCompany, selectedYear]);
+  }, [currentCompany, selectedYear, selectedMonth]);
 
   const fetchReconciliationData = async () => {
     if (!currentCompany) return;
 
     setIsLoading(true);
     try {
-      const reconciliations: AnimalReconciliation[] = [];
+      // Only calculate for the selected month
+      const currentMonthStart = new Date(selectedYear, selectedMonth - 1, 1);
+      const currentMonthEnd = new Date(selectedYear, selectedMonth, 0);
+      const previousMonthEnd = new Date(selectedYear, selectedMonth - 1, 0);
 
-      // Generate reconciliation for each month in the selected year
-      for (let month = 1; month <= 12; month++) {
-        const currentMonthStart = new Date(selectedYear, month - 1, 1);
-        const currentMonthEnd = new Date(selectedYear, month, 0);
-        const previousMonthEnd = new Date(selectedYear, month - 1, 0);
+      console.log('Calculating reconciliation for:', {
+        month: selectedMonth,
+        year: selectedYear,
+        currentMonthStart: currentMonthStart.toISOString(),
+        currentMonthEnd: currentMonthEnd.toISOString(),
+        previousMonthEnd: previousMonthEnd.toISOString()
+      });
 
-        // Get previous month ending balance (active cows at end of previous month)
-        const { data: previousCows } = await supabase
-          .from('cows')
-          .select('id, status, freshen_date')
-          .eq('company_id', currentCompany.id);
+      // Get ALL cows for this company (no limits)
+      const { data: allCows } = await supabase
+        .from('cows')
+        .select('id, status, freshen_date, disposition_id')
+        .eq('company_id', currentCompany.id);
 
-        const previousMonthBalance = (previousCows || []).filter(cow => {
-          const freshenDate = new Date(cow.freshen_date);
-          return cow.status === 'active' && freshenDate <= previousMonthEnd;
-        }).length;
+      console.log('Total cows in system:', allCows?.length || 0);
 
-        // Get new cows added during current month (freshened during month)
-        const { data: newCowsData } = await supabase
-          .from('cows')
-          .select('id')
-          .eq('company_id', currentCompany.id)
-          .gte('freshen_date', currentMonthStart.toISOString().split('T')[0])
-          .lte('freshen_date', currentMonthEnd.toISOString().split('T')[0]);
+      // Previous month balance: cows that were active at end of previous month
+      const previousMonthBalance = (allCows || []).filter(cow => {
+        const freshenDate = new Date(cow.freshen_date);
+        // Must have freshened by end of previous month and still be active
+        return freshenDate <= previousMonthEnd && cow.status === 'active';
+      }).length;
 
-        const newCows = newCowsData?.length || 0;
+      console.log('Previous month balance:', previousMonthBalance);
 
-        // Get dispositions during current month
-        const { data: dispositionsData } = await supabase
-          .from('cow_dispositions')
-          .select('disposition_type')
-          .eq('company_id', currentCompany.id)
-          .gte('disposition_date', currentMonthStart.toISOString().split('T')[0])
-          .lte('disposition_date', currentMonthEnd.toISOString().split('T')[0]);
+      // New cows: freshened during current month
+      const { data: newCowsData } = await supabase
+        .from('cows')
+        .select('id')
+        .eq('company_id', currentCompany.id)
+        .gte('freshen_date', currentMonthStart.toISOString().split('T')[0])
+        .lte('freshen_date', currentMonthEnd.toISOString().split('T')[0]);
 
-        const sold = (dispositionsData || []).filter(d => d.disposition_type === 'sale').length;
-        const dead = (dispositionsData || []).filter(d => d.disposition_type === 'death').length;
-        const culled = (dispositionsData || []).filter(d => d.disposition_type === 'culled').length;
+      const newCows = newCowsData?.length || 0;
+      console.log('New cows this month:', newCows);
 
-        // Calculate current balance
-        const currentBalance = previousMonthBalance + newCows - sold - dead - culled;
+      // Dispositions during current month
+      const { data: dispositionsData } = await supabase
+        .from('cow_dispositions')
+        .select('disposition_type')
+        .eq('company_id', currentCompany.id)
+        .gte('disposition_date', currentMonthStart.toISOString().split('T')[0])
+        .lte('disposition_date', currentMonthEnd.toISOString().split('T')[0]);
 
-        reconciliations.push({
-          month,
-          year: selectedYear,
-          previousMonthBalance,
-          newCows,
-          sold,
-          dead,
-          culled,
-          currentBalance
-        });
-      }
+      console.log('Dispositions this month:', dispositionsData?.length || 0);
 
-      // Filter out months with no activity
-      const activeReconciliations = reconciliations.filter(r => 
-        r.previousMonthBalance > 0 || r.newCows > 0 || r.sold > 0 || r.dead > 0 || r.culled > 0
-      );
+      const sold = (dispositionsData || []).filter(d => d.disposition_type === 'sale').length;
+      const dead = (dispositionsData || []).filter(d => d.disposition_type === 'death').length;
+      const culled = (dispositionsData || []).filter(d => d.disposition_type === 'culled').length;
 
-      setReconciliationData(activeReconciliations);
+      console.log('Dispositions breakdown:', { sold, dead, culled });
+
+      // Current balance: cows active at end of current month
+      const currentBalance = (allCows || []).filter(cow => {
+        const freshenDate = new Date(cow.freshen_date);
+        // Must have freshened by end of current month and still be active
+        return freshenDate <= currentMonthEnd && cow.status === 'active';
+      }).length;
+
+      console.log('Current balance (actual active cows):', currentBalance);
+
+      // Calculated balance for verification
+      const calculatedBalance = previousMonthBalance + newCows - sold - dead - culled;
+      console.log('Calculated balance:', calculatedBalance);
+      console.log('Difference (calculated vs actual):', calculatedBalance - currentBalance);
+
+      const reconciliation: AnimalReconciliation = {
+        month: selectedMonth,
+        year: selectedYear,
+        previousMonthBalance,
+        newCows,
+        sold,
+        dead,
+        culled,
+        currentBalance
+      };
+
+      setReconciliationData([reconciliation]);
 
     } catch (error) {
       console.error('Error fetching reconciliation data:', error);
@@ -127,7 +148,7 @@ export function AnimalReconciliation() {
   });
 
   // Get current month data for summary cards
-  const currentMonthData = reconciliationData.find(r => r.month === selectedMonth);
+  const currentMonthData = reconciliationData[0]; // Now only one record
 
   return (
     <div className="space-y-6">
@@ -233,9 +254,9 @@ export function AnimalReconciliation() {
       {/* Reconciliation Table */}
       <Card>
         <CardHeader>
-          <CardTitle>Monthly Animal Reconciliation - {selectedYear}</CardTitle>
+          <CardTitle>Animal Reconciliation - {getMonthName(selectedMonth)} {selectedYear}</CardTitle>
           <CardDescription>
-            Track inventory changes: Beginning balance + additions - dispositions = ending balance
+            Reconciliation for {getMonthName(selectedMonth)} {selectedYear}: Beginning balance + additions - dispositions = ending balance
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -284,7 +305,7 @@ export function AnimalReconciliation() {
               
               {reconciliationData.length === 0 && (
                 <div className="text-center py-12 text-muted-foreground">
-                  <p>No animal activity found for {selectedYear}</p>
+                  <p>No data available for {getMonthName(selectedMonth)} {selectedYear}</p>
                 </div>
               )}
             </div>
