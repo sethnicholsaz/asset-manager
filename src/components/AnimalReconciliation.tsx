@@ -59,11 +59,20 @@ export function AnimalReconciliation() {
         year: row.year_num,
         previousMonthBalance: Number(row.starting_balance),
         newCows: Number(row.additions),
-        sold: Number(row.disposals), // Simplified - server function combines all disposals
+        sold: Number(row.disposals), // All disposals combined
         dead: 0, // Server function combines all disposals into one number
         culled: 0, // Server function combines all disposals into one number
-        currentBalance: Number(row.actual_active_count) // Use actual count instead of calculation
+        currentBalance: Number(row.ending_balance) // Use calculated ending balance for proper flow
       }));
+
+      console.log('Reconciliation flow check:');
+      reconciliations.forEach((rec, index) => {
+        if (index > 0) {
+          const prevBalance = reconciliations[index - 1].currentBalance;
+          const currentStart = rec.previousMonthBalance;
+          console.log(`Month ${rec.month}: Previous ending (${prevBalance}) vs Current starting (${currentStart}) - ${prevBalance === currentStart ? 'MATCH' : 'MISMATCH'}`);
+        }
+      });
 
       // Filter out months with no activity
       const activeReconciliations = reconciliations.filter(r => 
