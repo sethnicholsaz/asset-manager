@@ -737,6 +737,17 @@ export type Database = {
           updated_at: string
         }[]
       }
+      get_accurate_cow_stats: {
+        Args: { p_company_id: string }
+        Returns: {
+          active_count: number
+          total_asset_value: number
+          total_current_value: number
+          total_depreciation: number
+          inactive_count: number
+          total_cows: number
+        }[]
+      }
       get_active_cow_stats: {
         Args: { p_company_id: string }
         Returns: {
@@ -744,6 +755,18 @@ export type Database = {
           total_purchase_price: number
           total_current_value: number
           total_depreciation: number
+        }[]
+      }
+      get_monthly_reconciliation: {
+        Args: { p_company_id: string; p_year: number }
+        Returns: {
+          month_num: number
+          year_num: number
+          starting_balance: number
+          additions: number
+          disposals: number
+          ending_balance: number
+          actual_active_count: number
         }[]
       }
       search_cows: {
