@@ -196,8 +196,7 @@ async function processCowDepreciation(supabase: any, cow: any) {
           entry_type: 'depreciation',
           total_amount: bulkDepreciation,
           posting_year: 2024,
-          posting_month: 12,
-          posting_period: '2024-12'
+          posting_month: 12
         })
         .select()
         .single();
@@ -310,8 +309,7 @@ async function processCowDepreciation(supabase: any, cow: any) {
           entry_type: 'depreciation',
           total_amount: monthlyDepreciation,
           posting_year: year,
-          posting_month: month,
-          posting_period: `${year}-${month.toString().padStart(2, '0')}`
+          posting_month: month
         })
         .select()
         .single();
@@ -363,8 +361,7 @@ async function processCowDepreciation(supabase: any, cow: any) {
           monthly_depreciation_amount: monthlyDepreciation,
           accumulated_depreciation: accumulatedDepreciation,
           asset_value: currentValue,
-          journal_entry_id: journalEntry.id,
-          posting_period: `${year}-${month.toString().padStart(2, '0')}`
+          journal_entry_id: journalEntry.id
         });
 
       if (depreciationError) {
