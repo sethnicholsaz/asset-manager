@@ -31,16 +31,6 @@ interface CowDetails {
   updated_at: string;
 }
 
-interface MonthlyDepreciation {
-  id: string;
-  year: number;
-  month: number;
-  posting_period: string;
-  monthly_depreciation_amount: number;
-  accumulated_depreciation: number;
-  asset_value: number;
-  journal_entry_id?: string;
-}
 
 interface JournalEntry {
   id: string;
@@ -76,7 +66,7 @@ export default function CowDetail() {
   const { currentCompany } = useAuth();
   
   const [cow, setCow] = useState<CowDetails | null>(null);
-  const [monthlyDepreciation, setMonthlyDepreciation] = useState<MonthlyDepreciation[]>([]);
+  
   const [journalEntries, setJournalEntries] = useState<JournalEntry[]>([]);
   const [disposition, setDisposition] = useState<Disposition | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -116,46 +106,31 @@ export default function CowDetail() {
 
       setCow(cowData);
 
-      // Load monthly depreciation records
-      const { data: depreciationData, error: depreciationError } = await supabase
-        .from('cow_monthly_depreciation')
-        .select('*')
-        .eq('cow_id', cowId)
-        .eq('company_id', currentCompany.id)
-        .order('year', { ascending: false })
-        .order('month', { ascending: false });
-
-      if (depreciationError) throw depreciationError;
-      setMonthlyDepreciation(depreciationData || []);
-
-      // Load related journal entries
-      const journalIds = depreciationData?.filter(d => d.journal_entry_id).map(d => d.journal_entry_id) || [];
-      
-      if (journalIds.length > 0) {
-        const { data: journalData, error: journalError } = await supabase
-          .from('journal_entries')
-          .select(`
-            id,
+      // Load related journal entries for this cow
+      const { data: journalData, error: journalError } = await supabase
+        .from('journal_entries')
+        .select(`
+          id,
+          description,
+          entry_date,
+          entry_type,
+          total_amount,
+          posting_period,
+          journal_lines (
+            account_code,
+            account_name,
             description,
-            entry_date,
-            entry_type,
-            total_amount,
-            posting_period,
-            journal_lines (
-              account_code,
-              account_name,
-              description,
-              line_type,
-              debit_amount,
-              credit_amount
-            )
-          `)
-          .in('id', journalIds)
-          .order('entry_date', { ascending: false });
+            line_type,
+            debit_amount,
+            credit_amount
+          )
+        `)
+        .eq('company_id', currentCompany.id)
+        .ilike('description', `%${cowId}%`)
+        .order('entry_date', { ascending: false });
 
-        if (journalError) throw journalError;
-        setJournalEntries(journalData || []);
-      }
+      if (journalError) throw journalError;
+      setJournalEntries(journalData || []);
 
       // Load disposition if exists
       if (cowData.disposition_id) {
@@ -306,7 +281,7 @@ export default function CowDetail() {
       <Tabs defaultValue="details" className="space-y-6">
         <TabsList>
           <TabsTrigger value="details">Details</TabsTrigger>
-          <TabsTrigger value="depreciation">Depreciation History</TabsTrigger>
+          <TabsTrigger value="depreciation">Depreciation Summary</TabsTrigger>
           <TabsTrigger value="journals">Journal Entries</TabsTrigger>
           {disposition && <TabsTrigger value="disposition">Disposition</TabsTrigger>}
         </TabsList>
@@ -363,116 +338,31 @@ export default function CowDetail() {
         <TabsContent value="depreciation">
           <Card>
             <CardHeader>
-              <CardTitle>Monthly Depreciation History</CardTitle>
+              <CardTitle>Depreciation Summary</CardTitle>
               <CardDescription>
-                Detailed month-by-month depreciation records for this cow
+                Overall depreciation information for this cow. Detailed records are tracked in journal entries.
               </CardDescription>
             </CardHeader>
             <CardContent>
-              {monthlyDepreciation.length > 0 ? (
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Period</TableHead>
-                      <TableHead>Monthly Depreciation</TableHead>
-                      <TableHead>Accumulated Depreciation</TableHead>
-                      <TableHead>Asset Value</TableHead>
-                      <TableHead>Journal Entry</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {(() => {
-                      const processedEntries: any[] = [];
-                      const journalGroups = new Map<string, any[]>();
-                      
-                      // Group records by journal_entry_id for 2024 entries
-                      monthlyDepreciation.forEach((record) => {
-                        if (record.year === 2024 && record.journal_entry_id) {
-                          const journalId = record.journal_entry_id;
-                          if (!journalGroups.has(journalId)) {
-                            journalGroups.set(journalId, []);
-                          }
-                          journalGroups.get(journalId)!.push(record);
-                        } else {
-                          // Add 2025+ entries individually
-                          processedEntries.push({
-                            ...record,
-                            isGrouped: false
-                          });
-                        }
-                      });
-                      
-                      // Add grouped 2024 entries as bulk entries
-                      journalGroups.forEach((records, journalId) => {
-                        if (records.length > 1) {
-                          // Create a bulk entry for 2024
-                          const totalDepreciation = records.reduce((sum, r) => sum + r.monthly_depreciation_amount, 0);
-                          const lastRecord = records.sort((a, b) => b.month - a.month)[0];
-                          
-                          processedEntries.push({
-                            id: `bulk-2024-${journalId}`,
-                            posting_period: '2024 (Historical Bulk)',
-                            monthly_depreciation_amount: totalDepreciation,
-                            accumulated_depreciation: lastRecord.accumulated_depreciation,
-                            asset_value: lastRecord.asset_value,
-                            journal_entry_id: journalId,
-                            year: 2024,
-                            month: 12,
-                            isGrouped: true,
-                            groupedCount: records.length
-                          });
-                        } else {
-                          // Single 2024 entry
-                          processedEntries.push({
-                            ...records[0],
-                            isGrouped: false
-                          });
-                        }
-                      });
-                      
-                      // Sort by year and month descending
-                      return processedEntries
-                        .sort((a, b) => {
-                          if (a.year !== b.year) return b.year - a.year;
-                          return b.month - a.month;
-                        })
-                        .map((record) => (
-                          <TableRow key={record.id}>
-                            <TableCell>
-                              {record.isGrouped ? (
-                                <div>
-                                  <span className="font-medium">{record.posting_period}</span>
-                                  <div className="text-xs text-muted-foreground">
-                                    {record.groupedCount} months combined
-                                  </div>
-                                </div>
-                              ) : (
-                                record.posting_period
-                              )}
-                            </TableCell>
-                            <TableCell>{formatCurrency(record.monthly_depreciation_amount)}</TableCell>
-                            <TableCell>{formatCurrency(record.accumulated_depreciation)}</TableCell>
-                            <TableCell>{formatCurrency(record.asset_value)}</TableCell>
-                            <TableCell>
-                              {record.journal_entry_id ? (
-                                <Badge variant={record.isGrouped ? "default" : "outline"}>
-                                  <FileText className="h-3 w-3 mr-1" />
-                                  {record.isGrouped ? "Bulk Entry" : "Created"}
-                                </Badge>
-                              ) : (
-                                <span className="text-muted-foreground">-</span>
-                              )}
-                            </TableCell>
-                          </TableRow>
-                        ));
-                    })()}
-                  </TableBody>
-                </Table>
-              ) : (
-                <div className="text-center py-8 text-muted-foreground">
-                  No depreciation records found for this cow.
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div>
+                  <label className="text-sm font-medium text-muted-foreground">Total Depreciation</label>
+                  <p className="text-2xl font-bold">{formatCurrency(cow.total_depreciation)}</p>
                 </div>
-              )}
+                <div>
+                  <label className="text-sm font-medium text-muted-foreground">Current Asset Value</label>
+                  <p className="text-2xl font-bold">{formatCurrency(cow.current_value)}</p>
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-muted-foreground">Depreciation Method</label>
+                  <p className="text-2xl font-bold capitalize">{cow.depreciation_method.replace('-', ' ')}</p>
+                </div>
+              </div>
+              <Separator className="my-6" />
+              <div className="text-sm text-muted-foreground">
+                <FileText className="h-4 w-4 inline mr-2" />
+                Detailed depreciation records are available in the Journal Entries tab
+              </div>
             </CardContent>
           </Card>
         </TabsContent>
