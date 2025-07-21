@@ -37,17 +37,21 @@ export function AnimalReconciliation() {
 
     setIsLoading(true);
     try {
-      // First, let's verify the actual current active count with explicit high limit
+      // Try using the search function with empty query to get all cows
       const { data: currentActiveCows } = await supabase
-        .from('cows')
-        .select('id, tag_number, status, freshen_date')
-        .eq('company_id', currentCompany.id)
-        .eq('status', 'active')
-        .limit(50000); // Explicit high limit to override any defaults
+        .rpc('search_cows', {
+          p_company_id: currentCompany.id,
+          p_search_query: '',
+          p_limit: 50000,
+          p_offset: 0
+        });
+      
+      const activeCowsOnly = (currentActiveCows || []).filter(cow => cow.status === 'active');
 
       console.log('=== VERIFICATION ===');
-      console.log('Actual active cows RIGHT NOW:', currentActiveCows?.length || 0);
-      console.log('Sample active cows:', currentActiveCows?.slice(0, 5));
+      console.log('Total cows returned from search:', currentActiveCows?.length || 0);
+      console.log('Active cows from that result:', activeCowsOnly?.length || 0);
+      console.log('Sample active cows:', activeCowsOnly?.slice(0, 5));
 
         // Check if there are disposed cows that might not be marked correctly
         const { data: disposedCows } = await supabase
