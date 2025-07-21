@@ -28,7 +28,7 @@ interface StagingRecord {
 
 interface ActionDialogData {
   record: StagingRecord;
-  actionType: 'add_cow' | 'dispose_cow' | 'reinstate_cow' | 'update_freshen' | 'ignore';
+  actionType: 'add_cow' | 'dispose_cow' | 'reinstate_cow' | 'update_freshen' | 'ignore' | 'unsell_cow';
 }
 
 export default function CowsNeedingAttention() {
@@ -106,11 +106,27 @@ export default function CowsNeedingAttention() {
           .single();
 
         if (existingCow) {
-          toast({
-            title: "Cow Already Exists",
-            description: `Cow #${record.tag_number} already exists in the database with status: ${existingCow.status}`,
-            variant: "destructive",
-          });
+          if (existingCow.status === 'sold') {
+            // Offer to unsell the cow
+            toast({
+              title: "Cow is Sold",
+              description: `Cow #${record.tag_number} is currently sold. Would you like to unsell and reactivate it?`,
+              action: (
+                <Button 
+                  size="sm" 
+                  onClick={() => openActionDialog(record, 'unsell_cow')}
+                >
+                  Unsell
+                </Button>
+              ),
+            });
+          } else {
+            toast({
+              title: "Cow Already Exists",
+              description: `Cow #${record.tag_number} already exists in the database with status: ${existingCow.status}`,
+              variant: "destructive",
+            });
+          }
           return;
         }
 
@@ -165,6 +181,36 @@ export default function CowsNeedingAttention() {
           .eq('id', record.cow_id);
 
         if (updateError) throw updateError;
+
+      } else if (actionType === 'unsell_cow') {
+        // Find the cow by tag number and company
+        const { data: cowToUnsell } = await supabase
+          .from('cows')
+          .select('id, disposition_id')
+          .eq('tag_number', record.tag_number)
+          .eq('company_id', currentCompany?.id)
+          .single();
+
+        if (!cowToUnsell) throw new Error('Cow not found');
+
+        // Delete disposition record if it exists
+        if (cowToUnsell.disposition_id) {
+          await supabase
+            .from('cow_dispositions')
+            .delete()
+            .eq('id', cowToUnsell.disposition_id);
+        }
+
+        // Update cow status back to active and clear disposition_id
+        const { error: unsellError } = await supabase
+          .from('cows')
+          .update({ 
+            status: 'active',
+            disposition_id: null
+          })
+          .eq('id', cowToUnsell.id);
+
+        if (unsellError) throw unsellError;
       }
 
       const { error: stagingError } = await supabase
@@ -329,6 +375,7 @@ export default function CowsNeedingAttention() {
               {actionDialog?.actionType === 'add_cow' && 'Add Cow to Database'}
               {actionDialog?.actionType === 'dispose_cow' && 'Mark Cow as Disposed'}
               {actionDialog?.actionType === 'update_freshen' && 'Update Freshen Date'}
+              {actionDialog?.actionType === 'unsell_cow' && 'Unsell Cow'}
               {actionDialog?.actionType === 'ignore' && 'Ignore Discrepancy'}
             </DialogTitle>
             <DialogDescription>
