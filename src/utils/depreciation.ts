@@ -72,6 +72,47 @@ export class DepreciationCalculator {
     return entries;
   }
 
+  /**
+   * Calculate current depreciation values for a cow
+   */
+  static calculateCurrentDepreciation(cow: {
+    purchasePrice: number;
+    salvageValue: number;
+    freshenDate: Date | string;
+  }) {
+    const freshenDate = typeof cow.freshenDate === 'string' ? new Date(cow.freshenDate) : cow.freshenDate;
+    const currentDate = new Date();
+    
+    // Calculate monthly depreciation (5-year straight line)
+    const monthlyDepreciation = (cow.purchasePrice - cow.salvageValue) / (5 * 12);
+    
+    // Calculate months since freshen date
+    const monthsSinceFreshen = Math.max(0, 
+      (currentDate.getFullYear() - freshenDate.getFullYear()) * 12 + 
+      (currentDate.getMonth() - freshenDate.getMonth())
+    );
+    
+    // Calculate total depreciation (but don't exceed depreciable amount)
+    const maxDepreciation = cow.purchasePrice - cow.salvageValue;
+    const totalDepreciation = Math.min(
+      monthlyDepreciation * monthsSinceFreshen,
+      maxDepreciation
+    );
+    
+    // Calculate current value
+    const currentValue = Math.max(
+      cow.salvageValue,
+      cow.purchasePrice - totalDepreciation
+    );
+
+    return {
+      totalDepreciation,
+      currentValue,
+      monthlyDepreciation,
+      monthsSinceFreshen
+    };
+  }
+
   static formatCurrency(amount: number): string {
     return new Intl.NumberFormat('en-US', {
       style: 'currency',

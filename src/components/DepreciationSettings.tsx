@@ -42,7 +42,6 @@ export function DepreciationSettings() {
   });
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
-  const [isCalculating, setIsCalculating] = useState(false);
   const { currentCompany } = useAuth();
   const { toast } = useToast();
 
@@ -142,39 +141,6 @@ export function DepreciationSettings() {
     }
   };
 
-  const handleCalculateDepreciation = async () => {
-    if (!currentCompany) return;
-
-    setIsCalculating(true);
-    try {
-      const { data, error } = await supabase.functions.invoke('simple-depreciation-calculator', {
-        body: { 
-          company_id: currentCompany.id
-        }
-      });
-
-      if (error) {
-        throw error;
-      }
-
-      toast({
-        title: "Depreciation Calculated",
-        description: `Successfully processed depreciation for ${data.processed_cows} cows in ${data.batches_processed} batches.`,
-      });
-      
-      // Refresh the page to show updated depreciation values
-      window.location.reload();
-    } catch (error) {
-      console.error('Error calculating depreciation:', error);
-      toast({
-        title: "Error",
-        description: "Failed to calculate depreciation for all cows",
-        variant: "destructive",
-      });
-    } finally {
-      setIsCalculating(false);
-    }
-  };
 
   const handleInputChange = (field: keyof DepreciationSettings, value: any) => {
     setSettings(prev => ({
@@ -383,15 +349,8 @@ export function DepreciationSettings() {
 
         <Separator />
 
-        {/* Action Buttons */}
-        <div className="flex justify-between">
-          <Button 
-            onClick={handleCalculateDepreciation} 
-            disabled={isCalculating}
-            variant="outline"
-          >
-            {isCalculating ? "Calculating..." : "Calculate All Depreciation"}
-          </Button>
+        {/* Save Button */}
+        <div className="flex justify-end">
           <Button onClick={handleSave} disabled={isSaving}>
             {isSaving ? "Saving..." : "Save Settings"}
           </Button>
