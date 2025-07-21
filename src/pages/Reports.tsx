@@ -3,6 +3,7 @@ import { Cow } from '@/types/cow';
 import { DepreciationReport } from '@/components/DepreciationReport';
 import { DispositionReport } from '@/components/DispositionReport';
 import { BalanceReconciliation } from '@/components/BalanceReconciliation';
+import { AnimalReconciliation } from '@/components/AnimalReconciliation';
 import JournalEntryDetails from '@/components/JournalEntryDetails';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -90,9 +91,10 @@ export default function Reports() {
       </div>
 
       <Tabs defaultValue="depreciation" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-3">
+        <TabsList className="grid w-full grid-cols-4">
           <TabsTrigger value="depreciation">Depreciation Reports</TabsTrigger>
           <TabsTrigger value="dispositions">Disposition Reports</TabsTrigger>
+          <TabsTrigger value="reconciliation">Animal Reconciliation</TabsTrigger>
           <TabsTrigger value="journal">Journal Entries</TabsTrigger>
         </TabsList>
         
@@ -104,6 +106,9 @@ export default function Reports() {
           <DispositionReport cows={cows} />
         </TabsContent>
 
+        <TabsContent value="reconciliation">
+          <AnimalReconciliation />
+        </TabsContent>
         
         <TabsContent value="journal">
           <JournalEntryDetails />
