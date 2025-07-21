@@ -4,7 +4,6 @@ import { DepreciationReport } from '@/components/DepreciationReport';
 import { DispositionReport } from '@/components/DispositionReport';
 import { BalanceReconciliation } from '@/components/BalanceReconciliation';
 import { AnimalReconciliation } from '@/components/AnimalReconciliation';
-import { BulkDepreciationJournals } from '@/components/BulkDepreciationJournals';
 import JournalEntryDetails from '@/components/JournalEntryDetails';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -91,12 +90,11 @@ export default function Reports() {
       </div>
 
       <Tabs defaultValue="depreciation" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-5">
+        <TabsList className="grid w-full grid-cols-4">
           <TabsTrigger value="depreciation">Depreciation Reports</TabsTrigger>
           <TabsTrigger value="dispositions">Disposition Reports</TabsTrigger>
           <TabsTrigger value="reconciliation">Animal Reconciliation</TabsTrigger>
           <TabsTrigger value="journal">Journal Entries</TabsTrigger>
-          <TabsTrigger value="bulk-journals">Bulk Journals</TabsTrigger>
         </TabsList>
         
         <TabsContent value="depreciation">
@@ -113,10 +111,6 @@ export default function Reports() {
         
         <TabsContent value="journal">
           <JournalEntryDetails />
-        </TabsContent>
-
-        <TabsContent value="bulk-journals">
-          <BulkDepreciationJournals />
         </TabsContent>
       </Tabs>
     </div>
