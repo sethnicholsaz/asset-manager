@@ -6,11 +6,12 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { AlertTriangle, CheckCircle, Info, Upload, Plus, X, Calendar, DollarSign } from "lucide-react";
+import { AlertTriangle, CheckCircle, Plus, X, Calendar, DollarSign } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { useAuth } from "@/contexts/AuthContext";
 
 interface StagingRecord {
   id: string;
@@ -30,9 +31,7 @@ interface ActionDialogData {
   actionType: 'add_cow' | 'dispose_cow' | 'reinstate_cow' | 'update_freshen' | 'ignore';
 }
 
-export default function MasterFileVerification() {
-  const [file, setFile] = useState<File | null>(null);
-  const [isProcessing, setIsProcessing] = useState(false);
+export default function CowsNeedingAttention() {
   const [stagingRecords, setStagingRecords] = useState<StagingRecord[]>([]);
   const [actionDialog, setActionDialog] = useState<ActionDialogData | null>(null);
   const [actionForm, setActionForm] = useState({
@@ -43,28 +42,20 @@ export default function MasterFileVerification() {
     notes: ''
   });
   const { toast } = useToast();
+  const { currentCompany } = useAuth();
 
   useEffect(() => {
     loadStagingRecords();
-  }, []);
+  }, [currentCompany]);
 
   const loadStagingRecords = async () => {
+    if (!currentCompany) return;
+    
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-
-      const { data: membership } = await supabase
-        .from('company_memberships')
-        .select('company_id')
-        .eq('user_id', user.id)
-        .single();
-
-      if (!membership) return;
-
       const { data: records, error } = await supabase
         .from('master_file_staging')
         .select('*')
-        .eq('company_id', membership.company_id)
+        .eq('company_id', currentCompany.id)
         .eq('action_taken', 'pending')
         .order('verification_date', { ascending: false });
 
@@ -76,72 +67,6 @@ export default function MasterFileVerification() {
       setStagingRecords(records || []);
     } catch (error) {
       console.error('Error in loadStagingRecords:', error);
-    }
-  };
-
-  const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const selectedFile = event.target.files?.[0];
-    if (selectedFile && selectedFile.type === "text/csv") {
-      setFile(selectedFile);
-    } else {
-      toast({
-        title: "Invalid file type",
-        description: "Please select a CSV file.",
-        variant: "destructive",
-      });
-    }
-  };
-
-  const handleVerification = async () => {
-    if (!file) return;
-
-    setIsProcessing(true);
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error('Not authenticated');
-
-      const { data: membership } = await supabase
-        .from('company_memberships')
-        .select('company_id')
-        .eq('user_id', user.id)
-        .single();
-
-      if (!membership) throw new Error('No company membership found');
-
-      const formData = new FormData();
-      formData.append('master', file);
-      formData.append('company_id', membership.company_id);
-
-      const response = await fetch(
-        'https://qadhrhlagitqfsyfcnnr.supabase.co/functions/v1/master-file-upload',
-        {
-          method: 'POST',
-          body: formData,
-        }
-      );
-
-      const result = await response.json();
-
-      if (!result.success) {
-        throw new Error(result.error || 'Verification failed');
-      }
-
-      toast({
-        title: "Verification complete",
-        description: result.message,
-      });
-
-      await loadStagingRecords();
-
-    } catch (error) {
-      console.error('Verification error:', error);
-      toast({
-        title: "Verification failed",
-        description: error instanceof Error ? error.message : "An error occurred during verification.",
-        variant: "destructive",
-      });
-    } finally {
-      setIsProcessing(false);
     }
   };
 
@@ -163,7 +88,6 @@ export default function MasterFileVerification() {
       const { record, actionType } = actionDialog;
 
       if (actionType === 'add_cow') {
-        // Validate required fields
         if (!actionForm.freshenDate) {
           toast({
             title: "Validation Error",
@@ -173,25 +97,23 @@ export default function MasterFileVerification() {
           return;
         }
 
-        // Add cow to database
         const cowData = {
           id: `${record.tag_number}_${record.birth_date}`,
           tag_number: record.tag_number,
           birth_date: record.birth_date,
           freshen_date: actionForm.freshenDate,
-          purchase_price: 0, // Default, can be updated later
+          purchase_price: 0,
           salvage_value: 0,
           current_value: 0,
           status: 'active',
           acquisition_type: 'purchased',
-          company_id: (await supabase.from('company_memberships').select('company_id').eq('user_id', (await supabase.auth.getUser()).data.user?.id).single()).data?.company_id
+          company_id: currentCompany?.id
         };
 
         const { error: cowError } = await supabase.from('cows').insert(cowData);
         if (cowError) throw cowError;
 
       } else if (actionType === 'dispose_cow' && record.cow_id) {
-        // Create disposition
         const { data: cow } = await supabase
           .from('cows')
           .select('current_value')
@@ -206,13 +128,12 @@ export default function MasterFileVerification() {
           final_book_value: cow?.current_value || 0,
           gain_loss: (parseFloat(actionForm.saleAmount) || 0) - (cow?.current_value || 0),
           notes: actionForm.notes,
-          company_id: (await supabase.from('company_memberships').select('company_id').eq('user_id', (await supabase.auth.getUser()).data.user?.id).single()).data?.company_id
+          company_id: currentCompany?.id
         };
 
         const { error: dispositionError } = await supabase.from('cow_dispositions').insert(dispositionData);
         if (dispositionError) throw dispositionError;
 
-        // Update cow status
         const { error: cowUpdateError } = await supabase
           .from('cows')
           .update({ status: actionForm.dispositionType === 'sale' ? 'sold' : 'deceased' })
@@ -221,7 +142,6 @@ export default function MasterFileVerification() {
         if (cowUpdateError) throw cowUpdateError;
 
       } else if (actionType === 'update_freshen' && record.cow_id) {
-        // Update freshen date
         const { error: updateError } = await supabase
           .from('cows')
           .update({ freshen_date: actionForm.freshenDate })
@@ -230,7 +150,6 @@ export default function MasterFileVerification() {
         if (updateError) throw updateError;
       }
 
-      // Update staging record
       const { error: stagingError } = await supabase
         .from('master_file_staging')
         .update({
@@ -329,47 +248,14 @@ export default function MasterFileVerification() {
     <div className="container mx-auto p-6 space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold">Master File Verification</h1>
+          <h1 className="text-3xl font-bold">Cows Needing Attention</h1>
           <p className="text-muted-foreground">
-            Upload a master file to verify cow data integrity and take action on discrepancies
+            Review and take action on cows that require your attention from master file verifications
           </p>
         </div>
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Upload className="h-5 w-5" />
-            Upload Master File
-          </CardTitle>
-          <CardDescription>
-            Upload a CSV file containing cow ID and birthdate columns for all active cows
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div>
-            <Input
-              type="file"
-              accept=".csv"
-              onChange={handleFileSelect}
-              className="w-full"
-            />
-            <p className="text-sm text-muted-foreground mt-2">
-              CSV should contain columns for cow ID/tag and birthdate
-            </p>
-          </div>
-          
-          <Button 
-            onClick={handleVerification}
-            disabled={!file || isProcessing}
-            className="w-full"
-          >
-            {isProcessing ? "Processing..." : "Verify Master File"}
-          </Button>
-        </CardContent>
-      </Card>
-
-      {stagingRecords.length > 0 && (
+      {stagingRecords.length > 0 ? (
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
@@ -399,9 +285,7 @@ export default function MasterFileVerification() {
             ))}
           </CardContent>
         </Card>
-      )}
-
-      {stagingRecords.length === 0 && (
+      ) : (
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
@@ -410,7 +294,12 @@ export default function MasterFileVerification() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <p>No discrepancies requiring action. Upload a master file to verify your data.</p>
+            <div className="text-center space-y-4">
+              <p>Great! No cows currently need attention.</p>
+              <p className="text-sm text-muted-foreground">
+                Discrepancies will appear here after running master file verification in the Data Import section.
+              </p>
+            </div>
           </CardContent>
         </Card>
       )}
@@ -487,7 +376,7 @@ export default function MasterFileVerification() {
 
             {actionDialog?.actionType === 'update_freshen' && (
               <div className="space-y-2">
-                <Label htmlFor="freshenDate">Freshen Date</Label>
+                <Label htmlFor="freshenDate">Freshen Date *</Label>
                 <Input
                   id="freshenDate"
                   type="date"
@@ -513,11 +402,8 @@ export default function MasterFileVerification() {
             <Button variant="outline" onClick={() => setActionDialog(null)}>
               Cancel
             </Button>
-            <Button onClick={handleAction} disabled={
-              actionDialog?.actionType === 'add_cow' && !actionForm.freshenDate ||
-              actionDialog?.actionType === 'update_freshen' && !actionForm.freshenDate
-            }>
-              {actionDialog?.actionType === 'ignore' ? 'Ignore' : 'Confirm Action'}
+            <Button onClick={handleAction}>
+              Confirm Action
             </Button>
           </DialogFooter>
         </DialogContent>

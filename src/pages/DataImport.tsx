@@ -44,6 +44,10 @@ export default function DataImport() {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [uploadType, setUploadType] = useState<'fresh' | 'disposition' | null>(null);
   
+  // Master file verification state
+  const [masterFile, setMasterFile] = useState<File | null>(null);
+  const [isVerifying, setIsVerifying] = useState(false);
+  
   const { currentCompany } = useAuth();
   const { toast } = useToast();
 
@@ -357,6 +361,62 @@ export default function DataImport() {
     }
   };
 
+  // Master file verification functions
+  const handleMasterFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file && file.type === "text/csv") {
+      setMasterFile(file);
+    } else {
+      toast({
+        title: "Invalid file type",
+        description: "Please select a CSV file.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleMasterFileVerification = async () => {
+    if (!masterFile || !currentCompany) return;
+
+    setIsVerifying(true);
+    try {
+      const formData = new FormData();
+      formData.append('master', masterFile);
+      formData.append('company_id', currentCompany.id);
+
+      const response = await fetch(
+        'https://qadhrhlagitqfsyfcnnr.supabase.co/functions/v1/master-file-upload',
+        {
+          method: 'POST',
+          body: formData,
+        }
+      );
+
+      const result = await response.json();
+
+      if (!result.success) {
+        throw new Error(result.error || 'Verification failed');
+      }
+
+      toast({
+        title: "Verification complete",
+        description: result.message,
+      });
+
+      setMasterFile(null);
+
+    } catch (error) {
+      console.error('Verification error:', error);
+      toast({
+        title: "Verification failed",
+        description: error instanceof Error ? error.message : "An error occurred during verification.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsVerifying(false);
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div>
@@ -367,7 +427,7 @@ export default function DataImport() {
       </div>
 
       <Tabs defaultValue="manual" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-2">
+        <TabsList className="grid w-full grid-cols-3">
           <TabsTrigger value="manual" className="flex items-center gap-2">
             <Upload className="h-4 w-4" />
             Manual Import
@@ -375,6 +435,10 @@ export default function DataImport() {
           <TabsTrigger value="automated" className="flex items-center gap-2">
             <UploadCloud className="h-4 w-4" />
             Automated Import
+          </TabsTrigger>
+          <TabsTrigger value="verification" className="flex items-center gap-2">
+            <FileText className="h-4 w-4" />
+            Master File Verification
           </TabsTrigger>
         </TabsList>
         
@@ -602,6 +666,67 @@ export default function DataImport() {
               </CardContent>
             </Card>
           )}
+        </TabsContent>
+        
+        <TabsContent value="verification" className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Upload className="h-5 w-5" />
+                Master File Verification
+              </CardTitle>
+              <CardDescription>
+                Upload a CSV file containing cow ID and birthdate columns for all active cows to verify data integrity
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="master-file">Select Master File CSV</Label>
+                <Input
+                  id="master-file"
+                  type="file"
+                  accept=".csv"
+                  onChange={handleMasterFileSelect}
+                  disabled={isVerifying}
+                />
+                {masterFile && (
+                  <p className="text-sm text-muted-foreground">
+                    Selected: {masterFile.name}
+                  </p>
+                )}
+              </div>
+              
+              <Alert>
+                <FileText className="h-4 w-4" />
+                <AlertDescription>
+                  <strong>Expected format:</strong> CSV should contain columns for cow ID/tag and birthdate
+                  <br />
+                  <strong>Purpose:</strong> Verifies data integrity and identifies discrepancies between your database and master file
+                </AlertDescription>
+              </Alert>
+              
+              <Button 
+                onClick={handleMasterFileVerification}
+                disabled={!masterFile || isVerifying}
+                className="w-full"
+              >
+                {isVerifying ? (
+                  <div className="flex items-center gap-2">
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                    Verifying...
+                  </div>
+                ) : (
+                  'Verify Master File'
+                )}
+              </Button>
+              
+              {!masterFile && (
+                <p className="text-sm text-muted-foreground text-center">
+                  After verification, any discrepancies will appear in "Cows Needing Attention" for review
+                </p>
+              )}
+            </CardContent>
+          </Card>
         </TabsContent>
       </Tabs>
     </div>

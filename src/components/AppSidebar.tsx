@@ -8,9 +8,11 @@ import {
   HelpCircle,
   Beef,
   Users,
-  FileCheck
+  FileCheck,
+  AlertTriangle
 } from "lucide-react";
 import { NavLink, useLocation } from "react-router-dom";
+import { usePendingTasksCount } from "@/hooks/usePendingTasksCount";
 
 import {
   Sidebar,
@@ -26,14 +28,6 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar";
 
-const mainItems = [
-  { title: "Dashboard", url: "/", icon: BarChart3 },
-  { title: "Master Verification", url: "/master-verification", icon: FileCheck },
-  { title: "Dispositions", url: "/dispositions", icon: TrendingDown },
-  { title: "Reports", url: "/reports", icon: FileText },
-  { title: "Team", url: "/users", icon: Users },
-];
-
 const settingsItems = [
   { title: "Data Import", url: "/data-import", icon: Upload },
   { title: "Settings", url: "/settings", icon: Settings },
@@ -45,6 +39,21 @@ export function AppSidebar() {
   const collapsed = state === "collapsed";
   const location = useLocation();
   const currentPath = location.pathname;
+  const pendingTasksCount = usePendingTasksCount();
+
+  // Dynamic main items with count
+  const mainItems = [
+    { title: "Dashboard", url: "/", icon: BarChart3 },
+    { 
+      title: "Cows Needing Attention", 
+      url: "/cows-needing-attention", 
+      icon: AlertTriangle,
+      count: pendingTasksCount > 0 ? pendingTasksCount : undefined
+    },
+    { title: "Dispositions", url: "/dispositions", icon: TrendingDown },
+    { title: "Reports", url: "/reports", icon: FileText },
+    { title: "Team", url: "/users", icon: Users },
+  ];
 
   const isActive = (path: string) => {
     if (path === "/" && currentPath === "/") return true;
@@ -93,7 +102,16 @@ export function AppSidebar() {
                   <SidebarMenuButton asChild className="p-0">
                     <NavLink to={item.url} className={getNavCls(item.url)}>
                       <item.icon className="h-5 w-5 flex-shrink-0" />
-                      {!collapsed && <span>{item.title}</span>}
+                      {!collapsed && (
+                        <div className="flex items-center justify-between w-full">
+                          <span>{item.title}</span>
+                          {'count' in item && item.count && (
+                            <span className="bg-destructive text-destructive-foreground text-xs font-medium px-2 py-0.5 rounded-full ml-2">
+                              {item.count}
+                            </span>
+                          )}
+                        </div>
+                      )}
                     </NavLink>
                   </SidebarMenuButton>
                 </SidebarMenuItem>

@@ -16,7 +16,7 @@ import { CompanySelector } from "@/components/CompanySelector";
 import { AppSidebar } from "@/components/AppSidebar";
 import Index from "./pages/Index";
 import DataImport from "./pages/DataImport";
-import MasterFileVerification from "./pages/MasterFileVerification";
+import CowsNeedingAttention from "./pages/CowsNeedingAttention";
 import Dispositions from "./pages/Dispositions";
 import Reports from "./pages/Reports";
 import Settings from "./pages/Settings";
@@ -201,7 +201,7 @@ function AppContent() {
             <Routes>
               <Route path="/" element={<Index />} />
               <Route path="/data-import" element={<DataImport />} />
-              <Route path="/master-verification" element={<MasterFileVerification />} />
+              <Route path="/cows-needing-attention" element={<CowsNeedingAttention />} />
               <Route path="/dispositions" element={<Dispositions />} />
               <Route path="/reports" element={<Reports />} />
               <Route path="/users" element={<UserManagement />} />
