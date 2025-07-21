@@ -247,7 +247,6 @@ export function AnimalReconciliation() {
                     <TableHead className="text-right text-success">+ New Cows</TableHead>
                     <TableHead className="text-right text-destructive">- Sold</TableHead>
                     <TableHead className="text-right text-destructive">- Dead</TableHead>
-                    <TableHead className="text-right text-destructive">- Culled</TableHead>
                     <TableHead className="text-right font-semibold">Ending Balance</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -264,9 +263,6 @@ export function AnimalReconciliation() {
                       </TableCell>
                       <TableCell className="text-right text-destructive">
                         {data.dead > 0 ? `-${data.dead.toLocaleString()}` : '0'}
-                      </TableCell>
-                      <TableCell className="text-right text-destructive">
-                        {data.culled > 0 ? `-${data.culled.toLocaleString()}` : '0'}
                       </TableCell>
                       <TableCell className="text-right font-semibold">
                         {data.currentBalance.toLocaleString()}
