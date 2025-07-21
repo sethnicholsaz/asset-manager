@@ -380,6 +380,32 @@ Deno.serve(async (req) => {
         } else {
           processedCows.push(...batchCows);
           console.log(`Fresh cow batch ${Math.floor(batchStart / batchSize) + 1} completed: ${batchCows.length} records`);
+          
+          // Trigger depreciation catch-up for each cow in this batch
+          for (const cow of batchCows) {
+            try {
+              const catchupResponse = await fetch(`${Deno.env.get('SUPABASE_URL')}/functions/v1/cow-depreciation-catchup`, {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  'Authorization': `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')}`
+                },
+                body: JSON.stringify({
+                  cow_id: cow.id,
+                  company_id: cow.company_id
+                })
+              });
+              
+              if (!catchupResponse.ok) {
+                console.error(`Depreciation catch-up failed for cow ${cow.tag_number}:`, await catchupResponse.text());
+              } else {
+                const catchupResult = await catchupResponse.json();
+                console.log(`Depreciation catch-up completed for cow ${cow.tag_number}:`, catchupResult.entries_created, 'entries created');
+              }
+            } catch (catchupError) {
+              console.error(`Error calling depreciation catch-up for cow ${cow.tag_number}:`, catchupError);
+            }
+          }
         }
       }
     }

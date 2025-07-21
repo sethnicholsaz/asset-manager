@@ -146,6 +146,30 @@ export default function CowsNeedingAttention() {
         const { error: cowError } = await supabase.from('cows').insert(cowData);
         if (cowError) throw cowError;
 
+        // Trigger depreciation catch-up for the new cow
+        try {
+          const { data: catchupResult, error: catchupError } = await supabase.functions.invoke('cow-depreciation-catchup', {
+            body: {
+              cow_id: cowData.id,
+              company_id: currentCompany?.id
+            }
+          });
+
+          if (catchupError) {
+            console.error("Depreciation catch-up error:", catchupError);
+            // Don't fail the whole operation, just log the warning
+            toast({
+              title: "Warning",
+              description: `Cow added but depreciation catch-up failed: ${catchupError.message}`,
+              variant: "destructive",
+            });
+          } else {
+            console.log("Depreciation catch-up completed:", catchupResult);
+          }
+        } catch (catchupError) {
+          console.error("Error calling depreciation catch-up:", catchupError);
+        }
+
       } else if (actionType === 'dispose_cow' && record.cow_id) {
         const { data: cow } = await supabase
           .from('cows')
