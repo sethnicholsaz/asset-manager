@@ -2,9 +2,7 @@ import { useState, useEffect } from 'react';
 import { Cow } from '@/types/cow';
 import { DepreciationReport } from '@/components/DepreciationReport';
 import { DispositionReport } from '@/components/DispositionReport';
-import { BalanceReconciliation } from '@/components/BalanceReconciliation';
 import { AnimalReconciliation } from '@/components/AnimalReconciliation';
-import JournalEntryDetails from '@/components/JournalEntryDetails';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
@@ -84,17 +82,16 @@ export default function Reports() {
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Reports</h1>
           <p className="text-muted-foreground">
-            Generate depreciation schedules and disposition reports with journal entries
+            Generate depreciation schedules and disposition reports
           </p>
         </div>
       </div>
 
       <Tabs defaultValue="depreciation" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-4">
+        <TabsList className="grid w-full grid-cols-3">
           <TabsTrigger value="depreciation">Depreciation Reports</TabsTrigger>
           <TabsTrigger value="dispositions">Disposition Reports</TabsTrigger>
           <TabsTrigger value="reconciliation">Animal Reconciliation</TabsTrigger>
-          <TabsTrigger value="journal">Journal Entries</TabsTrigger>
         </TabsList>
         
         <TabsContent value="depreciation">
@@ -109,9 +106,6 @@ export default function Reports() {
           <AnimalReconciliation />
         </TabsContent>
         
-        <TabsContent value="journal">
-          <JournalEntryDetails />
-        </TabsContent>
       </Tabs>
     </div>
   );

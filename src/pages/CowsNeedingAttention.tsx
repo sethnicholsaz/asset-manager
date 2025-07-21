@@ -211,107 +211,6 @@ export default function CowsNeedingAttention() {
         const bookValue = updatedCow?.current_value || cow?.current_value || 0;
         const gainLoss = saleAmount - bookValue;
 
-        // Create journal entry for disposition
-        const entryDate = new Date(actionForm.dispositionDate);
-        const journalEntry = {
-          description: `${actionForm.dispositionType === 'sale' ? 'Sale' : 'Death'} of Cow #${cow?.tag_number || record.tag_number}`,
-          entry_date: actionForm.dispositionDate,
-          entry_type: 'disposition',
-          total_amount: Math.abs(gainLoss) + bookValue,
-          company_id: currentCompany?.id,
-          posting_year: entryDate.getFullYear(),
-          posting_month: entryDate.getMonth() + 1
-        };
-
-        const { data: newJournalEntry, error: journalError } = await supabase
-          .from('journal_entries')
-          .insert(journalEntry)
-          .select()
-          .single();
-
-        if (journalError) throw journalError;
-
-        // Create journal lines for disposition
-        const journalLines = [];
-
-        if (actionForm.dispositionType === 'sale') {
-          // For sales
-          if (saleAmount > 0) {
-            journalLines.push({
-              journal_entry_id: newJournalEntry.id,
-              account_code: '1100',
-              account_name: 'Cash',
-              description: `Cash received from sale of cow #${cow?.tag_number}`,
-              line_type: 'debit',
-              debit_amount: saleAmount,
-              credit_amount: 0
-            });
-          }
-
-          if (gainLoss < 0) {
-            // Loss on sale
-            journalLines.push({
-              journal_entry_id: newJournalEntry.id,
-              account_code: '7200',
-              account_name: 'Loss on Asset Disposal',
-              description: `Loss on sale of cow #${cow?.tag_number}`,
-              line_type: 'debit',
-              debit_amount: Math.abs(gainLoss),
-              credit_amount: 0
-            });
-          }
-
-          // Credit asset account
-          journalLines.push({
-            journal_entry_id: newJournalEntry.id,
-            account_code: '1500',
-            account_name: 'Dairy Cows',
-            description: `Removal of cow #${cow?.tag_number} from assets`,
-            line_type: 'credit',
-            debit_amount: 0,
-            credit_amount: bookValue
-          });
-
-          if (gainLoss > 0) {
-            // Gain on sale
-            journalLines.push({
-              journal_entry_id: newJournalEntry.id,
-              account_code: '8200',
-              account_name: 'Gain on Asset Disposal',
-              description: `Gain on sale of cow #${cow?.tag_number}`,
-              line_type: 'credit',
-              debit_amount: 0,
-              credit_amount: gainLoss
-            });
-          }
-        } else {
-          // For deaths
-          journalLines.push({
-            journal_entry_id: newJournalEntry.id,
-            account_code: '7200',
-            account_name: 'Loss on Asset Disposal',
-            description: `Loss due to death of cow #${cow?.tag_number}`,
-            line_type: 'debit',
-            debit_amount: bookValue,
-            credit_amount: 0
-          });
-
-          journalLines.push({
-            journal_entry_id: newJournalEntry.id,
-            account_code: '1500',
-            account_name: 'Dairy Cows',
-            description: `Removal of cow #${cow?.tag_number} due to death`,
-            line_type: 'credit',
-            debit_amount: 0,
-            credit_amount: bookValue
-          });
-        }
-
-        const { error: linesError } = await supabase
-          .from('journal_lines')
-          .insert(journalLines);
-
-        if (linesError) throw linesError;
 
         const dispositionData = {
           cow_id: record.cow_id,
@@ -321,8 +220,7 @@ export default function CowsNeedingAttention() {
           final_book_value: bookValue,
           gain_loss: gainLoss,
           notes: actionForm.notes,
-          company_id: currentCompany?.id,
-          journal_entry_id: newJournalEntry.id
+          company_id: currentCompany?.id
         };
 
         const { error: dispositionError } = await supabase.from('cow_dispositions').insert(dispositionData);
@@ -339,50 +237,6 @@ export default function CowsNeedingAttention() {
         if (cowUpdateError) throw cowUpdateError;
 
       } else if (actionType === 'update_freshen' && record.cow_id) {
-        const { data: cow } = await supabase
-          .from('cows')
-          .select('tag_number, current_value')
-          .eq('id', record.cow_id)
-          .single();
-
-        // Create journal entry for freshen date update
-        const freshenDate = new Date(actionForm.freshenDate);
-        const journalEntry = {
-          description: `Freshen Date Updated for Cow #${cow?.tag_number || record.tag_number}`,
-          entry_date: actionForm.freshenDate,
-          entry_type: 'freshen_update',
-          total_amount: 0, // No monetary impact, just tracking
-          company_id: currentCompany?.id,
-          posting_year: freshenDate.getFullYear(),
-          posting_month: freshenDate.getMonth() + 1
-        };
-
-        const { data: newJournalEntry, error: journalError } = await supabase
-          .from('journal_entries')
-          .insert(journalEntry)
-          .select()
-          .single();
-
-        if (journalError) throw journalError;
-
-        // Create informational journal lines
-        const journalLines = [
-          {
-            journal_entry_id: newJournalEntry.id,
-            account_code: '1500',
-            account_name: 'Dairy Cows',
-            description: `Cow #${cow?.tag_number} entered productive phase`,
-            line_type: 'memo',
-            debit_amount: 0,
-            credit_amount: 0
-          }
-        ];
-
-        const { error: linesError } = await supabase
-          .from('journal_lines')
-          .insert(journalLines);
-
-        if (linesError) throw linesError;
 
         const { error: updateError } = await supabase
           .from('cows')
@@ -402,80 +256,12 @@ export default function CowsNeedingAttention() {
 
         if (!cowToUnsell) throw new Error('Cow not found');
 
-        let originalJournalEntry = null;
-
-        // Get the original disposition and its journal entry if it exists
+        // Delete disposition record if it exists
         if (cowToUnsell.disposition_id) {
-          const { data: disposition } = await supabase
-            .from('cow_dispositions')
-            .select('journal_entry_id, sale_amount, final_book_value, gain_loss')
-            .eq('id', cowToUnsell.disposition_id)
-            .single();
-
-          if (disposition?.journal_entry_id) {
-            // Get the original journal entry and its lines
-            const { data: journalData } = await supabase
-              .from('journal_entries')
-              .select(`
-                id, 
-                description, 
-                total_amount,
-                journal_lines (*)
-              `)
-              .eq('id', disposition.journal_entry_id)
-              .single();
-
-            if (journalData) {
-              originalJournalEntry = journalData;
-            }
-          }
-
-          // Delete disposition record
           await supabase
             .from('cow_dispositions')
             .delete()
             .eq('id', cowToUnsell.disposition_id);
-        }
-
-        // Create reversal journal entry if original exists
-        if (originalJournalEntry) {
-          const reversalDate = new Date();
-          const reversalEntry = {
-            description: `Reversal: ${originalJournalEntry.description} - Cow #${record.tag_number} Reinstated`,
-            entry_date: new Date().toISOString().split('T')[0],
-            entry_type: 'disposition_reversal',
-            total_amount: originalJournalEntry.total_amount,
-            company_id: currentCompany?.id,
-            posting_year: reversalDate.getFullYear(),
-            posting_month: reversalDate.getMonth() + 1
-          };
-
-          const { data: newJournalEntry, error: journalError } = await supabase
-            .from('journal_entries')
-            .insert(reversalEntry)
-            .select()
-            .single();
-
-          if (journalError) throw journalError;
-
-          // Create reversal journal lines (flip debits and credits)
-          if (originalJournalEntry.journal_lines && newJournalEntry) {
-            const reversalLines = originalJournalEntry.journal_lines.map((line: any) => ({
-              journal_entry_id: newJournalEntry.id,
-              account_code: line.account_code,
-              account_name: line.account_name,
-              description: `Reversal: ${line.description}`,
-              line_type: line.line_type,
-              debit_amount: line.credit_amount, // Flip: original credit becomes debit
-              credit_amount: line.debit_amount  // Flip: original debit becomes credit
-            }));
-
-            const { error: linesError } = await supabase
-              .from('journal_lines')
-              .insert(reversalLines);
-
-            if (linesError) throw linesError;
-          }
         }
 
         // Update cow status back to active and clear disposition_id

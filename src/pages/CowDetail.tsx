@@ -32,22 +32,6 @@ interface CowDetails {
 }
 
 
-interface JournalEntry {
-  id: string;
-  description: string;
-  entry_date: string;
-  entry_type: string;
-  total_amount: number;
-  posting_period?: string;
-  journal_lines: Array<{
-    account_code: string;
-    account_name: string;
-    description: string;
-    line_type: string;
-    debit_amount: number;
-    credit_amount: number;
-  }>;
-}
 
 interface Disposition {
   id: string;
@@ -67,7 +51,7 @@ export default function CowDetail() {
   
   const [cow, setCow] = useState<CowDetails | null>(null);
   
-  const [journalEntries, setJournalEntries] = useState<JournalEntry[]>([]);
+  
   const [disposition, setDisposition] = useState<Disposition | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -106,32 +90,6 @@ export default function CowDetail() {
 
       setCow(cowData);
 
-      // Load related journal entries for this cow
-      
-      const { data: journalData, error: journalError } = await supabase
-        .from('journal_entries')
-        .select(`
-          id,
-          description,
-          entry_date,
-          entry_type,
-          total_amount,
-          posting_period,
-          journal_lines (
-            account_code,
-            account_name,
-            description,
-            line_type,
-            debit_amount,
-            credit_amount
-          )
-        `)
-        .eq('company_id', currentCompany.id)
-        .ilike('description', `%Cow #${cowData.tag_number}%`)
-        .order('entry_date', { ascending: false });
-
-      if (journalError) throw journalError;
-      setJournalEntries(journalData || []);
 
       // Load disposition if exists
       if (cowData.disposition_id) {
@@ -283,7 +241,6 @@ export default function CowDetail() {
         <TabsList>
           <TabsTrigger value="details">Details</TabsTrigger>
           <TabsTrigger value="depreciation">Depreciation Summary</TabsTrigger>
-          <TabsTrigger value="journals">Journal Entries</TabsTrigger>
           {disposition && <TabsTrigger value="disposition">Disposition</TabsTrigger>}
         </TabsList>
 
@@ -362,72 +319,12 @@ export default function CowDetail() {
               <Separator className="my-6" />
               <div className="text-sm text-muted-foreground">
                 <FileText className="h-4 w-4 inline mr-2" />
-                Detailed depreciation records are available in the Journal Entries tab
+                Depreciation is calculated in real-time based on cow age and purchase price
               </div>
             </CardContent>
           </Card>
         </TabsContent>
 
-        <TabsContent value="journals">
-          <Card>
-            <CardHeader>
-              <CardTitle>Related Journal Entries</CardTitle>
-              <CardDescription>All journal entries related to this cow</CardDescription>
-            </CardHeader>
-            <CardContent>
-              {journalEntries.length > 0 ? (
-                <div className="space-y-4">
-                  {journalEntries.map((entry) => (
-                    <div key={entry.id} className="border rounded-lg p-4">
-                      <div className="flex justify-between items-start mb-3">
-                        <div>
-                          <h4 className="font-medium">{entry.description}</h4>
-                          <p className="text-sm text-muted-foreground">
-                            {format(new Date(entry.entry_date), 'PPP')} • {entry.entry_type} • {entry.posting_period}
-                          </p>
-                        </div>
-                        <Badge variant="outline">{formatCurrency(entry.total_amount)}</Badge>
-                      </div>
-                      <Table>
-                        <TableHeader>
-                          <TableRow>
-                            <TableHead>Account</TableHead>
-                            <TableHead>Description</TableHead>
-                            <TableHead>Debit</TableHead>
-                            <TableHead>Credit</TableHead>
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          {entry.journal_lines.map((line, index) => (
-                            <TableRow key={index}>
-                              <TableCell>
-                                <div>
-                                  <div className="font-medium">{line.account_code}</div>
-                                  <div className="text-sm text-muted-foreground">{line.account_name}</div>
-                                </div>
-                              </TableCell>
-                              <TableCell>{line.description}</TableCell>
-                              <TableCell>
-                                {line.debit_amount > 0 && formatCurrency(line.debit_amount)}
-                              </TableCell>
-                              <TableCell>
-                                {line.credit_amount > 0 && formatCurrency(line.credit_amount)}
-                              </TableCell>
-                            </TableRow>
-                          ))}
-                        </TableBody>
-                      </Table>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="text-center py-8 text-muted-foreground">
-                  No journal entries found for this cow.
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
 
         {disposition && (
           <TabsContent value="disposition">

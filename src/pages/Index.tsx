@@ -321,44 +321,7 @@ const Index = () => {
       }
 
       if (totalDepreciationAmount > 0) {
-        // Create journal entry
-        const { data: journalEntry, error: journalError } = await supabase
-          .from('journal_entries')
-          .insert({
-            company_id: currentCompany.id,
-            entry_date: currentDate.toISOString().split('T')[0],
-            description: `Monthly Depreciation - ${currentMonth}/${currentYear}`,
-            total_amount: totalDepreciationAmount,
-            entry_type: 'depreciation'
-          })
-          .select()
-          .single();
-
-        if (journalError) throw journalError;
-
-        // Create journal lines
-        await supabase
-          .from('journal_lines')
-          .insert([
-            {
-              journal_entry_id: journalEntry.id,
-              account_code: '6500',
-              account_name: 'Depreciation Expense',
-              description: 'Monthly depreciation expense',
-              debit_amount: totalDepreciationAmount,
-              credit_amount: 0,
-              line_type: 'debit'
-            },
-            {
-              journal_entry_id: journalEntry.id,
-              account_code: '1520',
-              account_name: 'Accumulated Depreciation - Dairy Cows',
-              description: 'Accumulated depreciation',
-              debit_amount: 0,
-              credit_amount: totalDepreciationAmount,
-              line_type: 'credit'
-            }
-          ]);
+        // No journal entries needed - depreciation is calculated on-demand
 
         // Update cow records
         for (const update of cowUpdates) {

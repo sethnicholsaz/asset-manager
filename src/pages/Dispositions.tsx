@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
-import { DispositionForm } from '@/components/DispositionForm';
+
 import { Cow, CowDisposition } from '@/types/cow';
 import { DepreciationCalculator } from '@/utils/depreciation';
 import { useToast } from '@/hooks/use-toast';
@@ -182,14 +182,9 @@ export default function Dispositions() {
           Back to Dispositions
         </Button>
         
-        <DispositionForm
-          cow={selectedCow}
-          onDisposition={handleDisposition}
-          onCancel={() => {
-            setShowForm(false);
-            setSelectedCow(null);
-          }}
-        />
+        <div className="text-center py-8">
+          <p className="text-muted-foreground">Disposition form not available</p>
+        </div>
       </div>
     );
   }
