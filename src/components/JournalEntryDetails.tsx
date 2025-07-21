@@ -346,9 +346,9 @@ export default function JournalEntryDetails() {
             </div>
             <div class="total-row" style="border-top: 1px solid #333; padding-top: 4px; margin-top: 4px; font-weight: bold;">
               <span>Balance:</span>
-              <span style="color: ${totalDebits === totalCredits ? '#28a745' : '#d73527'};">${totalDebits === totalCredits ? 'OK ✓' : `Off by ${DepreciationCalculator.formatCurrency(Math.abs(totalDebits - totalCredits))} ⚠️`}</span>
+              <span style="color: ${Math.abs(totalDebits - totalCredits) < 0.01 ? '#28a745' : '#d73527'};">${Math.abs(totalDebits - totalCredits) < 0.01 ? 'OK ✓' : `Off by ${DepreciationCalculator.formatCurrency(Math.abs(totalDebits - totalCredits))} ⚠️`}</span>
             </div>
-            ${totalDebits !== totalCredits ? `
+            ${Math.abs(totalDebits - totalCredits) >= 0.01 ? `
               <div style="margin-top: 6px; padding: 4px; background-color: #fff3cd; border: 1px solid #ffeaa7; border-radius: 2px; font-size: 6pt;">
                 <strong>⚠️ UNBALANCED:</strong> Difference of ${DepreciationCalculator.formatCurrency(Math.abs(totalDebits - totalCredits))} requires review.
               </div>
