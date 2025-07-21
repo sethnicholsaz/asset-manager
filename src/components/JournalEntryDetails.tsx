@@ -151,6 +151,12 @@ export default function JournalEntryDetails() {
 
     const accountSummaryArray = Object.values(accountSummary).sort((a, b) => a.account_code.localeCompare(b.account_code));
 
+    // Calculate balance status
+    const balanceDifference = Math.abs(totalDebits - totalCredits);
+    const isBalanced = balanceDifference < 0.01;
+    const balanceColor = isBalanced ? '#28a745' : '#d73527';
+    const balanceText = isBalanced ? 'OK ✓' : `Off by ${DepreciationCalculator.formatCurrency(balanceDifference)} ⚠️`;
+
     const printContent = `
       <!DOCTYPE html>
       <html>
@@ -346,11 +352,11 @@ export default function JournalEntryDetails() {
             </div>
             <div class="total-row" style="border-top: 1px solid #333; padding-top: 4px; margin-top: 4px; font-weight: bold;">
               <span>Balance:</span>
-              <span style="color: ${Math.abs(totalDebits - totalCredits) < 0.01 ? '#28a745' : '#d73527'};">${Math.abs(totalDebits - totalCredits) < 0.01 ? 'OK ✓' : `Off by ${DepreciationCalculator.formatCurrency(Math.abs(totalDebits - totalCredits))} ⚠️`}</span>
+              <span style="color: ${balanceColor};">${balanceText}</span>
             </div>
-            ${Math.abs(totalDebits - totalCredits) >= 0.01 ? `
+            ${!isBalanced ? `
               <div style="margin-top: 6px; padding: 4px; background-color: #fff3cd; border: 1px solid #ffeaa7; border-radius: 2px; font-size: 6pt;">
-                <strong>⚠️ UNBALANCED:</strong> Difference of ${DepreciationCalculator.formatCurrency(Math.abs(totalDebits - totalCredits))} requires review.
+                <strong>⚠️ UNBALANCED:</strong> Difference of ${DepreciationCalculator.formatCurrency(balanceDifference)} requires review.
               </div>
             ` : ''}
           </div>
