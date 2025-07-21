@@ -193,12 +193,77 @@ export default function CowsNeedingAttention() {
 
         if (!cowToUnsell) throw new Error('Cow not found');
 
-        // Delete disposition record if it exists
+        let originalJournalEntry = null;
+
+        // Get the original disposition and its journal entry if it exists
         if (cowToUnsell.disposition_id) {
+          const { data: disposition } = await supabase
+            .from('cow_dispositions')
+            .select('journal_entry_id, sale_amount, final_book_value, gain_loss')
+            .eq('id', cowToUnsell.disposition_id)
+            .single();
+
+          if (disposition?.journal_entry_id) {
+            // Get the original journal entry and its lines
+            const { data: journalData } = await supabase
+              .from('journal_entries')
+              .select(`
+                id, 
+                description, 
+                total_amount,
+                journal_lines (*)
+              `)
+              .eq('id', disposition.journal_entry_id)
+              .single();
+
+            if (journalData) {
+              originalJournalEntry = journalData;
+            }
+          }
+
+          // Delete disposition record
           await supabase
             .from('cow_dispositions')
             .delete()
             .eq('id', cowToUnsell.disposition_id);
+        }
+
+        // Create reversal journal entry if original exists
+        if (originalJournalEntry) {
+          const reversalEntry = {
+            description: `Reversal: ${originalJournalEntry.description} - Cow #${record.tag_number} Reinstated`,
+            entry_date: new Date().toISOString().split('T')[0],
+            entry_type: 'disposition_reversal',
+            total_amount: originalJournalEntry.total_amount,
+            company_id: currentCompany?.id
+          };
+
+          const { data: newJournalEntry, error: journalError } = await supabase
+            .from('journal_entries')
+            .insert(reversalEntry)
+            .select()
+            .single();
+
+          if (journalError) throw journalError;
+
+          // Create reversal journal lines (flip debits and credits)
+          if (originalJournalEntry.journal_lines && newJournalEntry) {
+            const reversalLines = originalJournalEntry.journal_lines.map((line: any) => ({
+              journal_entry_id: newJournalEntry.id,
+              account_code: line.account_code,
+              account_name: line.account_name,
+              description: `Reversal: ${line.description}`,
+              line_type: line.line_type,
+              debit_amount: line.credit_amount, // Flip: original credit becomes debit
+              credit_amount: line.debit_amount  // Flip: original debit becomes credit
+            }));
+
+            const { error: linesError } = await supabase
+              .from('journal_lines')
+              .insert(reversalLines);
+
+            if (linesError) throw linesError;
+          }
         }
 
         // Update cow status back to active and clear disposition_id
