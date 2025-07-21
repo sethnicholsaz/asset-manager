@@ -42,9 +42,14 @@ export function AnimalReconciliation() {
       let offset = 0;
       const limit = 1000;
       let hasMore = true;
+      let pageCount = 0;
 
-      while (hasMore) {
-        const { data: cowBatch } = await supabase
+      console.log('Starting cow data fetch with pagination...');
+
+      while (hasMore && pageCount < 10) { // Safety limit to prevent infinite loops
+        console.log(`Fetching page ${pageCount + 1}, offset: ${offset}`);
+        
+        const { data: cowBatch, error } = await supabase
           .rpc('search_cows', {
             p_company_id: currentCompany.id,
             p_search_query: '',
@@ -52,10 +57,18 @@ export function AnimalReconciliation() {
             p_offset: offset
           });
         
+        if (error) {
+          console.error('Error fetching cow batch:', error);
+          break;
+        }
+        
+        console.log(`Page ${pageCount + 1} returned ${cowBatch?.length || 0} records`);
+        
         if (cowBatch && cowBatch.length > 0) {
           allCows = [...allCows, ...cowBatch];
           hasMore = cowBatch.length === limit; // Continue if we got a full batch
           offset += limit;
+          pageCount++;
         } else {
           hasMore = false;
         }
@@ -64,6 +77,7 @@ export function AnimalReconciliation() {
       const activeCowsOnly = allCows.filter(cow => cow.status === 'active');
 
       console.log('=== VERIFICATION ===');
+      console.log('Total pages fetched:', pageCount);
       console.log('Total cows fetched across all pages:', allCows.length);
       console.log('Active cows from that result:', activeCowsOnly.length);
       console.log('Sample active cows:', activeCowsOnly.slice(0, 5));
