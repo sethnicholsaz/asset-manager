@@ -110,13 +110,13 @@ export default function CowsNeedingAttention() {
             // Offer to unsell the cow
             toast({
               title: "Cow is Sold",
-              description: `Cow #${record.tag_number} is currently sold. Would you like to unsell and reactivate it?`,
+              description: `Cow #${record.tag_number} is currently sold. Would you like to reinstate it?`,
               action: (
                 <Button 
                   size="sm" 
                   onClick={() => openActionDialog(record, 'unsell_cow')}
                 >
-                  Unsell
+                  Reinstate
                 </Button>
               ),
             });
@@ -375,7 +375,7 @@ export default function CowsNeedingAttention() {
               {actionDialog?.actionType === 'add_cow' && 'Add Cow to Database'}
               {actionDialog?.actionType === 'dispose_cow' && 'Mark Cow as Disposed'}
               {actionDialog?.actionType === 'update_freshen' && 'Update Freshen Date'}
-              {actionDialog?.actionType === 'unsell_cow' && 'Unsell Cow'}
+              {actionDialog?.actionType === 'unsell_cow' && 'Reinstate Cow'}
               {actionDialog?.actionType === 'ignore' && 'Ignore Discrepancy'}
             </DialogTitle>
             <DialogDescription>
