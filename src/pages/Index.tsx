@@ -84,14 +84,44 @@ const Index = () => {
         data = searchData;
         error = searchError;
       } else {
-        // Get all active cows for the table display
-        const { data: cowData, error: cowError } = await supabase
-          .from('cows')
-          .select('*')
-          .eq('company_id', currentCompany.id)
-          .eq('status', 'active');
-        data = cowData;
-        error = cowError;
+        // Get all active cows for the table display with pagination
+        console.log('Starting active cows fetch with pagination for dashboard...');
+        let allActiveCows = [];
+        let offset = 0;
+        const limit = 1000;
+        let hasMore = true;
+        let pageCount = 0;
+
+        while (hasMore && pageCount < 10) { // Safety limit
+          console.log(`Fetching dashboard active cows page ${pageCount + 1}, offset: ${offset}`);
+          
+          const { data: cowBatch, error: cowError } = await supabase
+            .from('cows')
+            .select('*')
+            .eq('company_id', currentCompany.id)
+            .eq('status', 'active')
+            .range(offset, offset + limit - 1);
+
+          if (cowError) {
+            error = cowError;
+            break;
+          }
+
+          console.log(`Dashboard page ${pageCount + 1} returned ${cowBatch?.length || 0} records`);
+          
+          if (cowBatch && cowBatch.length > 0) {
+            allActiveCows = [...allActiveCows, ...cowBatch];
+            hasMore = cowBatch.length === limit;
+            offset += limit;
+            pageCount++;
+          } else {
+            hasMore = false;
+          }
+        }
+
+        console.log(`Total dashboard active cows fetched: ${allActiveCows.length}`);
+        data = allActiveCows;
+        error = null;
       }
 
       console.log('Query result - data length:', data?.length);
