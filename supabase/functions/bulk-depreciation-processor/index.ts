@@ -314,16 +314,23 @@ async function processCowBatch(supabase: any, cows: any[]) {
     }
   }
 
-  // Update cows in bulk using upsert
+  // Update cows in bulk - do individual updates since we're only updating specific fields
   console.log(`Updating ${cowUpdates.length} cow records`);
   if (cowUpdates.length > 0) {
-    const { error: updateError } = await supabase
-      .from("cows")
-      .upsert(cowUpdates, { onConflict: 'id' });
-    
-    if (updateError) {
-      console.error("Error updating cows:", updateError);
-      throw updateError;
+    for (const cowUpdate of cowUpdates) {
+      const { error: updateError } = await supabase
+        .from("cows")
+        .update({
+          total_depreciation: cowUpdate.total_depreciation,
+          current_value: cowUpdate.current_value,
+          updated_at: cowUpdate.updated_at
+        })
+        .eq('id', cowUpdate.id);
+      
+      if (updateError) {
+        console.error(`Error updating cow ${cowUpdate.id}:`, updateError);
+        throw updateError;
+      }
     }
   }
 
