@@ -66,13 +66,9 @@ const handler = async (req: Request): Promise<Response> => {
     const freshenDate = new Date(cow.freshen_date);
     const currentDate = new Date();
     
-    // Calculate the start of the current fiscal year
-    const currentYear = currentDate.getFullYear();
-    const currentFiscalYearStart = new Date(
-      currentDate.getMonth() + 1 >= fiscalYearStartMonth ? currentYear : currentYear - 1,
-      fiscalYearStartMonth - 1,
-      1
-    );
+    // Fixed cutoff: Everything through 12/31/2024 gets one bulk entry
+    const historicalCutoff = new Date('2024-12-31');
+    const monthlyStartDate = new Date('2025-01-01');
     
     // Don't go before 2024
     const earliestDate = new Date('2024-01-01');
@@ -81,15 +77,15 @@ const handler = async (req: Request): Promise<Response> => {
     const entriesCreated = [];
     let accumulatedDepreciation = 0;
 
-    console.log(`Processing from ${startDate.toISOString().split('T')[0]} to current fiscal year start: ${currentFiscalYearStart.toISOString().split('T')[0]}`);
+    console.log(`Processing from ${startDate.toISOString().split('T')[0]} with bulk through 2024-12-31, then monthly from 2025-01-01`);
 
-    // Step 1: Create bulk journal entry for all periods before current fiscal year
-    if (startDate < currentFiscalYearStart) {
+    // Step 1: Create bulk journal entry for everything through 12/31/2024
+    if (startDate <= historicalCutoff) {
       const bulkPeriods = [];
       let processDate = new Date(startDate.getFullYear(), startDate.getMonth(), 1);
       let bulkDepreciation = 0;
       
-      while (processDate < currentFiscalYearStart) {
+      while (processDate <= historicalCutoff) {
         const year = processDate.getFullYear();
         const month = processDate.getMonth() + 1;
         const monthEnd = new Date(year, month, 0);
@@ -114,17 +110,16 @@ const handler = async (req: Request): Promise<Response> => {
         processDate.setMonth(processDate.getMonth() + 1);
       }
 
-      // Create single bulk journal entry for historical periods
+      // Create single bulk journal entry for all 2024 periods
       if (bulkPeriods.length > 0) {
-        const lastPeriod = bulkPeriods[bulkPeriods.length - 1];
         const journalEntry = {
-          description: `Bulk Historical Depreciation - Cow #${cow.tag_number} (${bulkPeriods.length} periods)`,
-          entry_date: `${lastPeriod.year}-${lastPeriod.month.toString().padStart(2, '0')}-${lastPeriod.monthEnd.getDate().toString().padStart(2, '0')}`,
+          description: `Historical Depreciation through 2024 - Cow #${cow.tag_number} (${bulkPeriods.length} periods)`,
+          entry_date: '2024-12-31',
           entry_type: 'depreciation',
           total_amount: bulkDepreciation,
           company_id: company_id,
-          posting_year: lastPeriod.year,
-          posting_month: lastPeriod.month
+          posting_year: 2024,
+          posting_month: 12
         };
 
         const { data: bulkJournalEntry, error: journalError } = await supabase
@@ -144,7 +139,7 @@ const handler = async (req: Request): Promise<Response> => {
             journal_entry_id: bulkJournalEntry.id,
             account_code: "6100",
             account_name: "Depreciation Expense",
-            description: `Bulk historical depreciation - Cow #${cow.tag_number}`,
+            description: `Historical depreciation through 2024 - Cow #${cow.tag_number}`,
             line_type: "debit",
             debit_amount: bulkDepreciation,
             credit_amount: 0
@@ -153,7 +148,7 @@ const handler = async (req: Request): Promise<Response> => {
             journal_entry_id: bulkJournalEntry.id,
             account_code: "1510",
             account_name: "Accumulated Depreciation - Dairy Cows",
-            description: `Bulk historical depreciation - Cow #${cow.tag_number}`,
+            description: `Historical depreciation through 2024 - Cow #${cow.tag_number}`,
             line_type: "credit",
             debit_amount: 0,
             credit_amount: bulkDepreciation
@@ -200,20 +195,20 @@ const handler = async (req: Request): Promise<Response> => {
 
         accumulatedDepreciation = runningAccumulated;
         entriesCreated.push({
-          type: 'bulk',
+          type: 'bulk-2024',
           periods: bulkPeriods.length,
           total_depreciation: bulkDepreciation,
           accumulated: accumulatedDepreciation,
           journal_id: bulkJournalEntry.id
         });
 
-        console.log(`Created bulk entry for ${bulkPeriods.length} periods: $${bulkDepreciation.toFixed(2)}, accumulated: $${accumulatedDepreciation.toFixed(2)}`);
+        console.log(`Created bulk 2024 entry for ${bulkPeriods.length} periods: $${bulkDepreciation.toFixed(2)}, accumulated: $${accumulatedDepreciation.toFixed(2)}`);
       }
     }
 
-    // Step 2: Create monthly entries from current fiscal year onwards
+    // Step 2: Create monthly entries from 2025 onwards
     const lastMonth = new Date(currentDate.getFullYear(), currentDate.getMonth() - 1, 1);
-    let processDate = new Date(Math.max(currentFiscalYearStart.getTime(), startDate.getTime()));
+    let processDate = new Date(Math.max(monthlyStartDate.getTime(), startDate.getTime()));
     processDate = new Date(processDate.getFullYear(), processDate.getMonth(), 1);
 
     while (processDate <= lastMonth) {
