@@ -37,6 +37,39 @@ export function AnimalReconciliation() {
 
     setIsLoading(true);
     try {
+      // First, let's verify the actual current active count
+      const { data: currentActiveCows } = await supabase
+        .from('cows')
+        .select('id, tag_number, status, freshen_date')
+        .eq('company_id', currentCompany.id)
+        .eq('status', 'active');
+
+      console.log('=== VERIFICATION ===');
+      console.log('Actual active cows RIGHT NOW:', currentActiveCows?.length || 0);
+      console.log('Sample active cows:', currentActiveCows?.slice(0, 5));
+
+      // Check if there are disposed cows that might not be marked correctly
+      const { data: disposedCows } = await supabase
+        .from('cows')
+        .select('id, status, disposition_id')
+        .eq('company_id', currentCompany.id)
+        .neq('status', 'active');
+
+      console.log('Non-active cows by status:');
+      const statusCounts = {};
+      disposedCows?.forEach(cow => {
+        statusCounts[cow.status] = (statusCounts[cow.status] || 0) + 1;
+      });
+      console.log(statusCounts);
+
+      // Check dispositions table
+      const { data: allDispositions } = await supabase
+        .from('cow_dispositions')
+        .select('*')
+        .eq('company_id', currentCompany.id);
+
+      console.log('Total dispositions in system:', allDispositions?.length || 0);
+
       const reconciliations: AnimalReconciliation[] = [];
       let runningBalance = 0;
 
