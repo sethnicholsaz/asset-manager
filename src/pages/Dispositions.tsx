@@ -32,12 +32,11 @@ export default function Dispositions() {
     if (!currentCompany) return;
 
     try {
-      // Fetch cows - increase limit to handle large datasets
+      // Fetch all cows - no limits for accurate data
       const { data: cowData, error: cowError } = await supabase
         .from('cows')
         .select('*')
-        .eq('company_id', currentCompany.id)
-        .limit(50000);
+        .eq('company_id', currentCompany.id);
 
       if (cowError) throw cowError;
 

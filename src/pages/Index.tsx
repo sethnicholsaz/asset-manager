@@ -75,24 +75,21 @@ const Index = () => {
       let data, error;
       
       if (searchQuery && searchQuery.trim()) {
-        // Use global search function
+        // Use global search function - remove arbitrary limits
         const { data: searchData, error: searchError } = await supabase
           .rpc('search_cows' as any, { 
             p_company_id: currentCompany.id,
-            p_search_query: searchQuery.trim(),
-            p_limit: 1000,
-            p_offset: 0
+            p_search_query: searchQuery.trim()
           });
         data = searchData;
         error = searchError;
       } else {
-        // Get first 1000 active cows for the table display
+        // Get all active cows for the table display
         const { data: cowData, error: cowError } = await supabase
           .from('cows')
           .select('*')
           .eq('company_id', currentCompany.id)
-          .eq('status', 'active')
-          .limit(1000);
+          .eq('status', 'active');
         data = cowData;
         error = cowError;
       }
