@@ -189,15 +189,8 @@ export function AnimalReconciliation() {
 
       console.log('Final reconciliation data:', activeReconciliations);
       
-      // Get actual current cow count for verification
-      const { data: currentCows } = await supabase
-        .from('cows')
-        .select('id')
-        .eq('company_id', currentCompany.id)
-        .eq('status', 'active')
-        .limit(50000); // High limit
-      
-      console.log('Actual active cows in system:', currentCows?.length || 0);
+      // Use the already fetched paginated cow data for verification
+      console.log('Actual active cows in system:', activeCowsOnly.length);
       console.log('Last reconciliation balance:', activeReconciliations[activeReconciliations.length - 1]?.currentBalance || 0);
 
     } catch (error) {
