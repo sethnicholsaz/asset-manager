@@ -147,8 +147,11 @@ export function DepreciationSettings() {
 
     setIsCalculating(true);
     try {
-      const { data, error } = await supabase.functions.invoke('cow-depreciation-catchup', {
-        body: { company_id: currentCompany.id }
+      const { data, error } = await supabase.functions.invoke('bulk-depreciation-processor', {
+        body: { 
+          company_id: currentCompany.id,
+          batch_size: 100 
+        }
       });
 
       if (error) {
@@ -157,7 +160,7 @@ export function DepreciationSettings() {
 
       toast({
         title: "Depreciation Calculated",
-        description: `Successfully processed depreciation for ${data.processed_cows} cows.`,
+        description: `Successfully processed depreciation for ${data.processed_cows} cows in ${data.batches_processed} batches.`,
       });
       
       // Refresh the page to show updated depreciation values
