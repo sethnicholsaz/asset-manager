@@ -325,8 +325,9 @@ serve(async (req) => {
                 let accountCode = '9000'; // Default loss account
                 let accountName = 'Loss on Sale of Assets';
                 
-                // Specific accounts based on disposition type
+                // Specific accounts based on disposition type and gain/loss
                 if (disposition.disposition_type === 'death') {
+                  // Deaths are always losses (no sale proceeds, but book value lost)
                   accountCode = '9001';
                   accountName = 'Loss on Dead Cows';
                 } else if (disposition.disposition_type === 'sale') {
@@ -342,10 +343,13 @@ serve(async (req) => {
                   accountName = 'Loss on Culled Cows';
                 }
                 
+                // Description should always reflect the actual result (gain vs loss)
+                const gainLossText = isGain ? 'Gain' : 'Loss';
+                
                 allJournalLines.push({
                   account_code: accountCode,
                   account_name: accountName,
-                  description: `${isGain ? 'Gain' : 'Loss'} on ${disposition.disposition_type} of cow #${cow.tag_number} (Sale: ${formatCurrency(saleAmount)}, Book: ${formatCurrency(bookValue)})`,
+                  description: `${gainLossText} on ${disposition.disposition_type} of cow #${cow.tag_number} (Sale: ${formatCurrency(saleAmount)}, Book: ${formatCurrency(bookValue)})`,
                   debit_amount: isGain ? 0 : Math.abs(actualGainLossAmount),
                   credit_amount: isGain ? Math.abs(actualGainLossAmount) : 0,
                   line_type: isGain ? 'credit' : 'debit'
