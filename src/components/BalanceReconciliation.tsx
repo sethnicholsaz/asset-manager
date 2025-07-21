@@ -139,8 +139,10 @@ export function BalanceReconciliation() {
         });
 
         const depreciationVariance = Math.abs(journalDepreciation - expectedDepreciation);
-        if (depreciationVariance > 1) { // Allow $1 rounding difference
-          discrepancies.push(`Depreciation variance: ${DepreciationCalculator.formatCurrency(depreciationVariance)}`);
+        // Round to nearest cent for comparison to avoid floating point precision issues
+        const roundedVariance = Math.round(depreciationVariance * 100) / 100;
+        if (roundedVariance > 0.05) { // Allow 5 cent rounding difference
+          discrepancies.push(`Depreciation variance: ${DepreciationCalculator.formatCurrency(roundedVariance)}`);
         }
 
         const isBalanced = discrepancies.length === 0;
