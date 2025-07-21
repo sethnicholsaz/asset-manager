@@ -17,7 +17,7 @@ const handler = async (req: Request): Promise<Response> => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
     );
 
-    const { company_id, batch_size = 100 } = await req.json();
+    const { company_id, batch_size = 50 } = await req.json();
     
     if (!company_id) {
       return new Response(
