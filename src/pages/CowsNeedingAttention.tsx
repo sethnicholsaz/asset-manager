@@ -97,8 +97,25 @@ export default function CowsNeedingAttention() {
           return;
         }
 
+        // Check if cow already exists
+        const { data: existingCow } = await supabase
+          .from('cows')
+          .select('id, status')
+          .eq('tag_number', record.tag_number)
+          .eq('company_id', currentCompany?.id)
+          .single();
+
+        if (existingCow) {
+          toast({
+            title: "Cow Already Exists",
+            description: `Cow #${record.tag_number} already exists in the database with status: ${existingCow.status}`,
+            variant: "destructive",
+          });
+          return;
+        }
+
         const cowData = {
-          id: `${record.tag_number}_${record.birth_date}`,
+          id: `${record.tag_number}_${Date.now()}`, // Use timestamp to ensure uniqueness
           tag_number: record.tag_number,
           birth_date: record.birth_date,
           freshen_date: actionForm.freshenDate,
