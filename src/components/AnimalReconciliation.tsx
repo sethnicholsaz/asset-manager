@@ -37,21 +37,36 @@ export function AnimalReconciliation() {
 
     setIsLoading(true);
     try {
-      // Try using the search function with empty query to get all cows
-      const { data: currentActiveCows } = await supabase
-        .rpc('search_cows', {
-          p_company_id: currentCompany.id,
-          p_search_query: '',
-          p_limit: 50000,
-          p_offset: 0
-        });
+      // Fetch ALL cows using pagination to bypass the 1000 record limit
+      let allCows: any[] = [];
+      let offset = 0;
+      const limit = 1000;
+      let hasMore = true;
+
+      while (hasMore) {
+        const { data: cowBatch } = await supabase
+          .rpc('search_cows', {
+            p_company_id: currentCompany.id,
+            p_search_query: '',
+            p_limit: limit,
+            p_offset: offset
+          });
+        
+        if (cowBatch && cowBatch.length > 0) {
+          allCows = [...allCows, ...cowBatch];
+          hasMore = cowBatch.length === limit; // Continue if we got a full batch
+          offset += limit;
+        } else {
+          hasMore = false;
+        }
+      }
       
-      const activeCowsOnly = (currentActiveCows || []).filter(cow => cow.status === 'active');
+      const activeCowsOnly = allCows.filter(cow => cow.status === 'active');
 
       console.log('=== VERIFICATION ===');
-      console.log('Total cows returned from search:', currentActiveCows?.length || 0);
-      console.log('Active cows from that result:', activeCowsOnly?.length || 0);
-      console.log('Sample active cows:', activeCowsOnly?.slice(0, 5));
+      console.log('Total cows fetched across all pages:', allCows.length);
+      console.log('Active cows from that result:', activeCowsOnly.length);
+      console.log('Sample active cows:', activeCowsOnly.slice(0, 5));
 
         // Check if there are disposed cows that might not be marked correctly
         const { data: disposedCows } = await supabase
