@@ -212,6 +212,13 @@ Deno.serve(async (req) => {
       .select('default_acquisition_type')
       .eq('company_id', companyId)
       .maybeSingle();
+
+    // Get depreciation settings for default salvage percentage
+    const { data: depreciationSettings } = await supabase
+      .from('depreciation_settings')
+      .select('default_salvage_percentage')
+      .eq('company_id', companyId)
+      .maybeSingle();
     
     const defaultAcquisitionType = acquisitionSettings?.default_acquisition_type || 'purchased';
 
@@ -334,7 +341,7 @@ Deno.serve(async (req) => {
             birth_date: birthDate.toISOString().split('T')[0],
             freshen_date: freshenDate.toISOString().split('T')[0], // Use actual freshen date
             purchase_price: purchasePrice,
-            salvage_value: parseFloat(rowData.salvage_value) || (purchasePrice * 0.1),
+            salvage_value: rowData.salvage_value !== undefined && rowData.salvage_value !== '' ? parseFloat(rowData.salvage_value) : (purchasePrice * (depreciationSettings?.default_salvage_percentage || 10) / 100),
             current_value: purchasePrice,
             total_depreciation: 0,
             asset_type_id: rowData.asset_type_id || 'dairy-cow',
