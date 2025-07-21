@@ -149,19 +149,21 @@ async function processCowBatchEfficient(supabase: any, cows: any[]) {
       month: currentMonth,
       monthly_depreciation_amount: monthlyDepreciation,
       accumulated_depreciation: totalDepreciation,
-      asset_value: currentValue,
-      posting_period: `${currentYear}-${currentMonth.toString().padStart(2, '0')}`
+      asset_value: currentValue
+      // Note: posting_period is a generated column, don't set it manually
     };
 
-    // Insert the single summary record
+    // Insert the single summary record with proper error handling
     const { error: insertError } = await supabase
       .from("cow_monthly_depreciation")
       .insert(summaryRecord);
 
     if (insertError) {
-      console.error(`Error inserting record for cow ${cow.id}:`, insertError);
-      continue;
+      console.error(`Error inserting record for cow ${cow.id} (${cow.tag_number}):`, insertError);
+      continue; // Skip this cow and continue with others
     }
+
+    console.log(`Successfully processed cow ${cow.tag_number} - Total Depreciation: $${totalDepreciation.toFixed(2)}`);
 
     // Update cow with calculated values
     const { error: updateError } = await supabase
@@ -174,7 +176,7 @@ async function processCowBatchEfficient(supabase: any, cows: any[]) {
       .eq('id', cow.id);
 
     if (updateError) {
-      console.error(`Error updating cow ${cow.id}:`, updateError);
+      console.error(`Error updating cow ${cow.id} (${cow.tag_number}):`, updateError);
     }
   }
 }
