@@ -861,17 +861,30 @@ export type Database = {
         }[]
       }
       upsert_depreciation_settings: {
-        Args: {
-          p_company_id: string
-          p_default_depreciation_method: string
-          p_default_depreciation_years: number
-          p_default_salvage_percentage: number
-          p_auto_calculate_depreciation: boolean
-          p_monthly_calculation_day: number
-          p_include_partial_months: boolean
-          p_round_to_nearest_dollar: boolean
-          p_fiscal_year_start_month: number
-        }
+        Args:
+          | {
+              p_company_id: string
+              p_default_depreciation_method: string
+              p_default_depreciation_years: number
+              p_default_salvage_percentage: number
+              p_auto_calculate_depreciation: boolean
+              p_monthly_calculation_day: number
+              p_include_partial_months: boolean
+              p_round_to_nearest_dollar: boolean
+              p_fiscal_year_start_month: number
+            }
+          | {
+              p_company_id: string
+              p_default_depreciation_method: string
+              p_default_depreciation_years: number
+              p_default_salvage_percentage: number
+              p_auto_calculate_depreciation: boolean
+              p_monthly_calculation_day: number
+              p_include_partial_months: boolean
+              p_round_to_nearest_dollar: boolean
+              p_fiscal_year_start_month: number
+              p_journal_processing_day?: number
+            }
         Returns: string
       }
       user_has_company_access: {

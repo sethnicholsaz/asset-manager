@@ -110,7 +110,8 @@ export function DepreciationSettings() {
           p_monthly_calculation_day: settings.monthly_calculation_day,
           p_include_partial_months: settings.include_partial_months,
           p_round_to_nearest_dollar: settings.round_to_nearest_dollar,
-          p_fiscal_year_start_month: settings.fiscal_year_start_month
+          p_fiscal_year_start_month: settings.fiscal_year_start_month,
+          p_journal_processing_day: settings.journal_processing_day
         });
 
       if (error) {
