@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
-import { MoreHorizontal, Calendar, DollarSign, TrendingDown, Search, X } from 'lucide-react';
+import { MoreHorizontal, Calendar, DollarSign, TrendingDown, Search, X, Eye } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import { Cow } from '@/types/cow';
 import { DepreciationCalculator } from '@/utils/depreciation';
 import { Button } from '@/components/ui/button';
@@ -192,6 +193,12 @@ export function CowDataTable({ cows, summaryStats, onEditCow, onDeleteCow, onSea
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
+                          <DropdownMenuItem asChild>
+                            <Link to={`/cow/${cow.id}`} className="flex items-center">
+                              <Eye className="h-4 w-4 mr-2" />
+                              View Details
+                            </Link>
+                          </DropdownMenuItem>
                           <DropdownMenuItem onClick={() => onEditCow?.(cow)}>
                             Edit Details
                           </DropdownMenuItem>
