@@ -126,7 +126,7 @@ export default function CowDetail() {
           )
         `)
         .eq('company_id', currentCompany.id)
-        .ilike('description', `%${cowId}%`)
+        .ilike('description', `%Cow #${cowData.tag_number}%`)
         .order('entry_date', { ascending: false });
 
       if (journalError) throw journalError;
