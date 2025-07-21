@@ -32,7 +32,7 @@ const handler = async (req: Request): Promise<Response> => {
     console.log(`Starting bulk depreciation processing for company ${company_id}`);
 
     // Get all active cows for the company
-    const { data: cows, error: cowsError } = await supabase
+    let { data: cows, error: cowsError } = await supabase
       .from("cows")
       .select("id, tag_number, purchase_price, salvage_value, freshen_date, company_id, current_value, total_depreciation")
       .eq("company_id", company_id)
@@ -41,6 +41,35 @@ const handler = async (req: Request): Promise<Response> => {
     if (cowsError) {
       console.error("Error fetching cows:", cowsError);
       throw cowsError;
+    }
+
+    // Filter out cows that already have depreciation records
+    const { data: existingRecords, error: recordsError } = await supabase
+      .from("cow_monthly_depreciation")
+      .select("cow_id")
+      .eq("company_id", company_id);
+    
+    if (recordsError) {
+      console.error("Error fetching existing records:", recordsError);
+      // Continue without filtering if we can't check existing records
+    } else {
+      const existingCowIds = new Set(existingRecords?.map(r => r.cow_id) || []);
+      const filteredCows = cows?.filter(cow => !existingCowIds.has(cow.id)) || [];
+      
+      console.log(`Found ${cows?.length || 0} total cows, ${existingCowIds.size} already have records, processing ${filteredCows.length} remaining cows`);
+      
+      if (filteredCows.length === 0) {
+        return new Response(
+          JSON.stringify({ message: "All cows already have depreciation records calculated" }),
+          {
+            status: 200,
+            headers: { "Content-Type": "application/json", ...corsHeaders },
+          }
+        );
+      }
+      
+      // Use filtered cows
+      cows = filteredCows;
     }
 
     if (!cows || cows.length === 0) {
