@@ -793,6 +793,7 @@ export type Database = {
           default_salvage_percentage: number
           auto_calculate_depreciation: boolean
           monthly_calculation_day: number
+          journal_processing_day: number
           include_partial_months: boolean
           round_to_nearest_dollar: boolean
           fiscal_year_start_month: number
