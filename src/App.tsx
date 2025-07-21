@@ -15,8 +15,7 @@ import { AuthComponent } from "@/components/AuthComponent";
 import { CompanySelector } from "@/components/CompanySelector";
 import { AppSidebar } from "@/components/AppSidebar";
 import Index from "./pages/Index";
-import Import from "./pages/Import";
-import AutomatedImport from "./pages/AutomatedImport";
+import DataImport from "./pages/DataImport";
 import MasterFileVerification from "./pages/MasterFileVerification";
 import Dispositions from "./pages/Dispositions";
 import Reports from "./pages/Reports";
@@ -201,8 +200,7 @@ function AppContent() {
           <main className="flex-1 p-6 bg-background">
             <Routes>
               <Route path="/" element={<Index />} />
-              <Route path="/import" element={<Import />} />
-              <Route path="/automated-import" element={<AutomatedImport />} />
+              <Route path="/data-import" element={<DataImport />} />
               <Route path="/master-verification" element={<MasterFileVerification />} />
               <Route path="/dispositions" element={<Dispositions />} />
               <Route path="/reports" element={<Reports />} />
