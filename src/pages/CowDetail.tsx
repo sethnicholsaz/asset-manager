@@ -722,175 +722,122 @@ export default function CowDetail() {
 
                   <Separator />
 
-                  {/* Journal Summary by Type */}
+                  {/* Journal Summary by Account */}
                   <div>
-                    <h4 className="font-semibold mb-4">Journal Summary by Type</h4>
+                    <h4 className="font-semibold mb-4">Journal Summary by Account</h4>
                     <Accordion type="multiple" className="space-y-4">
                       
-                       {/* Acquisition Summary */}
-                       {journalSummary.journal_entries.filter(e => e.entry_type === 'acquisition').length > 0 && (
-                         <AccordionItem value="acquisition" className="border rounded-lg">
-                           <AccordionTrigger className="bg-muted/30 px-4 hover:no-underline">
-                             <div className="flex items-center justify-between w-full pr-4">
-                               <div className="flex items-center gap-2">
-                                 <DollarSign className="h-4 w-4 text-green-600" />
-                                 <span className="font-medium">Acquisition Entries</span>
-                                 <span className="text-sm text-muted-foreground">
-                                   ({journalSummary.journal_entries.filter(e => e.entry_type === 'acquisition').length} entries)
-                                 </span>
-                               </div>
-                               <span className="font-mono font-bold text-green-600">
-                                 {formatCurrency(journalSummary.acquisition_total)}
-                               </span>
-                             </div>
-                           </AccordionTrigger>
-                           <AccordionContent className="p-4 pt-0">
-                             <Table>
-                               <TableHeader>
-                                 <TableRow>
-                                   <TableHead>Date</TableHead>
-                                   <TableHead>Account</TableHead>
-                                   <TableHead>Description</TableHead>
-                                   <TableHead className="text-right">Debit</TableHead>
-                                   <TableHead className="text-right">Credit</TableHead>
-                                 </TableRow>
-                               </TableHeader>
-                               <TableBody>
-                                 {journalSummary.journal_entries
-                                   .filter(entry => entry.entry_type === 'acquisition')
-                                   .map((entry) => (
-                                     <TableRow key={entry.id}>
-                                       <TableCell>{format(new Date(entry.entry_date), 'MMM dd, yyyy')}</TableCell>
-                                       <TableCell>
-                                         <div>
-                                           <p className="font-medium">{entry.account_code}</p>
-                                           <p className="text-sm text-muted-foreground">{entry.account_name}</p>
-                                         </div>
-                                       </TableCell>
-                                       <TableCell>{entry.description}</TableCell>
-                                       <TableCell className="text-right font-mono">
-                                         {entry.debit_amount > 0 ? formatCurrency(entry.debit_amount) : '-'}
-                                       </TableCell>
-                                       <TableCell className="text-right font-mono">
-                                         {entry.credit_amount > 0 ? formatCurrency(entry.credit_amount) : '-'}
-                                       </TableCell>
-                                     </TableRow>
-                                   ))}
-                               </TableBody>
-                             </Table>
-                           </AccordionContent>
-                         </AccordionItem>
-                       )}
+                      {/* Group entries by account */}
+                      {(() => {
+                        // Group entries by account code
+                        const accountGroups = journalSummary.journal_entries.reduce((groups, entry) => {
+                          const key = `${entry.account_code}-${entry.account_name}`;
+                          if (!groups[key]) {
+                            groups[key] = {
+                              account_code: entry.account_code,
+                              account_name: entry.account_name,
+                              entries: [],
+                              total_debits: 0,
+                              total_credits: 0,
+                              net_amount: 0
+                            };
+                          }
+                          groups[key].entries.push(entry);
+                          groups[key].total_debits += entry.debit_amount;
+                          groups[key].total_credits += entry.credit_amount;
+                          groups[key].net_amount += entry.debit_amount - entry.credit_amount;
+                          return groups;
+                        }, {} as Record<string, { account_code: string; account_name: string; entries: any[]; total_debits: number; total_credits: number; net_amount: number }>);
 
-                       {/* Depreciation Summary */}
-                       {journalSummary.journal_entries.filter(e => e.entry_type === 'depreciation').length > 0 && (
-                         <AccordionItem value="depreciation" className="border rounded-lg">
-                           <AccordionTrigger className="bg-muted/30 px-4 hover:no-underline">
-                             <div className="flex items-center justify-between w-full pr-4">
-                               <div className="flex items-center gap-2">
-                                 <TrendingDown className="h-4 w-4 text-orange-600" />
-                                 <span className="font-medium">Depreciation Entries</span>
-                                 <span className="text-sm text-muted-foreground">
-                                   ({journalSummary.journal_entries.filter(e => e.entry_type === 'depreciation').length} entries)
-                                 </span>
-                               </div>
-                               <span className="font-mono font-bold text-orange-600">
-                                 {formatCurrency(journalSummary.depreciation_total)}
-                               </span>
-                             </div>
-                           </AccordionTrigger>
-                           <AccordionContent className="p-4 pt-0">
-                             <Table>
-                               <TableHeader>
-                                 <TableRow>
-                                   <TableHead>Date</TableHead>
-                                   <TableHead>Account</TableHead>
-                                   <TableHead>Description</TableHead>
-                                   <TableHead className="text-right">Debit</TableHead>
-                                   <TableHead className="text-right">Credit</TableHead>
-                                 </TableRow>
-                               </TableHeader>
-                               <TableBody>
-                                 {journalSummary.journal_entries
-                                   .filter(entry => entry.entry_type === 'depreciation')
-                                   .map((entry) => (
-                                     <TableRow key={entry.id}>
-                                       <TableCell>{format(new Date(entry.entry_date), 'MMM dd, yyyy')}</TableCell>
-                                       <TableCell>
-                                         <div>
-                                           <p className="font-medium">{entry.account_code}</p>
-                                           <p className="text-sm text-muted-foreground">{entry.account_name}</p>
-                                         </div>
-                                       </TableCell>
-                                       <TableCell>{entry.description}</TableCell>
-                                       <TableCell className="text-right font-mono">
-                                         {entry.debit_amount > 0 ? formatCurrency(entry.debit_amount) : '-'}
-                                       </TableCell>
-                                       <TableCell className="text-right font-mono">
-                                         {entry.credit_amount > 0 ? formatCurrency(entry.credit_amount) : '-'}
-                                       </TableCell>
-                                     </TableRow>
-                                   ))}
-                               </TableBody>
-                             </Table>
-                           </AccordionContent>
-                         </AccordionItem>
-                       )}
+                        // Sort accounts by account code
+                        const sortedAccounts = Object.values(accountGroups).sort((a, b) => a.account_code.localeCompare(b.account_code));
 
-                       {/* Disposition Summary */}
-                       {journalSummary.journal_entries.filter(e => e.entry_type === 'disposition').length > 0 && (
-                         <AccordionItem value="disposition" className="border rounded-lg">
-                           <AccordionTrigger className="bg-muted/30 px-4 hover:no-underline">
-                             <div className="flex items-center justify-between w-full pr-4">
-                               <div className="flex items-center gap-2">
-                                 <TrendingUp className="h-4 w-4 text-red-600" />
-                                 <span className="font-medium">Disposition Entries</span>
-                                 <span className="text-sm text-muted-foreground">
-                                   ({journalSummary.journal_entries.filter(e => e.entry_type === 'disposition').length} entries)
-                                 </span>
-                               </div>
-                               <span className="font-mono font-bold text-red-600">
-                                 {formatCurrency(journalSummary.disposition_total)}
-                               </span>
-                             </div>
-                           </AccordionTrigger>
-                           <AccordionContent className="p-4 pt-0">
-                             <Table>
-                               <TableHeader>
-                                 <TableRow>
-                                   <TableHead>Date</TableHead>
-                                   <TableHead>Account</TableHead>
-                                   <TableHead>Description</TableHead>
-                                   <TableHead className="text-right">Debit</TableHead>
-                                   <TableHead className="text-right">Credit</TableHead>
-                                 </TableRow>
-                               </TableHeader>
-                               <TableBody>
-                                 {journalSummary.journal_entries
-                                   .filter(entry => entry.entry_type === 'disposition')
-                                   .map((entry) => (
-                                     <TableRow key={entry.id}>
-                                       <TableCell>{format(new Date(entry.entry_date), 'MMM dd, yyyy')}</TableCell>
-                                       <TableCell>
-                                         <div>
-                                           <p className="font-medium">{entry.account_code}</p>
-                                           <p className="text-sm text-muted-foreground">{entry.account_name}</p>
-                                         </div>
-                                       </TableCell>
-                                       <TableCell>{entry.description}</TableCell>
-                                       <TableCell className="text-right font-mono">
-                                         {entry.debit_amount > 0 ? formatCurrency(entry.debit_amount) : '-'}
-                                       </TableCell>
-                                       <TableCell className="text-right font-mono">
-                                         {entry.credit_amount > 0 ? formatCurrency(entry.credit_amount) : '-'}
-                                       </TableCell>
-                                     </TableRow>
-                                   ))}
-                               </TableBody>
-                             </Table>
-                           </AccordionContent>
-                         </AccordionItem>
-                       )}
+                        return sortedAccounts.map((accountGroup) => {
+                          const getAccountIcon = (accountCode: string) => {
+                            if (accountCode.startsWith('1000')) return <DollarSign className="h-4 w-4 text-blue-600" />;
+                            if (accountCode.startsWith('1500')) return <TrendingDown className="h-4 w-4 text-purple-600" />;
+                            if (accountCode.startsWith('6100')) return <TrendingDown className="h-4 w-4 text-orange-600" />;
+                            if (accountCode.startsWith('8000')) return <TrendingUp className="h-4 w-4 text-green-600" />;
+                            if (accountCode.startsWith('7000')) return <TrendingDown className="h-4 w-4 text-red-600" />;
+                            return <Calculator className="h-4 w-4 text-gray-600" />;
+                          };
+
+                          const getAmountColor = (netAmount: number) => {
+                            if (Math.abs(netAmount) < 1) return 'text-gray-600';
+                            return netAmount > 0 ? 'text-green-600' : 'text-red-600';
+                          };
+
+                          return (
+                            <AccordionItem key={accountGroup.account_code} value={accountGroup.account_code} className="border rounded-lg">
+                              <AccordionTrigger className="bg-muted/30 px-4 hover:no-underline">
+                                <div className="flex items-center justify-between w-full pr-4">
+                                  <div className="flex items-center gap-2">
+                                    {getAccountIcon(accountGroup.account_code)}
+                                    <span className="font-medium">{accountGroup.account_code} - {accountGroup.account_name}</span>
+                                    <span className="text-sm text-muted-foreground">
+                                      ({accountGroup.entries.length} entries)
+                                    </span>
+                                  </div>
+                                  <div className="text-right">
+                                    <div className="font-mono font-bold">
+                                      <span className={getAmountColor(accountGroup.net_amount)}>
+                                        {formatCurrency(Math.abs(accountGroup.net_amount))}
+                                      </span>
+                                    </div>
+                                    <div className="text-xs text-muted-foreground">
+                                      D: {formatCurrency(accountGroup.total_debits)} | C: {formatCurrency(accountGroup.total_credits)}
+                                    </div>
+                                  </div>
+                                </div>
+                              </AccordionTrigger>
+                              <AccordionContent className="p-4 pt-0">
+                                <Table>
+                                  <TableHeader>
+                                    <TableRow>
+                                      <TableHead>Date</TableHead>
+                                      <TableHead>Type</TableHead>
+                                      <TableHead>Description</TableHead>
+                                      <TableHead className="text-right">Debit</TableHead>
+                                      <TableHead className="text-right">Credit</TableHead>
+                                    </TableRow>
+                                  </TableHeader>
+                                  <TableBody>
+                                    {accountGroup.entries
+                                      .sort((a, b) => new Date(a.entry_date).getTime() - new Date(b.entry_date).getTime())
+                                      .map((entry) => (
+                                        <TableRow key={entry.id}>
+                                          <TableCell>{format(new Date(entry.entry_date), 'MMM dd, yyyy')}</TableCell>
+                                          <TableCell>
+                                            <Badge variant="outline" className="text-xs">
+                                              {entry.entry_type}
+                                            </Badge>
+                                          </TableCell>
+                                          <TableCell className="max-w-xs truncate">{entry.description}</TableCell>
+                                          <TableCell className="text-right font-mono">
+                                            {entry.debit_amount > 0 ? formatCurrency(entry.debit_amount) : '-'}
+                                          </TableCell>
+                                          <TableCell className="text-right font-mono">
+                                            {entry.credit_amount > 0 ? formatCurrency(entry.credit_amount) : '-'}
+                                          </TableCell>
+                                        </TableRow>
+                                      ))}
+                                  </TableBody>
+                                </Table>
+                                <div className="mt-4 pt-2 border-t flex justify-between items-center text-sm">
+                                  <span className="font-medium">Account Total:</span>
+                                  <div className="flex gap-4">
+                                    <span>Debits: <span className="font-mono">{formatCurrency(accountGroup.total_debits)}</span></span>
+                                    <span>Credits: <span className="font-mono">{formatCurrency(accountGroup.total_credits)}</span></span>
+                                    <span className={`font-medium ${getAmountColor(accountGroup.net_amount)}`}>
+                                      Net: <span className="font-mono">{formatCurrency(accountGroup.net_amount)}</span>
+                                    </span>
+                                  </div>
+                                </div>
+                              </AccordionContent>
+                            </AccordionItem>
+                          );
+                        });
+                      })()}
 
                     </Accordion>
                   </div>
