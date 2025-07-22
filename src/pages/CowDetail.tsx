@@ -264,8 +264,10 @@ export default function CowDetail() {
       }
 
       console.log('Journal lines found:', journalLines?.length || 0, journalLines);
+      console.log('🔧 Starting journal entry processing...');
 
       // Transform and categorize entries
+      console.log('🔧 Transforming journal lines...');
       const allEntries: JournalEntry[] = journalLines.map(line => ({
         id: line.id,
         entry_date: line.journal_entries.entry_date,
@@ -277,11 +279,19 @@ export default function CowDetail() {
         credit_amount: line.credit_amount || 0,
         line_type: line.line_type
       }));
+      console.log('🔧 Transformed entries:', allEntries.length);
 
       // Calculate totals by type
+      console.log('🔧 Calculating totals...');
       const acquisitionEntries = allEntries.filter(entry => entry.entry_type === 'acquisition');
       const depreciationEntries = allEntries.filter(entry => entry.entry_type === 'depreciation');
       const dispositionEntries = allEntries.filter(entry => entry.entry_type === 'disposition');
+
+      console.log('🔧 Entry counts:', {
+        acquisition: acquisitionEntries.length,
+        depreciation: depreciationEntries.length,
+        disposition: dispositionEntries.length
+      });
 
       const acquisitionTotal = acquisitionEntries.reduce((sum, entry) => 
         sum + entry.debit_amount - entry.credit_amount, 0);
@@ -293,6 +303,13 @@ export default function CowDetail() {
         sum + entry.debit_amount - entry.credit_amount, 0);
 
       const netBalance = acquisitionTotal - depreciationTotal + dispositionTotal;
+
+      console.log('🔧 Calculated totals:', {
+        acquisitionTotal,
+        depreciationTotal,
+        dispositionTotal,
+        netBalance
+      });
 
       const journalSummaryData = {
         acquisition_total: acquisitionTotal,
