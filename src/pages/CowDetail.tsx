@@ -294,6 +294,8 @@ export default function CowDetail() {
       const depreciationEntries = allEntries.filter(entry => entry.entry_type === 'depreciation');
       const dispositionEntries = allEntries.filter(entry => entry.entry_type === 'disposition');
 
+      console.log('🔧 Account codes in depreciation entries:', depreciationEntries.slice(0, 5).map(e => ({ account_code: e.account_code, debit: e.debit_amount, credit: e.credit_amount })));
+
       console.log('🔧 Entry counts:', {
         acquisition: acquisitionEntries.length,
         depreciation: depreciationEntries.length,
