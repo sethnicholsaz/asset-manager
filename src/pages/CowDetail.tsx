@@ -9,7 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
-import { ArrowLeft, Calendar, DollarSign, TrendingDown, FileText, AlertCircle } from 'lucide-react';
+import { ArrowLeft, Calendar, DollarSign, TrendingDown, FileText, AlertCircle, TrendingUp, Calculator } from 'lucide-react';
 import { format } from 'date-fns';
 
 interface CowDetails {
@@ -55,6 +55,26 @@ interface HistoricalDepreciation {
   year: number;
 }
 
+interface JournalEntry {
+  id: string;
+  entry_date: string;
+  entry_type: string;
+  description: string;
+  account_code: string;
+  account_name: string;
+  debit_amount: number;
+  credit_amount: number;
+  line_type: string;
+}
+
+interface JournalSummary {
+  acquisition_total: number;
+  depreciation_total: number;
+  disposition_total: number;
+  net_balance: number;
+  journal_entries: JournalEntry[];
+}
+
 export default function CowDetail() {
   const { cowId } = useParams<{ cowId: string }>();
   const navigate = useNavigate();
@@ -64,8 +84,10 @@ export default function CowDetail() {
   const [cow, setCow] = useState<CowDetails | null>(null);
   const [disposition, setDisposition] = useState<Disposition | null>(null);
   const [historicalDepreciation, setHistoricalDepreciation] = useState<HistoricalDepreciation[]>([]);
+  const [journalSummary, setJournalSummary] = useState<JournalSummary | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isLoadingHistory, setIsLoadingHistory] = useState(false);
+  const [isLoadingJournal, setIsLoadingJournal] = useState(false);
 
   useEffect(() => {
     if (cowId && currentCompany) {
@@ -194,6 +216,100 @@ export default function CowDetail() {
     }
   };
 
+  const loadJournalSummary = async () => {
+    if (!cowId || !currentCompany || journalSummary) return;
+
+    try {
+      setIsLoadingJournal(true);
+      
+      // Get all journal entries for this cow
+      const { data: journalLines, error: journalError } = await supabase
+        .from('journal_lines')
+        .select(`
+          id,
+          description,
+          account_code,
+          account_name,
+          debit_amount,
+          credit_amount,
+          line_type,
+          journal_entries!inner (
+            entry_date,
+            entry_type,
+            description,
+            company_id
+          )
+        `)
+        .eq('cow_id', cowId)
+        .eq('journal_entries.company_id', currentCompany.id)
+        .order('journal_entries(entry_date)', { ascending: true });
+
+      if (journalError) throw journalError;
+
+      // Transform and categorize entries
+      const allEntries: JournalEntry[] = journalLines.map(line => ({
+        id: line.id,
+        entry_date: line.journal_entries.entry_date,
+        entry_type: line.journal_entries.entry_type,
+        description: line.description,
+        account_code: line.account_code,
+        account_name: line.account_name,
+        debit_amount: line.debit_amount || 0,
+        credit_amount: line.credit_amount || 0,
+        line_type: line.line_type
+      }));
+
+      // Calculate totals by type
+      const acquisitionEntries = allEntries.filter(entry => entry.entry_type === 'acquisition');
+      const depreciationEntries = allEntries.filter(entry => entry.entry_type === 'depreciation');
+      const dispositionEntries = allEntries.filter(entry => entry.entry_type === 'disposition');
+
+      const acquisitionTotal = acquisitionEntries.reduce((sum, entry) => 
+        sum + entry.debit_amount - entry.credit_amount, 0);
+      
+      const depreciationTotal = depreciationEntries.reduce((sum, entry) => 
+        entry.account_code.includes('1500.1') ? sum + entry.debit_amount : sum, 0);
+      
+      const dispositionTotal = dispositionEntries.reduce((sum, entry) => 
+        sum + entry.debit_amount - entry.credit_amount, 0);
+
+      const netBalance = acquisitionTotal - depreciationTotal + dispositionTotal;
+
+      setJournalSummary({
+        acquisition_total: acquisitionTotal,
+        depreciation_total: depreciationTotal,
+        disposition_total: dispositionTotal,
+        net_balance: netBalance,
+        journal_entries: allEntries
+      });
+    } catch (error) {
+      console.error('Error loading journal summary:', error);
+      toast({
+        title: "Error",
+        description: "Failed to load journal summary",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoadingJournal(false);
+    }
+  };
+
+  const getBalanceColor = (balance: number) => {
+    const absBalance = Math.abs(balance);
+    if (absBalance < 1) return 'text-green-600'; // Balanced
+    if (absBalance < 100) return 'text-yellow-600'; // Minor variance
+    return 'text-red-600'; // Significant variance
+  };
+
+  const getEntryTypeIcon = (entryType: string) => {
+    switch (entryType) {
+      case 'acquisition': return <DollarSign className="h-4 w-4 text-green-600" />;
+      case 'depreciation': return <TrendingDown className="h-4 w-4 text-orange-600" />;
+      case 'disposition': return <TrendingUp className="h-4 w-4 text-red-600" />;
+      default: return <Calculator className="h-4 w-4 text-gray-600" />;
+    }
+  };
+
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('en-US', {
       style: 'currency',
@@ -311,6 +427,9 @@ export default function CowDetail() {
           <TabsTrigger value="depreciation">Depreciation Summary</TabsTrigger>
           <TabsTrigger value="history" onClick={() => historicalDepreciation.length === 0 && loadHistoricalDepreciation()}>
             Historical Depreciation
+          </TabsTrigger>
+          <TabsTrigger value="journal-summary" onClick={() => loadJournalSummary()}>
+            Journal Summary
           </TabsTrigger>
           {disposition && <TabsTrigger value="disposition">Disposition</TabsTrigger>}
         </TabsList>
@@ -473,6 +592,145 @@ export default function CowDetail() {
                         ))}
                       </TableBody>
                     </Table>
+                  </div>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="journal-summary">
+          <Card>
+            <CardHeader>
+              <CardTitle>Journal Summary</CardTitle>
+              <CardDescription>
+                Complete journal lifecycle for this cow - acquisition, depreciation, and disposition
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              {isLoadingJournal ? (
+                <div className="flex items-center justify-center py-8">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+                </div>
+              ) : !journalSummary ? (
+                <div className="text-center py-8 text-muted-foreground">
+                  <Calculator className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                  <p className="text-lg font-medium mb-2">No Journal Entries</p>
+                  <p className="text-sm">
+                    No journal entries have been recorded for this cow yet.
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-6">
+                  {/* Summary Cards */}
+                  <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                    <Card>
+                      <CardHeader className="pb-2">
+                        <CardTitle className="text-sm font-medium flex items-center">
+                          <DollarSign className="h-4 w-4 text-green-600 mr-2" />
+                          Acquisition
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="text-xl font-bold">{formatCurrency(journalSummary.acquisition_total)}</div>
+                      </CardContent>
+                    </Card>
+                    
+                    <Card>
+                      <CardHeader className="pb-2">
+                        <CardTitle className="text-sm font-medium flex items-center">
+                          <TrendingDown className="h-4 w-4 text-orange-600 mr-2" />
+                          Depreciation
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="text-xl font-bold">{formatCurrency(journalSummary.depreciation_total)}</div>
+                      </CardContent>
+                    </Card>
+                    
+                    <Card>
+                      <CardHeader className="pb-2">
+                        <CardTitle className="text-sm font-medium flex items-center">
+                          <TrendingUp className="h-4 w-4 text-red-600 mr-2" />
+                          Disposition
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="text-xl font-bold">
+                          {journalSummary.disposition_total !== 0 ? formatCurrency(journalSummary.disposition_total) : '-'}
+                        </div>
+                      </CardContent>
+                    </Card>
+                    
+                    <Card>
+                      <CardHeader className="pb-2">
+                        <CardTitle className="text-sm font-medium flex items-center">
+                          <Calculator className="h-4 w-4 text-gray-600 mr-2" />
+                          Net Balance
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <div className={`text-xl font-bold ${getBalanceColor(journalSummary.net_balance)}`}>
+                          {formatCurrency(journalSummary.net_balance)}
+                        </div>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          {Math.abs(journalSummary.net_balance) < 1 ? 'Balanced' : 'Variance detected'}
+                        </p>
+                      </CardContent>
+                    </Card>
+                  </div>
+
+                  <Separator />
+
+                  {/* Detailed Journal Entries */}
+                  <div>
+                    <h4 className="font-semibold mb-4">All Journal Entries ({journalSummary.journal_entries.length})</h4>
+                    <div className="border rounded-lg overflow-hidden">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>Date</TableHead>
+                            <TableHead>Type</TableHead>
+                            <TableHead>Account</TableHead>
+                            <TableHead>Description</TableHead>
+                            <TableHead className="text-right">Debit</TableHead>
+                            <TableHead className="text-right">Credit</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {journalSummary.journal_entries.map((entry) => (
+                            <TableRow key={entry.id}>
+                              <TableCell>
+                                {format(new Date(entry.entry_date), 'MMM dd, yyyy')}
+                              </TableCell>
+                              <TableCell>
+                                <div className="flex items-center space-x-2">
+                                  {getEntryTypeIcon(entry.entry_type)}
+                                  <span className="capitalize">{entry.entry_type}</span>
+                                </div>
+                              </TableCell>
+                              <TableCell>
+                                <div>
+                                  <p className="font-medium">{entry.account_code}</p>
+                                  <p className="text-sm text-muted-foreground">{entry.account_name}</p>
+                                </div>
+                              </TableCell>
+                              <TableCell className="max-w-xs">
+                                <p className="text-sm truncate" title={entry.description}>
+                                  {entry.description}
+                                </p>
+                              </TableCell>
+                              <TableCell className="text-right font-mono">
+                                {entry.debit_amount > 0 ? formatCurrency(entry.debit_amount) : '-'}
+                              </TableCell>
+                              <TableCell className="text-right font-mono">
+                                {entry.credit_amount > 0 ? formatCurrency(entry.credit_amount) : '-'}
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </div>
                   </div>
                 </div>
               )}
