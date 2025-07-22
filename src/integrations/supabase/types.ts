@@ -374,6 +374,95 @@ export type Database = {
         }
         Relationships: []
       }
+      journal_entries: {
+        Row: {
+          company_id: string
+          created_at: string
+          description: string
+          entry_date: string
+          entry_type: string
+          id: string
+          month: number
+          status: string
+          total_amount: number
+          updated_at: string
+          year: number
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          description: string
+          entry_date: string
+          entry_type: string
+          id?: string
+          month: number
+          status?: string
+          total_amount?: number
+          updated_at?: string
+          year: number
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          description?: string
+          entry_date?: string
+          entry_type?: string
+          id?: string
+          month?: number
+          status?: string
+          total_amount?: number
+          updated_at?: string
+          year?: number
+        }
+        Relationships: []
+      }
+      journal_lines: {
+        Row: {
+          account_code: string
+          account_name: string
+          cow_id: string | null
+          created_at: string
+          credit_amount: number
+          debit_amount: number
+          description: string
+          id: string
+          journal_entry_id: string
+          line_type: string
+        }
+        Insert: {
+          account_code: string
+          account_name: string
+          cow_id?: string | null
+          created_at?: string
+          credit_amount?: number
+          debit_amount?: number
+          description: string
+          id?: string
+          journal_entry_id: string
+          line_type: string
+        }
+        Update: {
+          account_code?: string
+          account_name?: string
+          cow_id?: string | null
+          created_at?: string
+          credit_amount?: number
+          debit_amount?: number
+          description?: string
+          id?: string
+          journal_entry_id?: string
+          line_type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "journal_lines_journal_entry_id_fkey"
+            columns: ["journal_entry_id"]
+            isOneToOne: false
+            referencedRelation: "journal_entries"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       master_file_staging: {
         Row: {
           action_date: string | null
@@ -434,6 +523,51 @@ export type Database = {
           tag_number?: string
           updated_at?: string
           verification_date?: string
+        }
+        Relationships: []
+      }
+      monthly_processing_log: {
+        Row: {
+          company_id: string
+          completed_at: string | null
+          cows_processed: number | null
+          created_at: string
+          entry_type: string
+          error_message: string | null
+          id: string
+          processing_month: number
+          processing_year: number
+          started_at: string | null
+          status: string
+          total_amount: number | null
+        }
+        Insert: {
+          company_id: string
+          completed_at?: string | null
+          cows_processed?: number | null
+          created_at?: string
+          entry_type: string
+          error_message?: string | null
+          id?: string
+          processing_month: number
+          processing_year: number
+          started_at?: string | null
+          status?: string
+          total_amount?: number | null
+        }
+        Update: {
+          company_id?: string
+          completed_at?: string | null
+          cows_processed?: number | null
+          created_at?: string
+          entry_type?: string
+          error_message?: string | null
+          id?: string
+          processing_month?: number
+          processing_year?: number
+          started_at?: string | null
+          status?: string
+          total_amount?: number | null
         }
         Relationships: []
       }
@@ -549,6 +683,19 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      automated_monthly_processing: {
+        Args: Record<PropertyKey, never>
+        Returns: Json
+      }
+      calculate_cow_monthly_depreciation: {
+        Args: {
+          p_purchase_price: number
+          p_salvage_value: number
+          p_freshen_date: string
+          p_target_date: string
+        }
+        Returns: number
+      }
       fetch_depreciation_settings: {
         Args: { p_company_id: string }
         Returns: {
@@ -599,6 +746,22 @@ export type Database = {
           ending_balance: number
           actual_active_count: number
         }[]
+      }
+      process_historical_depreciation: {
+        Args: {
+          p_company_id: string
+          p_start_year?: number
+          p_end_year?: number
+        }
+        Returns: Json
+      }
+      process_monthly_depreciation: {
+        Args: {
+          p_company_id: string
+          p_target_month: number
+          p_target_year: number
+        }
+        Returns: Json
       }
       search_cows: {
         Args: {
