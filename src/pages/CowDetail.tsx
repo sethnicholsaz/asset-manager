@@ -263,11 +263,9 @@ export default function CowDetail() {
         throw journalError;
       }
 
-      console.log('Journal lines found:', journalLines?.length || 0, journalLines);
-      console.log('🔧 Starting journal entry processing...');
+      console.log('Journal lines found:', journalLines?.length || 0);
 
       // Transform and categorize entries
-      console.log('🔧 Transforming journal lines...');
       const allEntries: JournalEntry[] = journalLines.map(line => ({
         id: line.id,
         entry_date: line.journal_entries.entry_date,
@@ -279,24 +277,17 @@ export default function CowDetail() {
         credit_amount: line.credit_amount || 0,
         line_type: line.line_type
       }));
-      console.log('🔧 Transformed entries:', allEntries.length);
+      
 
       // Calculate totals by type
-      console.log('🔧 Calculating totals...');
-      
-      // Debug: Check what entry types we actually have
-      const entryTypes = allEntries.map(e => e.entry_type);
-      const uniqueEntryTypes = [...new Set(entryTypes)];
-      console.log('🔧 Unique entry types found:', uniqueEntryTypes);
-      console.log('🔧 Sample entries:', allEntries.slice(0, 3));
       
       const acquisitionEntries = allEntries.filter(entry => entry.entry_type === 'acquisition');
       const depreciationEntries = allEntries.filter(entry => entry.entry_type === 'depreciation');
       const dispositionEntries = allEntries.filter(entry => entry.entry_type === 'disposition');
 
-      console.log('🔧 Account codes in depreciation entries:', depreciationEntries.slice(0, 5).map(e => ({ account_code: e.account_code, debit: e.debit_amount, credit: e.credit_amount })));
+      
 
-      console.log('🔧 Entry counts:', {
+      console.log('Entry counts:', {
         acquisition: acquisitionEntries.length,
         depreciation: depreciationEntries.length,
         disposition: dispositionEntries.length
@@ -320,23 +311,13 @@ export default function CowDetail() {
 
       const netBalance = acquisitionTotal - depreciationTotal + dispositionTotal;
 
-      console.log('🔧 Calculated totals:', {
-        acquisitionTotal,
-        depreciationTotal,
-        dispositionTotal,
-        netBalance
-      });
-
-      const journalSummaryData = {
+      setJournalSummary({
         acquisition_total: acquisitionTotal,
         depreciation_total: depreciationTotal,
         disposition_total: dispositionTotal,
         net_balance: netBalance,
         journal_entries: allEntries
-      };
-      
-      console.log('📊 Setting journal summary:', journalSummaryData);
-      setJournalSummary(journalSummaryData);
+      });
     } catch (error) {
       console.error('Error loading journal summary:', error);
       toast({
@@ -667,7 +648,7 @@ export default function CowDetail() {
                 <div className="flex items-center justify-center py-8">
                   <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
                 </div>
-              ) : (console.log('🔍 Journal summary state:', journalSummary), !journalSummary) ? (
+              ) : !journalSummary ? (
                 <div className="text-center py-8 text-muted-foreground">
                   <Calculator className="h-12 w-12 mx-auto mb-4 opacity-50" />
                   <p className="text-lg font-medium mb-2">No Journal Entries</p>
