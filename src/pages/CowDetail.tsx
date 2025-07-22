@@ -43,6 +43,18 @@ interface Disposition {
   notes?: string;
 }
 
+interface HistoricalDepreciation {
+  id: string;
+  entry_date: string;
+  description: string;
+  debit_amount: number;
+  credit_amount: number;
+  account_code: string;
+  account_name: string;
+  month: number;
+  year: number;
+}
+
 export default function CowDetail() {
   const { cowId } = useParams<{ cowId: string }>();
   const navigate = useNavigate();
@@ -50,10 +62,10 @@ export default function CowDetail() {
   const { currentCompany } = useAuth();
   
   const [cow, setCow] = useState<CowDetails | null>(null);
-  
-  
   const [disposition, setDisposition] = useState<Disposition | null>(null);
+  const [historicalDepreciation, setHistoricalDepreciation] = useState<HistoricalDepreciation[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isLoadingHistory, setIsLoadingHistory] = useState(false);
 
   useEffect(() => {
     if (cowId && currentCompany) {
@@ -123,6 +135,62 @@ export default function CowDetail() {
       case 'sold': return 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300';
       case 'deceased': return 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300';
       default: return 'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-300';
+    }
+  };
+
+  const loadHistoricalDepreciation = async () => {
+    if (!cowId || !currentCompany) return;
+
+    try {
+      setIsLoadingHistory(true);
+      
+      // Query journal lines that belong to this specific cow
+      const { data: journalData, error: journalError } = await supabase
+        .from('journal_lines')
+        .select(`
+          id,
+          description,
+          debit_amount,
+          credit_amount,
+          account_code,
+          account_name,
+          journal_entries!inner (
+            entry_date,
+            month,
+            year,
+            company_id
+          )
+        `)
+        .eq('cow_id', cowId)
+        .eq('journal_entries.company_id', currentCompany.id)
+        .eq('journal_entries.entry_type', 'depreciation')
+        .order('journal_entries(entry_date)', { ascending: false });
+
+      if (journalError) throw journalError;
+
+      // Transform the data to match our interface
+      const transformedData: HistoricalDepreciation[] = journalData.map((item: any) => ({
+        id: item.id,
+        entry_date: item.journal_entries.entry_date,
+        description: item.description,
+        debit_amount: item.debit_amount,
+        credit_amount: item.credit_amount,
+        account_code: item.account_code,
+        account_name: item.account_name,
+        month: item.journal_entries.month,
+        year: item.journal_entries.year,
+      }));
+
+      setHistoricalDepreciation(transformedData);
+    } catch (error) {
+      console.error('Error loading historical depreciation:', error);
+      toast({
+        title: "Error",
+        description: "Failed to load historical depreciation data",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoadingHistory(false);
     }
   };
 
@@ -241,6 +309,9 @@ export default function CowDetail() {
         <TabsList>
           <TabsTrigger value="details">Details</TabsTrigger>
           <TabsTrigger value="depreciation">Depreciation Summary</TabsTrigger>
+          <TabsTrigger value="history" onClick={() => historicalDepreciation.length === 0 && loadHistoricalDepreciation()}>
+            Historical Depreciation
+          </TabsTrigger>
           {disposition && <TabsTrigger value="disposition">Disposition</TabsTrigger>}
         </TabsList>
 
@@ -321,6 +392,90 @@ export default function CowDetail() {
                 <FileText className="h-4 w-4 inline mr-2" />
                 Depreciation is calculated in real-time based on cow age and purchase price
               </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="history">
+          <Card>
+            <CardHeader>
+              <CardTitle>Historical Depreciation</CardTitle>
+              <CardDescription>
+                Detailed monthly depreciation journal entries for this cow
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              {isLoadingHistory ? (
+                <div className="flex items-center justify-center py-8">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+                </div>
+              ) : historicalDepreciation.length === 0 ? (
+                <div className="text-center py-8 text-muted-foreground">
+                  <FileText className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                  <p className="text-lg font-medium mb-2">No Depreciation History</p>
+                  <p className="text-sm">
+                    No monthly depreciation journal entries have been recorded for this cow yet.
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <p className="text-sm text-muted-foreground">
+                      Showing {historicalDepreciation.length} journal entries
+                    </p>
+                    <div className="text-sm text-muted-foreground">
+                      Total Historical Depreciation: {formatCurrency(
+                        historicalDepreciation
+                          .filter(entry => entry.debit_amount > 0)
+                          .reduce((sum, entry) => sum + entry.debit_amount, 0)
+                      )}
+                    </div>
+                  </div>
+                  <div className="border rounded-lg overflow-hidden">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Date</TableHead>
+                          <TableHead>Period</TableHead>
+                          <TableHead>Account</TableHead>
+                          <TableHead>Description</TableHead>
+                          <TableHead className="text-right">Debit</TableHead>
+                          <TableHead className="text-right">Credit</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {historicalDepreciation.map((entry) => (
+                          <TableRow key={entry.id}>
+                            <TableCell>
+                              {format(new Date(entry.entry_date), 'MMM dd, yyyy')}
+                            </TableCell>
+                            <TableCell>
+                              {format(new Date(entry.year, entry.month - 1), 'MMM yyyy')}
+                            </TableCell>
+                            <TableCell>
+                              <div className="space-y-1">
+                                <p className="font-medium">{entry.account_code}</p>
+                                <p className="text-sm text-muted-foreground">{entry.account_name}</p>
+                              </div>
+                            </TableCell>
+                            <TableCell className="max-w-xs">
+                              <p className="text-sm truncate" title={entry.description}>
+                                {entry.description}
+                              </p>
+                            </TableCell>
+                            <TableCell className="text-right font-mono">
+                              {entry.debit_amount > 0 ? formatCurrency(entry.debit_amount) : '-'}
+                            </TableCell>
+                            <TableCell className="text-right font-mono">
+                              {entry.credit_amount > 0 ? formatCurrency(entry.credit_amount) : '-'}
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                </div>
+              )}
             </CardContent>
           </Card>
         </TabsContent>
