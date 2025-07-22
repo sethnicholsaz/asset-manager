@@ -1,0 +1,71 @@
+-- Create function to process missing acquisition journal entries for all cows
+CREATE OR REPLACE FUNCTION public.process_missing_acquisition_journals(p_company_id uuid)
+RETURNS jsonb
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+DECLARE
+  cow_record RECORD;
+  acquisition_result JSONB;
+  total_processed INTEGER := 0;
+  total_amount NUMERIC := 0;
+  error_count INTEGER := 0;
+  results JSONB[] := ARRAY[]::JSONB[];
+BEGIN
+  -- Process all cows that don't have acquisition journal entries
+  FOR cow_record IN 
+    SELECT c.id, c.tag_number, c.purchase_price, c.acquisition_type, c.freshen_date
+    FROM cows c
+    WHERE c.company_id = p_company_id
+      AND c.acquisition_type = 'purchased'  -- Only process purchased cows
+      AND NOT EXISTS (
+        SELECT 1 FROM journal_entries je
+        JOIN journal_lines jl ON jl.journal_entry_id = je.id
+        WHERE je.company_id = p_company_id
+          AND je.entry_type = 'acquisition'
+          AND jl.cow_id = c.id
+      )
+  LOOP
+    -- Process acquisition journal for this cow
+    SELECT process_acquisition_journal(cow_record.id, p_company_id) INTO acquisition_result;
+    
+    IF (acquisition_result->>'success')::BOOLEAN THEN
+      total_processed := total_processed + 1;
+      total_amount := total_amount + cow_record.purchase_price;
+      results := results || jsonb_build_object(
+        'cow_id', cow_record.id,
+        'tag_number', cow_record.tag_number,
+        'amount', cow_record.purchase_price,
+        'status', 'success'
+      );
+    ELSE
+      error_count := error_count + 1;
+      results := results || jsonb_build_object(
+        'cow_id', cow_record.id,
+        'tag_number', cow_record.tag_number,
+        'status', 'error',
+        'error', acquisition_result->>'error'
+      );
+    END IF;
+    
+    -- Add small delay to prevent overwhelming the system
+    PERFORM pg_sleep(0.05);
+  END LOOP;
+  
+  RETURN jsonb_build_object(
+    'success', true,
+    'total_processed', total_processed,
+    'total_amount', total_amount,
+    'error_count', error_count,
+    'results', results
+  );
+  
+EXCEPTION WHEN OTHERS THEN
+  RETURN jsonb_build_object(
+    'success', false,
+    'error', SQLERRM,
+    'total_processed', total_processed,
+    'error_count', error_count
+  );
+END;
+$$;

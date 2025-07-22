@@ -1,5 +1,5 @@
 
-import { Building, Calculator, DollarSign, FileText, Scale, Copy } from 'lucide-react';
+import { Building, Calculator, DollarSign, FileText, Scale, Copy, Database } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { DepreciationSettings } from '@/components/DepreciationSettings';
@@ -8,6 +8,7 @@ import { GLAccountSettings } from '@/components/GLAccountSettings';
 import { BalanceAdjustments } from '@/components/BalanceAdjustments';
 import { UploadTokenManager } from '@/components/UploadTokenManager';
 import { AcquisitionSettings } from '@/components/AcquisitionSettings';
+import { MissingAcquisitionsProcessor } from '@/components/MissingAcquisitionsProcessor';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
@@ -45,7 +46,7 @@ export default function Settings() {
       </div>
 
       <Tabs defaultValue="company" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-6">
+        <TabsList className="grid w-full grid-cols-7">
           <TabsTrigger value="company" className="flex items-center gap-2">
             <Building className="h-4 w-4" />
             Company & API
@@ -69,6 +70,10 @@ export default function Settings() {
           <TabsTrigger value="adjustments" className="flex items-center gap-2">
             <Scale className="h-4 w-4" />
             Balance Adjustments
+          </TabsTrigger>
+          <TabsTrigger value="data-processing" className="flex items-center gap-2">
+            <Database className="h-4 w-4" />
+            Data Processing
           </TabsTrigger>
         </TabsList>
 
@@ -184,6 +189,16 @@ export default function Settings() {
             </p>
           </div>
           <BalanceAdjustments />
+        </TabsContent>
+
+        <TabsContent value="data-processing" className="space-y-6">
+          <div>
+            <h2 className="text-xl font-semibold">Data Processing</h2>
+            <p className="text-sm text-muted-foreground mt-1">
+              Tools for processing and fixing historical data after system updates
+            </p>
+          </div>
+          <MissingAcquisitionsProcessor />
         </TabsContent>
       </Tabs>
     </div>

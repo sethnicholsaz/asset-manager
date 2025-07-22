@@ -776,6 +776,10 @@ export type Database = {
         Args: { p_company_id: string; p_target_year: number }
         Returns: Json
       }
+      process_missing_acquisition_journals: {
+        Args: { p_company_id: string }
+        Returns: Json
+      }
       process_monthly_depreciation: {
         Args: {
           p_company_id: string
