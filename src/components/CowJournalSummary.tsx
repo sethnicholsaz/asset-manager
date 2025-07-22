@@ -271,7 +271,7 @@ export default function CowJournalSummary() {
         <CardHeader>
           <CardTitle>Cow Journal Balances</CardTitle>
           <CardDescription>
-            Shows acquisition, depreciation, and disposition totals for each cow. Net balance should be near $0 for disposed cows.
+            Traditional accounting view showing all journal entries by cow with totals. Net balance should be near $0 for disposed cows.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -282,11 +282,8 @@ export default function CowJournalSummary() {
                   <TableHead>Tag Number</TableHead>
                   <TableHead>Name</TableHead>
                   <TableHead>Status</TableHead>
-                  <TableHead className="text-right">Acquisition</TableHead>
-                  <TableHead className="text-right">Depreciation</TableHead>
-                  <TableHead className="text-right">Disposition</TableHead>
-                  <TableHead className="text-right">Net Balance</TableHead>
                   <TableHead className="text-center">Journal Entries</TableHead>
+                  <TableHead className="text-right">Net Balance</TableHead>
                   <TableHead></TableHead>
                 </TableRow>
               </TableHeader>
@@ -301,22 +298,13 @@ export default function CowJournalSummary() {
                           {cow.status}
                         </Badge>
                       </TableCell>
-                      <TableCell className="text-right font-mono">
-                        {formatCurrency(cow.acquisition_total)}
-                      </TableCell>
-                      <TableCell className="text-right font-mono">
-                        {formatCurrency(cow.depreciation_total)}
-                      </TableCell>
-                      <TableCell className="text-right font-mono">
-                        {cow.disposition_total !== 0 ? formatCurrency(cow.disposition_total) : '-'}
-                      </TableCell>
-                      <TableCell className={`text-right font-mono font-bold ${getBalanceColor(cow.net_balance)}`}>
-                        {formatCurrency(cow.net_balance)}
-                      </TableCell>
                       <TableCell className="text-center">
                         <Badge variant="outline">
                           {cow.journal_entries.length}
                         </Badge>
+                      </TableCell>
+                      <TableCell className={`text-right font-mono font-bold ${getBalanceColor(cow.net_balance)}`}>
+                        {formatCurrency(cow.net_balance)}
                       </TableCell>
                       <TableCell>
                         <Button
@@ -329,56 +317,101 @@ export default function CowJournalSummary() {
                       </TableCell>
                     </TableRow>
                     
-                    {/* Detailed Journal Entries */}
+                    {/* Detailed Journal Entries in Accounting Format */}
                     {selectedCow === cow.cow_id && (
                       <TableRow>
-                        <TableCell colSpan={9} className="p-0">
-                          <div className="bg-muted/50 p-4">
-                            <h4 className="font-semibold mb-3">Journal Entries for Cow #{cow.tag_number}</h4>
-                            <Table>
-                              <TableHeader>
-                                <TableRow>
-                                  <TableHead>Date</TableHead>
-                                  <TableHead>Type</TableHead>
-                                  <TableHead>Account</TableHead>
-                                  <TableHead>Description</TableHead>
-                                  <TableHead className="text-right">Debit</TableHead>
-                                  <TableHead className="text-right">Credit</TableHead>
-                                </TableRow>
-                              </TableHeader>
-                              <TableBody>
-                                {cow.journal_entries.map((entry) => (
-                                  <TableRow key={entry.id}>
-                                    <TableCell>
-                                      {format(new Date(entry.entry_date), 'MMM dd, yyyy')}
+                        <TableCell colSpan={6} className="p-0">
+                          <div className="bg-muted/50 p-6">
+                            <h4 className="font-semibold mb-4">Journal Entries for Cow #{cow.tag_number}</h4>
+                            
+                            {/* Accounting Table Format */}
+                            <div className="border rounded-lg overflow-hidden bg-white">
+                              <Table>
+                                <TableHeader>
+                                  <TableRow>
+                                    <TableHead className="w-1/4">Account</TableHead>
+                                    <TableHead className="w-1/4">Description</TableHead>
+                                    <TableHead className="w-1/6 text-right">Debit</TableHead>
+                                    <TableHead className="w-1/6 text-right">Credit</TableHead>
+                                    <TableHead className="w-1/6 text-center">Type</TableHead>
+                                  </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                  {cow.journal_entries.map((entry, index) => (
+                                    <TableRow key={entry.id}>
+                                      <TableCell>
+                                        <div>
+                                          <p className="font-medium">{entry.account_code}</p>
+                                          <p className="text-sm text-muted-foreground">{entry.account_name}</p>
+                                        </div>
+                                      </TableCell>
+                                      <TableCell>
+                                        <div>
+                                          <p className="text-sm">{entry.description}</p>
+                                          <p className="text-xs text-muted-foreground">
+                                            {format(new Date(entry.entry_date), 'MMM dd, yyyy')}
+                                          </p>
+                                        </div>
+                                      </TableCell>
+                                      <TableCell className="text-right font-mono">
+                                        {entry.debit_amount > 0 ? formatCurrency(entry.debit_amount) : '-'}
+                                      </TableCell>
+                                      <TableCell className="text-right font-mono">
+                                        {entry.credit_amount > 0 ? formatCurrency(entry.credit_amount) : '-'}
+                                      </TableCell>
+                                      <TableCell className="text-center">
+                                        <div className="flex items-center justify-center">
+                                          {getEntryTypeIcon(entry.entry_type)}
+                                        </div>
+                                      </TableCell>
+                                    </TableRow>
+                                  ))}
+                                  
+                                  {/* Totals Row */}
+                                  <TableRow className="border-t-2 border-double bg-muted/30">
+                                    <TableCell className="font-bold">TOTALS</TableCell>
+                                    <TableCell className="font-medium text-muted-foreground">
+                                      Net position for Cow #{cow.tag_number}
                                     </TableCell>
-                                    <TableCell>
-                                      <div className="flex items-center space-x-2">
-                                        {getEntryTypeIcon(entry.entry_type)}
-                                        <span className="capitalize">{entry.entry_type}</span>
-                                      </div>
+                                    <TableCell className="text-right font-mono font-bold">
+                                      {formatCurrency(
+                                        cow.journal_entries.reduce((sum, entry) => sum + entry.debit_amount, 0)
+                                      )}
                                     </TableCell>
-                                    <TableCell>
-                                      <div>
-                                        <p className="font-medium">{entry.account_code}</p>
-                                        <p className="text-sm text-muted-foreground">{entry.account_name}</p>
-                                      </div>
+                                    <TableCell className="text-right font-mono font-bold">
+                                      {formatCurrency(
+                                        cow.journal_entries.reduce((sum, entry) => sum + entry.credit_amount, 0)
+                                      )}
                                     </TableCell>
-                                    <TableCell className="max-w-xs">
-                                      <p className="text-sm truncate" title={entry.description}>
-                                        {entry.description}
-                                      </p>
-                                    </TableCell>
-                                    <TableCell className="text-right font-mono">
-                                      {entry.debit_amount > 0 ? formatCurrency(entry.debit_amount) : '-'}
-                                    </TableCell>
-                                    <TableCell className="text-right font-mono">
-                                      {entry.credit_amount > 0 ? formatCurrency(entry.credit_amount) : '-'}
+                                    <TableCell className="text-center">
+                                      <Badge 
+                                        variant={Math.abs(cow.net_balance) < 1 ? "default" : "destructive"}
+                                        className={getBalanceColor(cow.net_balance)}
+                                      >
+                                        {Math.abs(cow.net_balance) < 1 ? 'Balanced' : 'Variance'}
+                                      </Badge>
                                     </TableCell>
                                   </TableRow>
-                                ))}
-                              </TableBody>
-                            </Table>
+                                  
+                                  {/* Net Balance Row */}
+                                  <TableRow className="bg-muted/50">
+                                    <TableCell colSpan={2} className="font-bold">
+                                      NET BALANCE (Debits - Credits)
+                                    </TableCell>
+                                    <TableCell colSpan={2} className={`text-right font-mono font-bold text-lg ${getBalanceColor(cow.net_balance)}`}>
+                                      {formatCurrency(cow.net_balance)}
+                                    </TableCell>
+                                    <TableCell className="text-center">
+                                      {Math.abs(cow.net_balance) < 1 ? (
+                                        <span className="text-green-600 text-sm">✓ Balanced</span>
+                                      ) : (
+                                        <span className="text-red-600 text-sm">⚠ Variance</span>
+                                      )}
+                                    </TableCell>
+                                  </TableRow>
+                                </TableBody>
+                              </Table>
+                            </div>
                           </div>
                         </TableCell>
                       </TableRow>
