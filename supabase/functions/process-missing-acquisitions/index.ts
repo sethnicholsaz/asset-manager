@@ -59,12 +59,11 @@ Deno.serve(async (req) => {
       );
     }
 
-    // First, let's check how many cows need processing
+    // First, let's check how many cows need processing (both purchased and raised)
     const { data: cowsNeedingProcessing, error: countError } = await supabase
       .from('cows')
       .select('id, tag_number, purchase_price, acquisition_type')
-      .eq('company_id', company_id)
-      .eq('acquisition_type', 'purchased');
+      .eq('company_id', company_id);
 
     if (countError) {
       console.error('Error checking cows:', countError);

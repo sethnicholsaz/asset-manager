@@ -90,15 +90,17 @@ export function MissingAcquisitionsProcessor() {
         </CardTitle>
         <CardDescription>
           Create acquisition journal entries for cows that were imported before this functionality was added.
-          This only affects "purchased" cows, as "raised" cows don't require acquisition journal entries.
+          This processes both "purchased" and "raised" cows:
+          <br />• <strong>Purchased cows:</strong> Debit "Dairy Cows", Credit "Cash"
+          <br />• <strong>Raised cows:</strong> Debit "Dairy Cows", Credit "Heifers" (asset transfer)
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
         <Alert>
           <AlertCircle className="h-4 w-4" />
           <AlertDescription>
-            This process will create journal entries for all purchased cows that don't already have acquisition records.
-            Each entry will debit the "Dairy Cows" asset account and credit "Cash" for the purchase price.
+            This process will create journal entries for all cows that don't already have acquisition records.
+            For purchased cows: Debit "Dairy Cows", Credit "Cash". For raised cows: Debit "Dairy Cows", Credit "Heifers".
           </AlertDescription>
         </Alert>
 
