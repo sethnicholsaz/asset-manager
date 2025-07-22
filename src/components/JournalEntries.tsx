@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -95,6 +96,31 @@ export function JournalEntries() {
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const renderCowLinkInDescription = (description: string, cowId?: string) => {
+    // Match patterns like "Cow #1234" or "cow #1234"
+    const cowPattern = /(.*?)([Cc]ow\s*#)(\d+)(.*)/;
+    const match = description.match(cowPattern);
+    
+    if (match && cowId) {
+      const [, before, cowText, tagNumber, after] = match;
+      return (
+        <span>
+          {before}
+          {cowText}
+          <Link 
+            to={`/cow/${cowId}`}
+            className="text-primary hover:text-primary/80 hover:underline font-medium"
+          >
+            {tagNumber}
+          </Link>
+          {after}
+        </span>
+      );
+    }
+    
+    return description;
   };
 
   const toggleEntryExpansion = (entryId: string) => {
@@ -287,8 +313,10 @@ export function JournalEntries() {
                                         <div className="font-mono text-sm">{line.account_code}</div>
                                         <div className="text-xs text-muted-foreground">{line.account_name}</div>
                                       </div>
-                                    </TableCell>
-                                    <TableCell>{line.description}</TableCell>
+                                     </TableCell>
+                                     <TableCell>
+                                       {renderCowLinkInDescription(line.description, line.cow_id)}
+                                     </TableCell>
                                     <TableCell className="text-right font-mono">
                                       {line.debit_amount > 0 ? formatCurrency(line.debit_amount) : '-'}
                                     </TableCell>
