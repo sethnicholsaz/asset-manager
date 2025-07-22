@@ -283,6 +283,13 @@ export default function CowDetail() {
 
       // Calculate totals by type
       console.log('🔧 Calculating totals...');
+      
+      // Debug: Check what entry types we actually have
+      const entryTypes = allEntries.map(e => e.entry_type);
+      const uniqueEntryTypes = [...new Set(entryTypes)];
+      console.log('🔧 Unique entry types found:', uniqueEntryTypes);
+      console.log('🔧 Sample entries:', allEntries.slice(0, 3));
+      
       const acquisitionEntries = allEntries.filter(entry => entry.entry_type === 'acquisition');
       const depreciationEntries = allEntries.filter(entry => entry.entry_type === 'depreciation');
       const dispositionEntries = allEntries.filter(entry => entry.entry_type === 'disposition');
