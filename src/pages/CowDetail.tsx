@@ -103,17 +103,17 @@ export default function CowDetail() {
       setCow(cowData);
 
 
-      // Load disposition if exists
-      if (cowData.disposition_id) {
-        const { data: dispositionData, error: dispositionError } = await supabase
-          .from('cow_dispositions')
-          .select('*')
-          .eq('cow_id', cowId)
-          .single();
+      // Load disposition - check for any disposition record for this cow
+      const { data: dispositionData, error: dispositionError } = await supabase
+        .from('cow_dispositions')
+        .select('*')
+        .eq('cow_id', cowId)
+        .eq('company_id', currentCompany.id)
+        .single();
 
-        if (dispositionError && dispositionError.code !== 'PGRST116') {
-          throw dispositionError;
-        }
+      if (dispositionError && dispositionError.code !== 'PGRST116') {
+        console.error('Error loading disposition:', dispositionError);
+      } else if (dispositionData) {
         setDisposition(dispositionData);
       }
 
