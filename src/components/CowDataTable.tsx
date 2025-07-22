@@ -177,7 +177,14 @@ export function CowDataTable({ cows, summaryStats, onEditCow, onDeleteCow, onSea
               <TableBody>
                 {sortedCows.map((cow) => (
                   <TableRow key={cow.id} className="hover:bg-muted/30">
-                    <TableCell className="font-medium">{cow.tagNumber}</TableCell>
+                     <TableCell className="font-medium">
+                      <Link 
+                        to={`/cow/${cow.id}`}
+                        className="text-primary hover:text-primary/80 hover:underline"
+                      >
+                        {cow.tagNumber}
+                      </Link>
+                    </TableCell>
                     <TableCell>{cow.name || '-'}</TableCell>
                     <TableCell>{DepreciationCalculator.formatDate(cow.freshenDate)}</TableCell>
                     <TableCell>{calculateMonthsInService(cow.freshenDate)} months</TableCell>
