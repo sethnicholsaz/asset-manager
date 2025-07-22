@@ -9,7 +9,7 @@ import { Separator } from '@/components/ui/separator';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
-import { Calendar, TrendingDown, Calculator, Settings } from 'lucide-react';
+import { Calendar, TrendingDown, Calculator, Settings, History, Clock, CheckCircle } from 'lucide-react';
 
 interface DepreciationSettings {
   id?: string;
@@ -42,14 +42,81 @@ export function DepreciationSettings() {
   });
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+  const [isProcessingHistory, setIsProcessingHistory] = useState(false);
+  const [historicalProcessingStatus, setHistoricalProcessingStatus] = useState<'none' | 'processing' | 'completed' | 'error'>('none');
   const { currentCompany } = useAuth();
   const { toast } = useToast();
 
   useEffect(() => {
     if (currentCompany) {
       fetchSettings();
+      checkHistoricalProcessingStatus();
     }
   }, [currentCompany]);
+
+  const checkHistoricalProcessingStatus = async () => {
+    if (!currentCompany) return;
+
+    try {
+      // Check if any journal entries exist for this company
+      const { data: journalEntries, error } = await supabase
+        .from('journal_entries')
+        .select('id')
+        .eq('company_id', currentCompany.id)
+        .eq('entry_type', 'depreciation')
+        .limit(1);
+
+      if (error) {
+        console.error('Error checking historical processing status:', error);
+        return;
+      }
+
+      if (journalEntries && journalEntries.length > 0) {
+        setHistoricalProcessingStatus('completed');
+      }
+    } catch (error) {
+      console.error('Error checking historical processing status:', error);
+    }
+  };
+
+  const handleProcessHistoricalDepreciation = async () => {
+    if (!currentCompany || isProcessingHistory) return;
+
+    setIsProcessingHistory(true);
+    setHistoricalProcessingStatus('processing');
+
+    try {
+      const { data, error } = await supabase
+        .rpc('process_historical_depreciation', { 
+          p_company_id: currentCompany.id 
+        });
+
+      if (error) {
+        throw error;
+      }
+
+      const result = data as any;
+      if (result?.success) {
+        setHistoricalProcessingStatus('completed');
+        toast({
+          title: "Historical Processing Complete",
+          description: `Processed ${result.total_entries_processed || 0} entries across ${result.years_processed || 0} years with total amount of $${result.total_amount?.toFixed(2) || '0.00'}`,
+        });
+      } else {
+        throw new Error(result?.error || 'Unknown error occurred');
+      }
+    } catch (error) {
+      console.error('Error processing historical depreciation:', error);
+      setHistoricalProcessingStatus('error');
+      toast({
+        title: "Processing Failed",
+        description: error instanceof Error ? error.message : "Failed to process historical depreciation records",
+        variant: "destructive",
+      });
+    } finally {
+      setIsProcessingHistory(false);
+    }
+  };
 
   const fetchSettings = async () => {
     if (!currentCompany) return;
@@ -343,6 +410,65 @@ export function DepreciationSettings() {
                 checked={settings.round_to_nearest_dollar}
                 onCheckedChange={(checked) => handleInputChange('round_to_nearest_dollar', checked)}
               />
+            </div>
+          </div>
+        </div>
+
+        <Separator />
+
+        {/* Historical Processing */}
+        <div className="space-y-4">
+          <h4 className="text-sm font-medium flex items-center gap-2">
+            <History className="h-4 w-4" />
+            Historical Journal Processing
+          </h4>
+          <div className="p-4 rounded-lg border bg-muted/50">
+            <div className="flex items-start justify-between">
+              <div className="space-y-2 flex-1">
+                <div className="flex items-center gap-2">
+                  {historicalProcessingStatus === 'completed' && (
+                    <CheckCircle className="h-4 w-4 text-green-600" />
+                  )}
+                  {historicalProcessingStatus === 'processing' && (
+                    <Clock className="h-4 w-4 text-blue-600 animate-spin" />
+                  )}
+                  <Label className="text-sm font-medium">
+                    Generate Historical Depreciation Records
+                  </Label>
+                </div>
+                <p className="text-sm text-muted-foreground">
+                  {historicalProcessingStatus === 'completed' ? (
+                    "Historical depreciation journal entries have been generated for this company."
+                  ) : historicalProcessingStatus === 'processing' ? (
+                    "Processing historical depreciation records... This may take several minutes."
+                  ) : (
+                    "Generate monthly depreciation journal entries for all existing cows from their start dates to present. This is typically run once for new companies."
+                  )}
+                </p>
+              </div>
+              <Button
+                onClick={handleProcessHistoricalDepreciation}
+                disabled={isProcessingHistory || historicalProcessingStatus === 'completed'}
+                variant={historicalProcessingStatus === 'completed' ? 'outline' : 'default'}
+                className="ml-4 shrink-0"
+              >
+                {isProcessingHistory ? (
+                  <>
+                    <Clock className="h-4 w-4 mr-2 animate-spin" />
+                    Processing...
+                  </>
+                ) : historicalProcessingStatus === 'completed' ? (
+                  <>
+                    <CheckCircle className="h-4 w-4 mr-2" />
+                    Completed
+                  </>
+                ) : (
+                  <>
+                    <History className="h-4 w-4 mr-2" />
+                    Process History
+                  </>
+                )}
+              </Button>
             </div>
           </div>
         </div>
