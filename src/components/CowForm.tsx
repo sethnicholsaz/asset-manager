@@ -9,6 +9,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import { Cow, PurchasePriceDefault, AcquisitionType } from '@/types/cow';
 import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface CowFormProps {
   onAddCow: (cow: Cow) => void;
@@ -28,6 +29,7 @@ export function CowForm({ onAddCow }: CowFormProps) {
   const [calculatedPrice, setCalculatedPrice] = useState<number | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { toast } = useToast();
+  const { currentCompany } = useAuth();
 
   useEffect(() => {
     const fetchPriceDefaults = async () => {
@@ -82,6 +84,16 @@ export function CowForm({ onAddCow }: CowFormProps) {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    if (!currentCompany) {
+      toast({
+        title: "Error",
+        description: "Please select a company first",
+        variant: "destructive",
+      });
+      return;
+    }
+    
     setIsSubmitting(true);
 
     try {
@@ -93,8 +105,50 @@ export function CowForm({ onAddCow }: CowFormProps) {
       const purchasePrice = parseFloat(formData.purchasePrice) || calculatedPrice || 2000;
       const salvageValue = parseFloat(formData.salvageValue) || purchasePrice * 0.1;
 
+      // Insert cow into database
+      const cowData = {
+        id: formData.tagNumber,
+        tag_number: formData.tagNumber,
+        name: formData.name || null,
+        birth_date: formData.birthDate,
+        freshen_date: formData.freshenDate,
+        purchase_price: purchasePrice,
+        salvage_value: salvageValue,
+        current_value: purchasePrice,
+        total_depreciation: 0,
+        status: 'active',
+        depreciation_method: 'straight-line',
+        acquisition_type: formData.acquisitionType,
+        asset_type_id: 'dairy-cow',
+        company_id: currentCompany.id
+      };
+
+      const { error } = await supabase
+        .from('cows')
+        .insert(cowData);
+
+      if (error) throw error;
+
+      // Create acquisition journal entry
+      try {
+        const { data: journalResult, error: journalError } = await supabase
+          .rpc('process_acquisition_journal', {
+            p_cow_id: cowData.id,
+            p_company_id: currentCompany.id
+          });
+        
+        if (journalError) {
+          console.error('Journal creation error:', journalError);
+        } else {
+          console.log('Journal created:', journalResult);
+        }
+      } catch (err) {
+        console.error('Error creating journal:', err);
+      }
+
+      // Create Cow object for the parent component
       const newCow: Cow = {
-        id: `cow-${formData.tagNumber}-${Date.now()}`,
+        id: cowData.id,
         tagNumber: formData.tagNumber,
         name: formData.name || undefined,
         birthDate: new Date(formData.birthDate),

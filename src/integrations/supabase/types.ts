@@ -756,6 +756,10 @@ export type Database = {
           actual_active_count: number
         }[]
       }
+      process_acquisition_journal: {
+        Args: { p_cow_id: string; p_company_id: string }
+        Returns: Json
+      }
       process_disposition_journal: {
         Args: { p_disposition_id: string }
         Returns: Json

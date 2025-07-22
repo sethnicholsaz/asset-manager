@@ -87,6 +87,26 @@ export default function DataImport() {
 
       if (error) throw error;
 
+      // Create acquisition journal entries for each cow
+      console.log('Creating acquisition journal entries for', cowData.length, 'cows...');
+      for (const cow of cowData) {
+        try {
+          const { data: journalResult, error: journalError } = await supabase
+            .rpc('process_acquisition_journal', {
+              p_cow_id: cow.id,
+              p_company_id: currentCompany.id
+            });
+          
+          if (journalError) {
+            console.error('Journal creation error for cow', cow.tag_number, ':', journalError);
+          } else {
+            console.log('Journal created for cow', cow.tag_number, ':', journalResult);
+          }
+        } catch (err) {
+          console.error('Error creating journal for cow', cow.tag_number, ':', err);
+        }
+      }
+
       setCows(prev => [...prev, ...uploadedCows]);
       
       toast({
