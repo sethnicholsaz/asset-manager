@@ -756,6 +756,10 @@ export type Database = {
           actual_active_count: number
         }[]
       }
+      process_disposition_journal: {
+        Args: { p_disposition_id: string }
+        Returns: Json
+      }
       process_historical_depreciation: {
         Args: {
           p_company_id: string
@@ -774,6 +778,10 @@ export type Database = {
           p_target_month: number
           p_target_year: number
         }
+        Returns: Json
+      }
+      reverse_journal_entry: {
+        Args: { p_journal_entry_id: string; p_reason?: string }
         Returns: Json
       }
       search_cows: {
