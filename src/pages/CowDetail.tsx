@@ -293,8 +293,13 @@ export default function CowDetail() {
         disposition: dispositionEntries.length
       });
 
-      const acquisitionTotal = acquisitionEntries.reduce((sum, entry) => 
-        sum + entry.debit_amount - entry.credit_amount, 0);
+      const acquisitionTotal = acquisitionEntries.reduce((sum, entry) => {
+        // Sum asset debits (1500) to show acquisition cost, not net balance
+        if (entry.account_code === '1500' && entry.debit_amount > 0) {
+          return sum + entry.debit_amount;
+        }
+        return sum;
+      }, 0);
       
       const depreciationTotal = depreciationEntries.reduce((sum, entry) => {
         // Sum only depreciation expense debits (6100) to avoid double-counting
