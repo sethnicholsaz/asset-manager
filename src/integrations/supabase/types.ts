@@ -734,6 +734,15 @@ export type Database = {
           total_depreciation: number
         }[]
       }
+      get_historical_processing_status: {
+        Args: { p_company_id: string }
+        Returns: {
+          earliest_cow_year: number
+          journal_entries_exist: boolean
+          years_with_entries: number[]
+          processing_needed: boolean
+        }[]
+      }
       get_monthly_reconciliation: {
         Args: { p_company_id: string; p_year: number }
         Returns: {
@@ -753,6 +762,10 @@ export type Database = {
           p_start_year?: number
           p_end_year?: number
         }
+        Returns: Json
+      }
+      process_historical_depreciation_by_year: {
+        Args: { p_company_id: string; p_target_year: number }
         Returns: Json
       }
       process_monthly_depreciation: {

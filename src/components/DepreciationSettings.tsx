@@ -44,6 +44,11 @@ export function DepreciationSettings() {
   const [isSaving, setIsSaving] = useState(false);
   const [isProcessingHistory, setIsProcessingHistory] = useState(false);
   const [historicalProcessingStatus, setHistoricalProcessingStatus] = useState<'none' | 'processing' | 'completed' | 'error'>('none');
+  const [processingProgress, setProcessingProgress] = useState<{
+    currentYear?: number;
+    totalYears?: number;
+    processedYears?: number;
+  }>({});
   const { currentCompany } = useAuth();
   const { toast } = useToast();
 
@@ -84,30 +89,99 @@ export function DepreciationSettings() {
 
     setIsProcessingHistory(true);
     setHistoricalProcessingStatus('processing');
+    setProcessingProgress({});
 
     try {
-      const { data, error } = await supabase
-        .rpc('process_historical_depreciation', { 
+      // First, get the processing status to determine what years need processing
+      const { data: statusData, error: statusError } = await supabase
+        .rpc('get_historical_processing_status', { 
           p_company_id: currentCompany.id 
         });
 
-      if (error) {
-        throw error;
-      }
+      if (statusError) throw statusError;
 
-      const result = data as any;
-      if (result?.success) {
+      const status = statusData[0];
+      if (!status || !status.processing_needed) {
         setHistoricalProcessingStatus('completed');
         toast({
-          title: "Historical Processing Complete",
-          description: `Processed ${result.total_entries_processed || 0} entries across ${result.years_processed || 0} years with total amount of $${result.total_amount?.toFixed(2) || '0.00'}`,
+          title: "No Processing Needed",
+          description: "Historical journal entries are already up to date.",
         });
-      } else {
-        throw new Error(result?.error || 'Unknown error occurred');
+        return;
       }
+
+      const currentYear = new Date().getFullYear();
+      const startYear = status.earliest_cow_year;
+      const yearsToProcess = [];
+      
+      // Determine which years need processing
+      for (let year = startYear; year <= currentYear; year++) {
+        if (!status.years_with_entries.includes(year)) {
+          yearsToProcess.push(year);
+        }
+      }
+
+      if (yearsToProcess.length === 0) {
+        setHistoricalProcessingStatus('completed');
+        toast({
+          title: "Processing Complete",
+          description: "All historical journal entries are already generated.",
+        });
+        return;
+      }
+
+      setProcessingProgress({
+        totalYears: yearsToProcess.length,
+        processedYears: 0
+      });
+
+      let totalEntriesProcessed = 0;
+      let totalAmount = 0;
+
+      // Process each year individually
+      for (let i = 0; i < yearsToProcess.length; i++) {
+        const year = yearsToProcess[i];
+        setProcessingProgress(prev => ({
+          ...prev,
+          currentYear: year,
+          processedYears: i
+        }));
+
+        const { data: yearResult, error: yearError } = await supabase
+          .rpc('process_historical_depreciation_by_year', { 
+            p_company_id: currentCompany.id,
+            p_target_year: year
+          });
+
+        if (yearError) {
+          throw new Error(`Failed to process year ${year}: ${yearError.message}`);
+        }
+
+        const result = yearResult as any;
+        if (result?.success) {
+          totalEntriesProcessed += result.cows_processed || 0;
+          totalAmount += result.total_amount || 0;
+        } else {
+          throw new Error(result?.error || `Failed to process year ${year}`);
+        }
+
+        // Small delay between years to prevent overwhelming the database
+        if (i < yearsToProcess.length - 1) {
+          await new Promise(resolve => setTimeout(resolve, 500));
+        }
+      }
+
+      setHistoricalProcessingStatus('completed');
+      setProcessingProgress({});
+      toast({
+        title: "Historical Processing Complete",
+        description: `Successfully processed ${yearsToProcess.length} years with ${totalEntriesProcessed} total entries and $${totalAmount.toFixed(2)} total depreciation.`,
+      });
+
     } catch (error) {
       console.error('Error processing historical depreciation:', error);
       setHistoricalProcessingStatus('error');
+      setProcessingProgress({});
       toast({
         title: "Processing Failed",
         description: error instanceof Error ? error.message : "Failed to process historical depreciation records",
@@ -440,7 +514,15 @@ export function DepreciationSettings() {
                   {historicalProcessingStatus === 'completed' ? (
                     "Historical depreciation journal entries have been generated for this company."
                   ) : historicalProcessingStatus === 'processing' ? (
-                    "Processing historical depreciation records... This may take several minutes."
+                    <>
+                      Processing historical depreciation records...
+                      {processingProgress.currentYear && (
+                        <span className="block mt-1 font-medium">
+                          Processing year {processingProgress.currentYear} 
+                          ({(processingProgress.processedYears || 0) + 1} of {processingProgress.totalYears})
+                        </span>
+                      )}
+                    </>
                   ) : (
                     "Generate monthly depreciation journal entries for all existing cows from their start dates to present. This is typically run once for new companies."
                   )}
