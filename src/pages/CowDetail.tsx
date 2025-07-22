@@ -222,6 +222,8 @@ export default function CowDetail() {
     try {
       setIsLoadingJournal(true);
       
+      console.log('Loading journal summary for cow:', cowId, 'company:', currentCompany.id);
+      
       // Get all journal entries for this cow
       const { data: journalLines, error: journalError } = await supabase
         .from('journal_lines')
@@ -244,7 +246,12 @@ export default function CowDetail() {
         .eq('journal_entries.company_id', currentCompany.id)
         .order('journal_entries(entry_date)', { ascending: true });
 
-      if (journalError) throw journalError;
+      if (journalError) {
+        console.error('Journal query error:', journalError);
+        throw journalError;
+      }
+
+      console.log('Journal lines found:', journalLines?.length || 0, journalLines);
 
       // Transform and categorize entries
       const allEntries: JournalEntry[] = journalLines.map(line => ({
