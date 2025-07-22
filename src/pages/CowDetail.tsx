@@ -305,8 +305,15 @@ export default function CowDetail() {
       const acquisitionTotal = acquisitionEntries.reduce((sum, entry) => 
         sum + entry.debit_amount - entry.credit_amount, 0);
       
-      const depreciationTotal = depreciationEntries.reduce((sum, entry) => 
-        entry.account_code.includes('1500.1') ? sum + entry.debit_amount : sum, 0);
+      const depreciationTotal = depreciationEntries.reduce((sum, entry) => {
+        // Sum depreciation expense debits (6100) or accumulated depreciation credits (1500.1)
+        if (entry.account_code === '6100' && entry.debit_amount > 0) {
+          return sum + entry.debit_amount;
+        } else if (entry.account_code === '1500.1' && entry.credit_amount > 0) {
+          return sum + entry.credit_amount;
+        }
+        return sum;
+      }, 0);
       
       const dispositionTotal = dispositionEntries.reduce((sum, entry) => 
         sum + entry.debit_amount - entry.credit_amount, 0);
