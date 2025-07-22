@@ -126,6 +126,8 @@ export default function CowDetail() {
 
 
       // Load disposition - check for any disposition record for this cow
+      console.log('🔍 Fetching disposition for cow:', cowId, 'with company:', currentCompany.id);
+      
       const { data: dispositionData, error: dispositionError } = await supabase
         .from('cow_dispositions')
         .select('*')
@@ -133,10 +135,20 @@ export default function CowDetail() {
         .eq('company_id', currentCompany.id)
         .maybeSingle();
 
+      console.log('📊 Disposition query result:', { dispositionData, dispositionError });
+
       if (dispositionError) {
-        console.error('Error loading disposition:', dispositionError);
+        console.error('❌ Error loading disposition:', dispositionError);
+        toast({
+          title: "Error loading disposition",
+          description: dispositionError.message,
+          variant: "destructive",
+        });
       } else if (dispositionData) {
+        console.log('✅ Disposition found:', dispositionData);
         setDisposition(dispositionData);
+      } else {
+        console.log('ℹ️ No disposition found for this cow (this is normal for active cows)');
       }
 
     } catch (error) {
