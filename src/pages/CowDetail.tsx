@@ -6,6 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -724,175 +725,175 @@ export default function CowDetail() {
                   {/* Journal Summary by Type */}
                   <div>
                     <h4 className="font-semibold mb-4">Journal Summary by Type</h4>
-                    <div className="space-y-4">
+                    <Accordion type="multiple" className="space-y-4">
                       
-                      {/* Acquisition Summary */}
-                      {journalSummary.journal_entries.filter(e => e.entry_type === 'acquisition').length > 0 && (
-                        <div className="border rounded-lg">
-                          <div className="bg-muted/30 p-4 border-b">
-                            <div className="flex items-center justify-between">
-                              <div className="flex items-center gap-2">
-                                <DollarSign className="h-4 w-4 text-green-600" />
-                                <span className="font-medium">Acquisition Entries</span>
-                                <span className="text-sm text-muted-foreground">
-                                  ({journalSummary.journal_entries.filter(e => e.entry_type === 'acquisition').length} entries)
-                                </span>
-                              </div>
-                              <span className="font-mono font-bold text-green-600">
-                                {formatCurrency(journalSummary.acquisition_total)}
-                              </span>
-                            </div>
-                          </div>
-                          <div className="p-4">
-                            <Table>
-                              <TableHeader>
-                                <TableRow>
-                                  <TableHead>Date</TableHead>
-                                  <TableHead>Account</TableHead>
-                                  <TableHead>Description</TableHead>
-                                  <TableHead className="text-right">Debit</TableHead>
-                                  <TableHead className="text-right">Credit</TableHead>
-                                </TableRow>
-                              </TableHeader>
-                              <TableBody>
-                                {journalSummary.journal_entries
-                                  .filter(entry => entry.entry_type === 'acquisition')
-                                  .map((entry) => (
-                                    <TableRow key={entry.id}>
-                                      <TableCell>{format(new Date(entry.entry_date), 'MMM dd, yyyy')}</TableCell>
-                                      <TableCell>
-                                        <div>
-                                          <p className="font-medium">{entry.account_code}</p>
-                                          <p className="text-sm text-muted-foreground">{entry.account_name}</p>
-                                        </div>
-                                      </TableCell>
-                                      <TableCell>{entry.description}</TableCell>
-                                      <TableCell className="text-right font-mono">
-                                        {entry.debit_amount > 0 ? formatCurrency(entry.debit_amount) : '-'}
-                                      </TableCell>
-                                      <TableCell className="text-right font-mono">
-                                        {entry.credit_amount > 0 ? formatCurrency(entry.credit_amount) : '-'}
-                                      </TableCell>
-                                    </TableRow>
-                                  ))}
-                              </TableBody>
-                            </Table>
-                          </div>
-                        </div>
-                      )}
+                       {/* Acquisition Summary */}
+                       {journalSummary.journal_entries.filter(e => e.entry_type === 'acquisition').length > 0 && (
+                         <AccordionItem value="acquisition" className="border rounded-lg">
+                           <AccordionTrigger className="bg-muted/30 px-4 hover:no-underline">
+                             <div className="flex items-center justify-between w-full pr-4">
+                               <div className="flex items-center gap-2">
+                                 <DollarSign className="h-4 w-4 text-green-600" />
+                                 <span className="font-medium">Acquisition Entries</span>
+                                 <span className="text-sm text-muted-foreground">
+                                   ({journalSummary.journal_entries.filter(e => e.entry_type === 'acquisition').length} entries)
+                                 </span>
+                               </div>
+                               <span className="font-mono font-bold text-green-600">
+                                 {formatCurrency(journalSummary.acquisition_total)}
+                               </span>
+                             </div>
+                           </AccordionTrigger>
+                           <AccordionContent className="p-4 pt-0">
+                             <Table>
+                               <TableHeader>
+                                 <TableRow>
+                                   <TableHead>Date</TableHead>
+                                   <TableHead>Account</TableHead>
+                                   <TableHead>Description</TableHead>
+                                   <TableHead className="text-right">Debit</TableHead>
+                                   <TableHead className="text-right">Credit</TableHead>
+                                 </TableRow>
+                               </TableHeader>
+                               <TableBody>
+                                 {journalSummary.journal_entries
+                                   .filter(entry => entry.entry_type === 'acquisition')
+                                   .map((entry) => (
+                                     <TableRow key={entry.id}>
+                                       <TableCell>{format(new Date(entry.entry_date), 'MMM dd, yyyy')}</TableCell>
+                                       <TableCell>
+                                         <div>
+                                           <p className="font-medium">{entry.account_code}</p>
+                                           <p className="text-sm text-muted-foreground">{entry.account_name}</p>
+                                         </div>
+                                       </TableCell>
+                                       <TableCell>{entry.description}</TableCell>
+                                       <TableCell className="text-right font-mono">
+                                         {entry.debit_amount > 0 ? formatCurrency(entry.debit_amount) : '-'}
+                                       </TableCell>
+                                       <TableCell className="text-right font-mono">
+                                         {entry.credit_amount > 0 ? formatCurrency(entry.credit_amount) : '-'}
+                                       </TableCell>
+                                     </TableRow>
+                                   ))}
+                               </TableBody>
+                             </Table>
+                           </AccordionContent>
+                         </AccordionItem>
+                       )}
 
-                      {/* Depreciation Summary */}
-                      {journalSummary.journal_entries.filter(e => e.entry_type === 'depreciation').length > 0 && (
-                        <div className="border rounded-lg">
-                          <div className="bg-muted/30 p-4 border-b">
-                            <div className="flex items-center justify-between">
-                              <div className="flex items-center gap-2">
-                                <TrendingDown className="h-4 w-4 text-orange-600" />
-                                <span className="font-medium">Depreciation Entries</span>
-                                <span className="text-sm text-muted-foreground">
-                                  ({journalSummary.journal_entries.filter(e => e.entry_type === 'depreciation').length} entries)
-                                </span>
-                              </div>
-                              <span className="font-mono font-bold text-orange-600">
-                                {formatCurrency(journalSummary.depreciation_total)}
-                              </span>
-                            </div>
-                          </div>
-                          <div className="p-4">
-                            <Table>
-                              <TableHeader>
-                                <TableRow>
-                                  <TableHead>Date</TableHead>
-                                  <TableHead>Account</TableHead>
-                                  <TableHead>Description</TableHead>
-                                  <TableHead className="text-right">Debit</TableHead>
-                                  <TableHead className="text-right">Credit</TableHead>
-                                </TableRow>
-                              </TableHeader>
-                              <TableBody>
-                                {journalSummary.journal_entries
-                                  .filter(entry => entry.entry_type === 'depreciation')
-                                  .map((entry) => (
-                                    <TableRow key={entry.id}>
-                                      <TableCell>{format(new Date(entry.entry_date), 'MMM dd, yyyy')}</TableCell>
-                                      <TableCell>
-                                        <div>
-                                          <p className="font-medium">{entry.account_code}</p>
-                                          <p className="text-sm text-muted-foreground">{entry.account_name}</p>
-                                        </div>
-                                      </TableCell>
-                                      <TableCell>{entry.description}</TableCell>
-                                      <TableCell className="text-right font-mono">
-                                        {entry.debit_amount > 0 ? formatCurrency(entry.debit_amount) : '-'}
-                                      </TableCell>
-                                      <TableCell className="text-right font-mono">
-                                        {entry.credit_amount > 0 ? formatCurrency(entry.credit_amount) : '-'}
-                                      </TableCell>
-                                    </TableRow>
-                                  ))}
-                              </TableBody>
-                            </Table>
-                          </div>
-                        </div>
-                      )}
+                       {/* Depreciation Summary */}
+                       {journalSummary.journal_entries.filter(e => e.entry_type === 'depreciation').length > 0 && (
+                         <AccordionItem value="depreciation" className="border rounded-lg">
+                           <AccordionTrigger className="bg-muted/30 px-4 hover:no-underline">
+                             <div className="flex items-center justify-between w-full pr-4">
+                               <div className="flex items-center gap-2">
+                                 <TrendingDown className="h-4 w-4 text-orange-600" />
+                                 <span className="font-medium">Depreciation Entries</span>
+                                 <span className="text-sm text-muted-foreground">
+                                   ({journalSummary.journal_entries.filter(e => e.entry_type === 'depreciation').length} entries)
+                                 </span>
+                               </div>
+                               <span className="font-mono font-bold text-orange-600">
+                                 {formatCurrency(journalSummary.depreciation_total)}
+                               </span>
+                             </div>
+                           </AccordionTrigger>
+                           <AccordionContent className="p-4 pt-0">
+                             <Table>
+                               <TableHeader>
+                                 <TableRow>
+                                   <TableHead>Date</TableHead>
+                                   <TableHead>Account</TableHead>
+                                   <TableHead>Description</TableHead>
+                                   <TableHead className="text-right">Debit</TableHead>
+                                   <TableHead className="text-right">Credit</TableHead>
+                                 </TableRow>
+                               </TableHeader>
+                               <TableBody>
+                                 {journalSummary.journal_entries
+                                   .filter(entry => entry.entry_type === 'depreciation')
+                                   .map((entry) => (
+                                     <TableRow key={entry.id}>
+                                       <TableCell>{format(new Date(entry.entry_date), 'MMM dd, yyyy')}</TableCell>
+                                       <TableCell>
+                                         <div>
+                                           <p className="font-medium">{entry.account_code}</p>
+                                           <p className="text-sm text-muted-foreground">{entry.account_name}</p>
+                                         </div>
+                                       </TableCell>
+                                       <TableCell>{entry.description}</TableCell>
+                                       <TableCell className="text-right font-mono">
+                                         {entry.debit_amount > 0 ? formatCurrency(entry.debit_amount) : '-'}
+                                       </TableCell>
+                                       <TableCell className="text-right font-mono">
+                                         {entry.credit_amount > 0 ? formatCurrency(entry.credit_amount) : '-'}
+                                       </TableCell>
+                                     </TableRow>
+                                   ))}
+                               </TableBody>
+                             </Table>
+                           </AccordionContent>
+                         </AccordionItem>
+                       )}
 
-                      {/* Disposition Summary */}
-                      {journalSummary.journal_entries.filter(e => e.entry_type === 'disposition').length > 0 && (
-                        <div className="border rounded-lg">
-                          <div className="bg-muted/30 p-4 border-b">
-                            <div className="flex items-center justify-between">
-                              <div className="flex items-center gap-2">
-                                <TrendingUp className="h-4 w-4 text-red-600" />
-                                <span className="font-medium">Disposition Entries</span>
-                                <span className="text-sm text-muted-foreground">
-                                  ({journalSummary.journal_entries.filter(e => e.entry_type === 'disposition').length} entries)
-                                </span>
-                              </div>
-                              <span className="font-mono font-bold text-red-600">
-                                {formatCurrency(journalSummary.disposition_total)}
-                              </span>
-                            </div>
-                          </div>
-                          <div className="p-4">
-                            <Table>
-                              <TableHeader>
-                                <TableRow>
-                                  <TableHead>Date</TableHead>
-                                  <TableHead>Account</TableHead>
-                                  <TableHead>Description</TableHead>
-                                  <TableHead className="text-right">Debit</TableHead>
-                                  <TableHead className="text-right">Credit</TableHead>
-                                </TableRow>
-                              </TableHeader>
-                              <TableBody>
-                                {journalSummary.journal_entries
-                                  .filter(entry => entry.entry_type === 'disposition')
-                                  .map((entry) => (
-                                    <TableRow key={entry.id}>
-                                      <TableCell>{format(new Date(entry.entry_date), 'MMM dd, yyyy')}</TableCell>
-                                      <TableCell>
-                                        <div>
-                                          <p className="font-medium">{entry.account_code}</p>
-                                          <p className="text-sm text-muted-foreground">{entry.account_name}</p>
-                                        </div>
-                                      </TableCell>
-                                      <TableCell>{entry.description}</TableCell>
-                                      <TableCell className="text-right font-mono">
-                                        {entry.debit_amount > 0 ? formatCurrency(entry.debit_amount) : '-'}
-                                      </TableCell>
-                                      <TableCell className="text-right font-mono">
-                                        {entry.credit_amount > 0 ? formatCurrency(entry.credit_amount) : '-'}
-                                      </TableCell>
-                                    </TableRow>
-                                  ))}
-                              </TableBody>
-                            </Table>
-                          </div>
-                        </div>
-                      )}
+                       {/* Disposition Summary */}
+                       {journalSummary.journal_entries.filter(e => e.entry_type === 'disposition').length > 0 && (
+                         <AccordionItem value="disposition" className="border rounded-lg">
+                           <AccordionTrigger className="bg-muted/30 px-4 hover:no-underline">
+                             <div className="flex items-center justify-between w-full pr-4">
+                               <div className="flex items-center gap-2">
+                                 <TrendingUp className="h-4 w-4 text-red-600" />
+                                 <span className="font-medium">Disposition Entries</span>
+                                 <span className="text-sm text-muted-foreground">
+                                   ({journalSummary.journal_entries.filter(e => e.entry_type === 'disposition').length} entries)
+                                 </span>
+                               </div>
+                               <span className="font-mono font-bold text-red-600">
+                                 {formatCurrency(journalSummary.disposition_total)}
+                               </span>
+                             </div>
+                           </AccordionTrigger>
+                           <AccordionContent className="p-4 pt-0">
+                             <Table>
+                               <TableHeader>
+                                 <TableRow>
+                                   <TableHead>Date</TableHead>
+                                   <TableHead>Account</TableHead>
+                                   <TableHead>Description</TableHead>
+                                   <TableHead className="text-right">Debit</TableHead>
+                                   <TableHead className="text-right">Credit</TableHead>
+                                 </TableRow>
+                               </TableHeader>
+                               <TableBody>
+                                 {journalSummary.journal_entries
+                                   .filter(entry => entry.entry_type === 'disposition')
+                                   .map((entry) => (
+                                     <TableRow key={entry.id}>
+                                       <TableCell>{format(new Date(entry.entry_date), 'MMM dd, yyyy')}</TableCell>
+                                       <TableCell>
+                                         <div>
+                                           <p className="font-medium">{entry.account_code}</p>
+                                           <p className="text-sm text-muted-foreground">{entry.account_name}</p>
+                                         </div>
+                                       </TableCell>
+                                       <TableCell>{entry.description}</TableCell>
+                                       <TableCell className="text-right font-mono">
+                                         {entry.debit_amount > 0 ? formatCurrency(entry.debit_amount) : '-'}
+                                       </TableCell>
+                                       <TableCell className="text-right font-mono">
+                                         {entry.credit_amount > 0 ? formatCurrency(entry.credit_amount) : '-'}
+                                       </TableCell>
+                                     </TableRow>
+                                   ))}
+                               </TableBody>
+                             </Table>
+                           </AccordionContent>
+                         </AccordionItem>
+                       )}
 
-                     </div>
-                   </div>
+                    </Accordion>
+                  </div>
                  </div>
                )}
              </CardContent>
