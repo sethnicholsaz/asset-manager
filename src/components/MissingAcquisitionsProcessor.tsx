@@ -35,8 +35,11 @@ export function MissingAcquisitionsProcessor() {
     setResult(null);
 
     try {
-      const { data, error } = await supabase.functions.invoke('process-missing-acquisitions', {
-        body: { company_id: currentCompany.id }
+      console.log('🏢 Processing company:', currentCompany.id);
+
+      // Call the database function directly
+      const { data, error } = await supabase.rpc('process_missing_acquisition_journals', {
+        p_company_id: currentCompany.id
       });
 
       if (error) {
@@ -49,16 +52,40 @@ export function MissingAcquisitionsProcessor() {
         return;
       }
 
-      if (data.success) {
-        setResult(data.summary);
+      // Type the response data properly
+      const responseData = data as {
+        success: boolean;
+        total_processed: number;
+        total_amount: number;
+        error_count: number;
+        results?: Array<{
+          cow_id: string;
+          tag_number: string;
+          amount?: number;
+          acquisition_type?: string;
+          status: 'success' | 'error';
+          error?: string;
+        }>;
+        error?: string;
+      };
+
+      if (responseData && responseData.success) {
+        setResult({
+          total_processed: responseData.total_processed,
+          total_amount: responseData.total_amount,
+          error_count: responseData.error_count,
+          cows_checked: responseData.total_processed + responseData.error_count,
+          details: responseData.results || []
+        });
+        
         toast({
           title: "Processing Complete",
-          description: `Successfully processed ${data.summary.total_processed} acquisition entries for a total of $${data.summary.total_amount.toLocaleString()}`,
+          description: `Successfully processed ${responseData.total_processed} acquisition entries for a total of $${responseData.total_amount.toLocaleString()}`,
         });
       } else {
         toast({
           title: "Processing Failed",
-          description: data.error || "Failed to process missing acquisitions",
+          description: responseData?.error || "Failed to process missing acquisitions",
           variant: "destructive",
         });
       }
