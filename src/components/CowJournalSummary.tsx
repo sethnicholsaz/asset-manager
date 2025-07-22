@@ -37,7 +37,11 @@ interface CowSummary {
   net_balance: number;
 }
 
-export default function CowJournalSummary() {
+interface CowJournalSummaryProps {
+  cowId?: string; // If provided, show only this cow's entries
+}
+
+export default function CowJournalSummary({ cowId }: CowJournalSummaryProps) {
   const { currentCompany } = useAuth();
   const { toast } = useToast();
   const [cowSummaries, setCowSummaries] = useState<CowSummary[]>([]);
@@ -66,12 +70,19 @@ export default function CowJournalSummary() {
     try {
       setIsLoading(true);
 
-      // Get all cows for the company
-      const { data: cows, error: cowsError } = await supabase
+      // Get cows - either specific cow or all cows
+      let cowQuery = supabase
         .from('cows')
         .select('id, tag_number, name, status, purchase_price, current_value, total_depreciation')
-        .eq('company_id', currentCompany.id)
-        .order('tag_number');
+        .eq('company_id', currentCompany.id);
+      
+      if (cowId) {
+        cowQuery = cowQuery.eq('id', cowId);
+      } else {
+        cowQuery = cowQuery.order('tag_number');
+      }
+
+      const { data: cows, error: cowsError } = await cowQuery;
 
       if (cowsError) throw cowsError;
 

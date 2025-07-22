@@ -294,13 +294,16 @@ export default function CowDetail() {
 
       const netBalance = acquisitionTotal - depreciationTotal + dispositionTotal;
 
-      setJournalSummary({
+      const journalSummaryData = {
         acquisition_total: acquisitionTotal,
         depreciation_total: depreciationTotal,
         disposition_total: dispositionTotal,
         net_balance: netBalance,
         journal_entries: allEntries
-      });
+      };
+      
+      console.log('📊 Setting journal summary:', journalSummaryData);
+      setJournalSummary(journalSummaryData);
     } catch (error) {
       console.error('Error loading journal summary:', error);
       toast({
@@ -631,7 +634,7 @@ export default function CowDetail() {
                 <div className="flex items-center justify-center py-8">
                   <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
                 </div>
-              ) : !journalSummary ? (
+              ) : (console.log('🔍 Journal summary state:', journalSummary), !journalSummary) ? (
                 <div className="text-center py-8 text-muted-foreground">
                   <Calculator className="h-12 w-12 mx-auto mb-4 opacity-50" />
                   <p className="text-lg font-medium mb-2">No Journal Entries</p>
