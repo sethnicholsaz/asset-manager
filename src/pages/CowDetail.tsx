@@ -131,9 +131,9 @@ export default function CowDetail() {
         .select('*')
         .eq('cow_id', cowId)
         .eq('company_id', currentCompany.id)
-        .single();
+        .maybeSingle();
 
-      if (dispositionError && dispositionError.code !== 'PGRST116') {
+      if (dispositionError) {
         console.error('Error loading disposition:', dispositionError);
       } else if (dispositionData) {
         setDisposition(dispositionData);
