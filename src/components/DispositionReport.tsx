@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Calendar, Download, FileText, Calculator, TrendingDown } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import { Cow, CowDisposition, JournalEntry } from '@/types/cow';
 import { DepreciationCalculator } from '@/utils/depreciation';
 import { Button } from '@/components/ui/button';
@@ -515,7 +516,14 @@ export function DispositionReport({ cows }: DispositionReportProps) {
                         
                         return (
                           <TableRow key={disposition.id}>
-                            <TableCell className="font-medium">{cow?.tagNumber || disposition.cowId}</TableCell>
+                             <TableCell className="font-medium">
+                              <Link 
+                                to={`/cow/${cow?.id}`}
+                                className="text-primary hover:text-primary/80 hover:underline"
+                              >
+                                {cow?.tagNumber || disposition.cowId}
+                              </Link>
+                            </TableCell>
                             <TableCell>{DepreciationCalculator.formatDate(disposition.dispositionDate)}</TableCell>
                             <TableCell className="capitalize">{disposition.dispositionType}</TableCell>
                             <TableCell>{DepreciationCalculator.formatCurrency(disposition.saleAmount || 0)}</TableCell>

@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Calendar, Download, FileText, Calculator, Loader2 } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import { Cow, DepreciationEntry, JournalEntry } from '@/types/cow';
 import { DepreciationCalculator } from '@/utils/depreciation';
 import { Button } from '@/components/ui/button';
@@ -32,7 +33,7 @@ interface ReportData {
     totalBalanceAdjustments: number;
     journalEntries: number;
   };
-  depreciationEntries: Array<DepreciationEntry & { cow: { tagNumber: string; purchasePrice: number; } }>;
+  depreciationEntries: Array<DepreciationEntry & { cow: { id: string; tagNumber: string; purchasePrice: number; } }>;
   journalEntries: JournalEntry[];
   balanceAdjustments: BalanceAdjustment[];
 }
@@ -329,7 +330,14 @@ export function DepreciationReport({ cows }: DepreciationReportProps) {
                     <TableBody>
                       {reportData.depreciationEntries.map((entry) => (
                         <TableRow key={entry.id}>
-                          <TableCell className="font-medium">{entry.cow.tagNumber}</TableCell>
+                           <TableCell className="font-medium">
+                            <Link 
+                              to={`/cow/${entry.cow.id}`}
+                              className="text-primary hover:text-primary/80 hover:underline"
+                            >
+                              {entry.cow.tagNumber}
+                            </Link>
+                          </TableCell>
                           <TableCell>{DepreciationCalculator.formatCurrency(entry.cow.purchasePrice)}</TableCell>
                           <TableCell>{DepreciationCalculator.formatCurrency(entry.depreciationAmount)}</TableCell>
                           <TableCell>{DepreciationCalculator.formatCurrency(entry.accumulatedDepreciation)}</TableCell>
