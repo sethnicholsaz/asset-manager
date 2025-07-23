@@ -499,6 +499,7 @@ export function DispositionReport({ cows }: DispositionReportProps) {
                     <TableBody>
                       {dispositions.map((disposition) => {
                         const cow = dispositionCows.find(c => c.tagNumber === disposition.cowId);
+                        console.log('🐄 Found cow for disposition:', { disposition: disposition.cowId, cow: cow, cowId: cow?.id });
                         if (!cow) return null;
                         
                         // Use actual freshen dates from data - no automatic calculation
