@@ -102,6 +102,8 @@ export default function CowDetail() {
     try {
       setIsLoading(true);
 
+      console.log('🔍 Loading cow details for ID:', cowId, 'Company:', currentCompany.id);
+
       // Load cow details
       const { data: cowData, error: cowError } = await supabase
         .from('cows')
@@ -109,6 +111,8 @@ export default function CowDetail() {
         .eq('id', cowId)
         .eq('company_id', currentCompany.id)
         .single();
+
+      console.log('📊 Cow query result:', { cowData, cowError });
 
       if (cowError) {
         if (cowError.code === 'PGRST116') {
