@@ -436,12 +436,36 @@ Deno.serve(async (req) => {
 
     console.log(`Successfully processed ${processedCows.length} cows for company ${company.name}`);
 
+    // Auto-process missing acquisition journals after successful upload
+    const acquisitionProcessingTask = async () => {
+      try {
+        console.log('🔄 Auto-processing missing acquisition journals...');
+        const { data: acquisitionData, error: acquisitionError } = await supabase.rpc('process_missing_acquisition_journals', {
+          p_company_id: companyId
+        });
+
+        if (acquisitionError) {
+          console.error('Error auto-processing acquisitions:', acquisitionError);
+        } else if (acquisitionData && typeof acquisitionData === 'object' && 'success' in acquisitionData && acquisitionData.success && 'total_processed' in acquisitionData && (acquisitionData.total_processed as number) > 0) {
+          console.log(`✅ Automatically created ${acquisitionData.total_processed as number} acquisition journal entries`);
+        } else {
+          console.log('ℹ️ No missing acquisition journals to process');
+        }
+      } catch (error) {
+        console.error('Error in auto-processing acquisitions:', error);
+      }
+    };
+
+    // Process acquisitions in background
+    EdgeRuntime.waitUntil(acquisitionProcessingTask());
+
     return new Response(
       JSON.stringify({
         success: true,
-        message: `Successfully imported ${processedCows.length} cows. Depreciation calculations are being processed in the background.`,
+        message: `Successfully imported ${processedCows.length} cows. Depreciation calculations and acquisition journals are being processed in the background.`,
         imported_count: processedCows.length,
         depreciation_status: 'processing_in_background',
+        acquisition_status: 'processing_in_background',
         errors: errors.length > 0 ? errors : undefined,
         company: company.name
       }),
