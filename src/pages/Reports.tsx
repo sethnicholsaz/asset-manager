@@ -3,6 +3,7 @@ import { Cow } from '@/types/cow';
 import { DepreciationReport } from '@/components/DepreciationReport';
 import { DispositionReport } from '@/components/DispositionReport';
 import { AccountSummaryReport } from '@/components/AccountSummaryReport';
+import { JournalIntegrityCheck } from '@/components/JournalIntegrityCheck';
 import { AnimalReconciliation } from '@/components/AnimalReconciliation';
 import { JournalEntries } from '@/components/JournalEntries';
 import CowJournalSummary from '@/components/CowJournalSummary';
@@ -91,10 +92,11 @@ export default function Reports() {
       </div>
 
       <Tabs defaultValue="depreciation" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-6">
+        <TabsList className="grid w-full grid-cols-7">
           <TabsTrigger value="depreciation">Depreciation Reports</TabsTrigger>
           <TabsTrigger value="dispositions">Disposition Reports</TabsTrigger>
           <TabsTrigger value="account-summary">Account Summary</TabsTrigger>
+          <TabsTrigger value="integrity-check">Journal Integrity</TabsTrigger>
           <TabsTrigger value="reconciliation">Animal Reconciliation</TabsTrigger>
           <TabsTrigger value="journals">Journal Entries</TabsTrigger>
           <TabsTrigger value="cow-summary">Cow Journal Summary</TabsTrigger>
@@ -110,6 +112,10 @@ export default function Reports() {
 
         <TabsContent value="account-summary">
           <AccountSummaryReport />
+        </TabsContent>
+
+        <TabsContent value="integrity-check">
+          <JournalIntegrityCheck />
         </TabsContent>
 
         <TabsContent value="reconciliation">
