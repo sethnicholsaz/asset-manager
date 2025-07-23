@@ -73,12 +73,16 @@ export function DispositionReport({ cows }: DispositionReportProps) {
 
         if (cowError) throw cowError;
 
-        const transformedCows: Cow[] = (cowData || []).map(cow => ({
-          id: cow.id,
-          tagNumber: cow.tag_number,
-          name: cow.name,
-          birthDate: new Date(cow.birth_date),
-          freshenDate: new Date(cow.freshen_date),
+        const transformedCows: Cow[] = (cowData || []).map(cow => {
+          console.log('🔧 Raw cow data from DB:', cow);
+          console.log('🔧 cow.id value:', cow.id, 'type:', typeof cow.id);
+          
+          return {
+            id: cow.id,
+            tagNumber: cow.tag_number,
+            name: cow.name,
+            birthDate: new Date(cow.birth_date),
+            freshenDate: new Date(cow.freshen_date),
           purchasePrice: cow.purchase_price,
           salvageValue: cow.salvage_value,
           currentValue: cow.current_value,
@@ -94,7 +98,8 @@ export function DispositionReport({ cows }: DispositionReportProps) {
             defaultDepreciationMethod: 'straight-line',
             defaultSalvagePercentage: 10
           }
-        }));
+        };
+      });
 
         setDispositionCows(transformedCows);
       } else {
