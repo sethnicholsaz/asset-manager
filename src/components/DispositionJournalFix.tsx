@@ -184,34 +184,34 @@ export function DispositionJournalFix() {
             cow_id: cowTag
           });
 
-          // 4. Calculate and record gain/loss
-          const totalDebits = newLines.reduce((sum, line) => sum + line.debit_amount, 0);
-          const totalCredits = newLines.reduce((sum, line) => sum + line.credit_amount, 0);
-          const gainLoss = totalDebits - totalCredits;
+          // 4. Calculate and record gain/loss correctly
+          // Gain/Loss = Cash Received - (Purchase Price - Accumulated Depreciation)
+          const bookValue = cowData.purchase_price - cowData.total_depreciation;
+          const gainLoss = dispositionData.sale_amount - bookValue;
 
           if (Math.abs(gainLoss) > 0.01) {
             if (gainLoss > 0) {
-              // Loss on disposal (debit)
-              newLines.push({
-                journal_entry_id: entry.id,
-                account_code: '7000',
-                account_name: 'Loss on Asset Disposal',
-                description: `Loss on disposal - Cow #${cowTag}`,
-                debit_amount: gainLoss,
-                credit_amount: 0,
-                line_type: 'debit',
-                cow_id: cowTag
-              });
-            } else {
-              // Gain on disposal (credit)
+              // Gain on disposal (credit) - positive gainLoss means we received more than book value
               newLines.push({
                 journal_entry_id: entry.id,
                 account_code: '8000',
                 account_name: 'Gain on Asset Disposal',
                 description: `Gain on disposal - Cow #${cowTag}`,
                 debit_amount: 0,
-                credit_amount: Math.abs(gainLoss),
+                credit_amount: gainLoss,
                 line_type: 'credit',
+                cow_id: cowTag
+              });
+            } else {
+              // Loss on disposal (debit) - negative gainLoss means we received less than book value
+              newLines.push({
+                journal_entry_id: entry.id,
+                account_code: '7000',
+                account_name: 'Loss on Asset Disposal',
+                description: `Loss on disposal - Cow #${cowTag}`,
+                debit_amount: Math.abs(gainLoss),
+                credit_amount: 0,
+                line_type: 'debit',
                 cow_id: cowTag
               });
             }
