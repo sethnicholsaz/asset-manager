@@ -8,6 +8,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
+import { DispositionJournalFix } from '@/components/DispositionJournalFix';
 import { AlertTriangle, Trash2, RefreshCw } from 'lucide-react';
 
 interface ProblemJournalEntry {
@@ -291,6 +292,9 @@ export function JournalRepairTool() {
 
   return (
     <div className="space-y-6">
+      {/* Disposition Journal Fix - Show first since all problems are disposition entries */}
+      <DispositionJournalFix />
+      
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
