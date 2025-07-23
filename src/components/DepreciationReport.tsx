@@ -67,6 +67,9 @@ export function DepreciationReport({ cows }: DepreciationReportProps) {
 
       if (error) throw error;
 
+      console.log('🔧 Depreciation report data received:', data);
+      console.log('🔧 First depreciation entry cow data:', data?.depreciationEntries?.[0]?.cow);
+
       setReportData(data);
     } catch (error) {
       console.error('Error fetching report data:', error);
