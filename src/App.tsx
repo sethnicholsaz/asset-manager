@@ -13,6 +13,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { AuthComponent } from "@/components/AuthComponent";
 import { CompanySelector } from "@/components/CompanySelector";
+import { GlobalSearch } from "@/components/GlobalSearch";
 import { AppSidebar } from "@/components/AppSidebar";
 import Index from "./pages/Index";
 import DataImport from "./pages/DataImport";
@@ -191,9 +192,9 @@ function AppContent() {
         <AppSidebar />
         <div className="flex-1 flex flex-col">
           {/* Header with Company Selector */}
-          <header className="h-14 border-b bg-background flex items-center px-4">
-            <SidebarTrigger className="mr-4" />
-            <div className="flex-1" />
+          <header className="h-14 border-b bg-background flex items-center px-4 gap-4">
+            <SidebarTrigger className="flex-shrink-0" />
+            <GlobalSearch />
             <CompanySelector />
           </header>
           
