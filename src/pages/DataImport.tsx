@@ -387,6 +387,37 @@ export default function DataImport() {
           title: "Upload successful",
           description: `Processed ${result.processed} records successfully`,
         });
+
+        // Automatically process missing acquisition journals after successful cow upload
+        if (uploadType === 'fresh') {
+          try {
+            console.log('🔄 Auto-processing missing acquisition journals...');
+            const { data: acquisitionData, error: acquisitionError } = await supabase.rpc('process_missing_acquisition_journals', {
+              p_company_id: currentCompany?.id
+            });
+
+            if (acquisitionError) {
+              console.error('Error auto-processing acquisitions:', acquisitionError);
+              toast({
+                title: "Acquisition Processing Failed",
+                description: "Upload successful, but failed to auto-process acquisition journals. Please run manually from Settings.",
+                variant: "destructive",
+              });
+            } else if (acquisitionData && typeof acquisitionData === 'object' && 'success' in acquisitionData && acquisitionData.success && 'total_processed' in acquisitionData && (acquisitionData.total_processed as number) > 0) {
+              toast({
+                title: "Acquisition Journals Created",
+                description: `Automatically created ${acquisitionData.total_processed as number} acquisition journal entries`,
+              });
+            }
+          } catch (error) {
+            console.error('Error in auto-processing acquisitions:', error);
+            toast({
+              title: "Acquisition Processing Error",
+              description: "Upload successful, but error during auto-processing. Please run manually from Settings.",
+              variant: "destructive",
+            });
+          }
+        }
       }
 
       if (result.errors.length > 0) {
