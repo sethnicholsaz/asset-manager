@@ -321,7 +321,10 @@ export function DispositionJournalFix() {
           </div>
           
           <Button 
-            onClick={fixDispositionJournals} 
+            onClick={() => {
+              console.log('🔧 Button clicked - before calling fixDispositionJournals');
+              fixDispositionJournals();
+            }} 
             disabled={isFixing || !currentCompany}
             className="flex items-center gap-2"
           >
