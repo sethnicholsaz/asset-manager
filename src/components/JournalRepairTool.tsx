@@ -293,7 +293,10 @@ export function JournalRepairTool() {
   return (
     <div className="space-y-6">
       {/* Disposition Journal Fix - Show first since all problems are disposition entries */}
-      <DispositionJournalFix />
+      {(() => {
+        console.log('🔧 About to render DispositionJournalFix component');
+        return <DispositionJournalFix />;
+      })()}
       
       <Card>
         <CardHeader>
