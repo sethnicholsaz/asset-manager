@@ -236,7 +236,7 @@ Deno.serve(async (req) => {
           // Get existing cow data to calculate book value
           const { data: cowData, error: cowError } = await supabase
             .from('cows')
-            .select('tag_number, purchase_price, current_value, total_depreciation, status, salvage_value, freshen_date')
+            .select('id, tag_number, purchase_price, current_value, total_depreciation, status, salvage_value, freshen_date')
             .eq('tag_number', tagNumber)
             .eq('company_id', companyId)
             .maybeSingle();
@@ -295,7 +295,7 @@ Deno.serve(async (req) => {
           const gainLoss = saleAmount - finalBookValue;
 
           const dispositionData: DispositionData = {
-            cow_id: tagNumber,
+            cow_id: cowData.id, // Use actual cow ID instead of tag number
             company_id: companyId,
             disposition_date: dispositionDate.toISOString().split('T')[0],
             disposition_type: dispositionType,
@@ -345,7 +345,7 @@ Deno.serve(async (req) => {
                 status: disposition.disposition_type === 'sale' ? 'sold' : 'deceased',
                 disposition_id: null // Will be updated by trigger if needed
               })
-              .eq('tag_number', disposition.cow_id)
+              .eq('id', disposition.cow_id) // Use cow ID instead of tag number
               .eq('company_id', disposition.company_id);
 
             if (updateError) {
