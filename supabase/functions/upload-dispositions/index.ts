@@ -342,16 +342,40 @@ Deno.serve(async (req) => {
 
     console.log(`Processing summary: ${processedDispositions.length} processed, ${errors.length} errors`);
     
+    // Auto-process missing disposition journals after successful upload
+    const dispositionProcessingTask = async () => {
+      try {
+        console.log('🔄 Auto-processing missing disposition journals...');
+        const { data: dispositionData, error: dispositionError } = await supabase.rpc('process_missing_disposition_journals', {
+          p_company_id: companyId
+        });
+
+        if (dispositionError) {
+          console.error('Error auto-processing dispositions:', dispositionError);
+        } else if (dispositionData && typeof dispositionData === 'object' && 'success' in dispositionData && dispositionData.success && 'total_processed' in dispositionData && (dispositionData.total_processed as number) > 0) {
+          console.log(`✅ Automatically created ${dispositionData.total_processed as number} disposition journal entries`);
+        } else {
+          console.log('ℹ️ No missing disposition journals to process');
+        }
+      } catch (error) {
+        console.error('Error in auto-processing dispositions:', error);
+      }
+    };
+
+    // Process disposition journals in background
+    EdgeRuntime.waitUntil(dispositionProcessingTask());
+    
     // Always return success, even with validation errors
     console.log('Disposition upload completed:', summary);
 
     return new Response(
       JSON.stringify({
         success: true,
-        message: 'Upload processed',
+        message: `Upload processed. ${processedDispositions.length} dispositions imported. Journal entries are being processed in the background.`,
         processed: processedDispositions.length,
         total: dataRows.length,
-        filename: csvFile.name
+        filename: csvFile.name,
+        disposition_journal_status: 'processing_in_background'
       }),
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
