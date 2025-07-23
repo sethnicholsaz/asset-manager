@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Calendar, Download, FileText, Calculator, TrendingDown } from 'lucide-react';
+import { Calendar, Download, FileText, Calculator, TrendingDown, ChevronLeft, ChevronRight } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { Cow, CowDisposition, JournalEntry } from '@/types/cow';
 import { DepreciationCalculator } from '@/utils/depreciation';
@@ -22,11 +22,14 @@ export function DispositionReport({ cows }: DispositionReportProps) {
   const [dispositions, setDispositions] = useState<CowDisposition[]>([]);
   const [dispositionCows, setDispositionCows] = useState<Cow[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize] = useState(100);
   const { currentCompany } = useAuth();
   const { toast } = useToast();
 
   useEffect(() => {
     fetchDispositions();
+    setCurrentPage(1); // Reset to first page when month/year changes
   }, [selectedMonth, selectedYear, currentCompany]);
 
   const fetchDispositions = async () => {
@@ -528,47 +531,90 @@ export function DispositionReport({ cows }: DispositionReportProps) {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {dispositions.map((disposition) => {
-                        const cow = dispositionCows.find(c => c.tagNumber === disposition.cowId);
-                        console.log('🐄 Found cow for disposition:', { disposition: disposition.cowId, cow: cow, cowId: cow?.id });
-                        if (!cow) return null;
-                        
-                        // Use actual freshen dates from data - no automatic calculation
-                        const effectiveFreshenDate = cow.freshenDate;
-                        
-                        // Calculate proper book value for display
-                        const monthlyDepreciation = DepreciationCalculator.calculateMonthlyDepreciation(cow, disposition.dispositionDate);
-                        const monthsSinceStart = DepreciationCalculator.getMonthsSinceStart(effectiveFreshenDate, disposition.dispositionDate);
-                        const accumulatedDepreciation = Math.min(
-                          monthlyDepreciation * monthsSinceStart,
-                          cow.purchasePrice - cow.salvageValue
-                        );
-                        const bookValue = Math.max(cow.salvageValue, cow.purchasePrice - accumulatedDepreciation);
-                        const actualGainLoss = (disposition.saleAmount || 0) - bookValue;
-                        
-                        return (
-                          <TableRow key={disposition.id}>
-                             <TableCell className="font-medium">
-                              <Link 
-                                to={`/cow/${cow?.id}`}
-                                className="text-primary hover:text-primary/80 hover:underline"
-                              >
-                                {cow?.tagNumber || disposition.cowId}
-                              </Link>
-                            </TableCell>
-                            <TableCell>{DepreciationCalculator.formatDate(disposition.dispositionDate)}</TableCell>
-                            <TableCell className="capitalize">{disposition.dispositionType}</TableCell>
-                            <TableCell>{DepreciationCalculator.formatCurrency(disposition.saleAmount || 0)}</TableCell>
-                            <TableCell>{DepreciationCalculator.formatCurrency(bookValue)}</TableCell>
-                            <TableCell className={actualGainLoss >= 0 ? 'text-success' : 'text-destructive'}>
-                              {DepreciationCalculator.formatCurrency(actualGainLoss)}
-                            </TableCell>
-                            <TableCell className="max-w-xs truncate">{disposition.notes || '-'}</TableCell>
-                          </TableRow>
-                        );
-                      })}
+                      {dispositions
+                        .slice((currentPage - 1) * pageSize, currentPage * pageSize)
+                        .map((disposition) => {
+                          const cow = dispositionCows.find(c => c.tagNumber === disposition.cowId);
+                          console.log('🐄 Found cow for disposition:', { disposition: disposition.cowId, cow: cow, cowId: cow?.id });
+                          
+                          // Calculate values - use stored values if no cow data available
+                          let bookValue = disposition.finalBookValue;
+                          let actualGainLoss = disposition.gainLoss;
+                          
+                          if (cow) {
+                            // Use actual freshen dates from data - no automatic calculation
+                            const effectiveFreshenDate = cow.freshenDate;
+                            
+                            // Calculate proper book value for display
+                            const monthlyDepreciation = DepreciationCalculator.calculateMonthlyDepreciation(cow, disposition.dispositionDate);
+                            const monthsSinceStart = DepreciationCalculator.getMonthsSinceStart(effectiveFreshenDate, disposition.dispositionDate);
+                            const accumulatedDepreciation = Math.min(
+                              monthlyDepreciation * monthsSinceStart,
+                              cow.purchasePrice - cow.salvageValue
+                            );
+                            bookValue = Math.max(cow.salvageValue, cow.purchasePrice - accumulatedDepreciation);
+                            actualGainLoss = (disposition.saleAmount || 0) - bookValue;
+                          }
+                          
+                          return (
+                            <TableRow key={disposition.id}>
+                              <TableCell className="font-medium">
+                                {cow ? (
+                                  <Link 
+                                    to={`/cow/${cow.id}`}
+                                    className="text-primary hover:text-primary/80 hover:underline"
+                                  >
+                                    {cow.tagNumber}
+                                  </Link>
+                                ) : (
+                                  <span className="text-muted-foreground">{disposition.cowId}</span>
+                                )}
+                              </TableCell>
+                              <TableCell>{DepreciationCalculator.formatDate(disposition.dispositionDate)}</TableCell>
+                              <TableCell className="capitalize">{disposition.dispositionType}</TableCell>
+                              <TableCell>{DepreciationCalculator.formatCurrency(disposition.saleAmount || 0)}</TableCell>
+                              <TableCell>{DepreciationCalculator.formatCurrency(bookValue)}</TableCell>
+                              <TableCell className={actualGainLoss >= 0 ? 'text-success' : 'text-destructive'}>
+                                {DepreciationCalculator.formatCurrency(actualGainLoss)}
+                              </TableCell>
+                              <TableCell className="max-w-xs truncate">{disposition.notes || '-'}</TableCell>
+                            </TableRow>
+                          );
+                        })}
                     </TableBody>
                   </Table>
+                  
+                  {/* Pagination */}
+                  {dispositions.length > pageSize && (
+                    <div className="flex items-center justify-between px-4 py-3 border-t">
+                      <div className="text-sm text-muted-foreground">
+                        Showing {Math.min((currentPage - 1) * pageSize + 1, dispositions.length)} to {Math.min(currentPage * pageSize, dispositions.length)} of {dispositions.length} dispositions
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                          disabled={currentPage === 1}
+                        >
+                          <ChevronLeft className="h-4 w-4" />
+                          Previous
+                        </Button>
+                        <span className="text-sm font-medium">
+                          Page {currentPage} of {Math.ceil(dispositions.length / pageSize)}
+                        </span>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setCurrentPage(p => Math.min(Math.ceil(dispositions.length / pageSize), p + 1))}
+                          disabled={currentPage >= Math.ceil(dispositions.length / pageSize)}
+                        >
+                          Next
+                          <ChevronRight className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  )}
                   
                   {dispositions.length === 0 && (
                     <div className="text-center py-12 text-muted-foreground">
