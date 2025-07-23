@@ -22,7 +22,12 @@ export function DispositionJournalFix() {
   const { toast } = useToast();
 
   const fixDispositionJournals = async () => {
+    console.log('🔧 DispositionJournalFix button clicked');
+    console.log('🔧 Current company:', currentCompany);
+    console.log('🔧 Month/Year:', { month, year });
+    
     if (!currentCompany) {
+      console.log('❌ No company selected');
       toast({
         title: "Error",
         description: "No company selected",
@@ -35,7 +40,7 @@ export function DispositionJournalFix() {
     setFixResults(null);
 
     try {
-      console.log(`Fixing disposition journals for ${month}/${year}, company: ${currentCompany.id}`);
+      console.log(`🔧 Fixing disposition journals for ${month}/${year}, company: ${currentCompany.id}`);
 
       // Find all disposition journal entries that are unbalanced
       const { data: journalEntries, error: entriesError } = await supabase
