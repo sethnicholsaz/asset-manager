@@ -230,8 +230,34 @@ export function DispositionReport({ cows }: DispositionReportProps) {
 
   const journalEntries = generateJournalEntries();
 
-  const totalGainLoss = dispositions.reduce((sum, d) => sum + d.gainLoss, 0);
-  const totalSaleAmount = dispositions.reduce((sum, d) => sum + (d.saleAmount || 0), 0);
+  // Calculate totals using the same logic as the display table (recalculated values)
+  const totals = dispositions.reduce((acc, d) => {
+    const cow = dispositionCows.find(c => c.tagNumber === d.cowId);
+    if (!cow) {
+      // Use stored values if no cow data available
+      acc.gainLoss += d.gainLoss;
+      acc.saleAmount += d.saleAmount || 0;
+      return acc;
+    }
+    
+    // Recalculate using same logic as display table
+    const effectiveFreshenDate = cow.freshenDate;
+    const monthlyDepreciation = DepreciationCalculator.calculateMonthlyDepreciation(cow, d.dispositionDate);
+    const monthsSinceStart = DepreciationCalculator.getMonthsSinceStart(effectiveFreshenDate, d.dispositionDate);
+    const accumulatedDepreciation = Math.min(
+      monthlyDepreciation * monthsSinceStart,
+      cow.purchasePrice - cow.salvageValue
+    );
+    const bookValue = Math.max(cow.salvageValue, cow.purchasePrice - accumulatedDepreciation);
+    const actualGainLoss = (d.saleAmount || 0) - bookValue;
+    
+    acc.gainLoss += actualGainLoss;
+    acc.saleAmount += d.saleAmount || 0;
+    return acc;
+  }, { gainLoss: 0, saleAmount: 0 });
+  
+  const totalGainLoss = totals.gainLoss;
+  const totalSaleAmount = totals.saleAmount;
 
   const exportToCSV = (data: any[], filename: string) => {
     const csvContent = convertToCSV(data);
