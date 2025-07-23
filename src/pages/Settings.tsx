@@ -9,6 +9,7 @@ import { BalanceAdjustments } from '@/components/BalanceAdjustments';
 import { UploadTokenManager } from '@/components/UploadTokenManager';
 import { AcquisitionSettings } from '@/components/AcquisitionSettings';
 import { MissingAcquisitionsProcessor } from '@/components/MissingAcquisitionsProcessor';
+import { MissingDispositionsProcessor } from '@/components/MissingDispositionsProcessor';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
@@ -199,6 +200,7 @@ export default function Settings() {
             </p>
           </div>
           <MissingAcquisitionsProcessor />
+          <MissingDispositionsProcessor />
         </TabsContent>
       </Tabs>
     </div>

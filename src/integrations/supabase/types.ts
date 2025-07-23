@@ -780,6 +780,10 @@ export type Database = {
         Args: { p_company_id: string }
         Returns: Json
       }
+      process_missing_disposition_journals: {
+        Args: { p_company_id: string }
+        Returns: Json
+      }
       process_monthly_depreciation: {
         Args: {
           p_company_id: string
