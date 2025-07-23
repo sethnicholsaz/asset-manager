@@ -734,6 +734,10 @@ export type Database = {
           total_depreciation: number
         }[]
       }
+      get_dashboard_stats: {
+        Args: { p_company_id: string }
+        Returns: Json
+      }
       get_historical_processing_status: {
         Args: { p_company_id: string }
         Returns: {
