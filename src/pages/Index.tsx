@@ -1,248 +1,137 @@
 import { useState, useEffect } from 'react';
-import { Cow } from '@/types/cow';
-import { CowDataTable } from '@/components/CowDataTable';
-import { EditCowDialog } from '@/components/EditCowDialog';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
 import { BarChart3, TrendingUp, DollarSign, Calendar } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
-import { DepreciationCalculator } from '@/utils/depreciation';
 
 const Index = () => {
-  const [cows, setCows] = useState<Cow[]>([]);
-  const [summaryStats, setSummaryStats] = useState({
-    active_count: 0,
+  const [journalStats, setJournalStats] = useState({
+    active_cow_count: 0,
     total_asset_value: 0,
-    total_current_value: 0,
-    total_depreciation: 0
+    total_accumulated_depreciation: 0
   });
   const [isLoading, setIsLoading] = useState(true);
-  const [isSearching, setIsSearching] = useState(false);
-  const [currentSearchQuery, setCurrentSearchQuery] = useState('');
-  const [editingCow, setEditingCow] = useState<Cow | null>(null);
-  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const { currentCompany } = useAuth();
   const { toast } = useToast();
 
   useEffect(() => {
     if (currentCompany) {
-      fetchCows();
+      fetchJournalStats();
     }
   }, [currentCompany]);
 
-  const fetchCows = async (searchQuery?: string) => {
+  const fetchJournalStats = async () => {
     if (!currentCompany) return;
 
     try {
-      console.log('Fetching cows for company:', currentCompany.id);
+      console.log('Fetching journal-based stats for company:', currentCompany.id);
 
-      // Get cows data first
-      let data, error;
-      
-      if (searchQuery && searchQuery.trim()) {
-        // Use global search function - remove arbitrary limits
-        const { data: searchData, error: searchError } = await supabase
-          .rpc('search_cows' as any, { 
-            p_company_id: currentCompany.id,
-            p_search_query: searchQuery.trim()
-          });
-        data = searchData;
-        error = searchError;
-      } else {
-        // Get all active cows for the table display with pagination
-        console.log('Starting active cows fetch with pagination for dashboard...');
-        let allActiveCows = [];
-        let offset = 0;
-        const limit = 1000;
-        let hasMore = true;
-        let pageCount = 0;
+      // Get active cow count from cows table
+      const { data: cowCount, error: cowError } = await supabase
+        .from('cows')
+        .select('id')
+        .eq('company_id', currentCompany.id)
+        .eq('status', 'active');
 
-        while (hasMore && pageCount < 10) { // Safety limit
-          console.log(`Fetching dashboard active cows page ${pageCount + 1}, offset: ${offset}`);
-          
-          const { data: cowBatch, error: cowError } = await supabase
-            .from('cows')
-            .select('*')
-            .eq('company_id', currentCompany.id)
-            .eq('status', 'active')
-            .range(offset, offset + limit - 1);
+      if (cowError) throw cowError;
 
-          if (cowError) {
-            error = cowError;
-            break;
-          }
+      // First get acquisition journal entry IDs
+      const { data: acquisitionJournals, error: acquisitionJournalError } = await supabase
+        .from('journal_entries')
+        .select('id')
+        .eq('company_id', currentCompany.id)
+        .eq('entry_type', 'acquisition');
 
-          console.log(`Dashboard page ${pageCount + 1} returned ${cowBatch?.length || 0} records`);
-          
-          if (cowBatch && cowBatch.length > 0) {
-            allActiveCows = [...allActiveCows, ...cowBatch];
-            hasMore = cowBatch.length === limit;
-            offset += limit;
-            pageCount++;
-          } else {
-            hasMore = false;
-          }
-        }
+      if (acquisitionJournalError) throw acquisitionJournalError;
 
-        console.log(`Total dashboard active cows fetched: ${allActiveCows.length}`);
-        data = allActiveCows;
-        error = null;
-      }
+      const acquisitionJournalIds = acquisitionJournals?.map(j => j.id) || [];
 
-      console.log('Query result - data length:', data?.length);
-      
-      if (error) throw error;
+      // Get total asset value from acquisition journal entries (Dairy Cows account debits)
+      const { data: assetData, error: assetError } = await supabase
+        .from('journal_lines')
+        .select('debit_amount')
+        .eq('account_code', '1500')
+        .eq('account_name', 'Dairy Cows')
+        .eq('line_type', 'debit')
+        .in('journal_entry_id', acquisitionJournalIds);
 
-      // Transform database data to match Cow interface and calculate real-time depreciation
-      const transformedCows: Cow[] = (data || []).map(cow => {
-        // Calculate real-time depreciation for each cow
-        const depreciationResult = DepreciationCalculator.calculateCurrentDepreciation({
-          purchasePrice: cow.purchase_price,
-          salvageValue: cow.salvage_value,
-          freshenDate: new Date(cow.freshen_date)
-        });
+      if (assetError) throw assetError;
 
-        return {
-          id: cow.id,
-          tagNumber: cow.tag_number,
-          name: cow.name,
-          birthDate: new Date(cow.birth_date),
-          freshenDate: new Date(cow.freshen_date),
-          purchasePrice: cow.purchase_price,
-          salvageValue: cow.salvage_value,
-          currentValue: depreciationResult.currentValue,
-          totalDepreciation: depreciationResult.totalDepreciation,
-          status: (cow.status === 'disposed' ? 'sold' : cow.status) as 'active' | 'sold' | 'deceased' | 'retired',
-          depreciationMethod: cow.depreciation_method as 'straight-line',
-          acquisitionType: cow.acquisition_type as 'purchased' | 'raised',
-          assetType: {
-            id: cow.asset_type_id,
-            name: 'Dairy Cow',
-            defaultDepreciationYears: 5,
-            defaultDepreciationMethod: 'straight-line',
-            defaultSalvagePercentage: 10
-          }
-        };
-      });
+      // Get depreciation journal entry IDs
+      const { data: depreciationJournals, error: depreciationJournalError } = await supabase
+        .from('journal_entries')
+        .select('id')
+        .eq('company_id', currentCompany.id)
+        .eq('entry_type', 'depreciation');
 
-      setCows(transformedCows);
+      if (depreciationJournalError) throw depreciationJournalError;
 
-      // Calculate real-time summary stats from the transformed cows
-      if (!searchQuery) {
-        const activeCows = transformedCows.filter(cow => cow.status === 'active');
-        const realTimeStats = {
-          active_count: activeCows.length,
-          total_asset_value: activeCows.reduce((sum, cow) => sum + cow.purchasePrice, 0),
-          total_current_value: activeCows.reduce((sum, cow) => sum + cow.currentValue, 0),
-          total_depreciation: activeCows.reduce((sum, cow) => sum + cow.totalDepreciation, 0)
-        };
-        
-        console.log('Real-time stats calculated:', realTimeStats);
-        setSummaryStats(realTimeStats);
-      }
+      const depreciationJournalIds = depreciationJournals?.map(j => j.id) || [];
+
+      // Get total accumulated depreciation from depreciation journal entries (Accumulated Depreciation credits)
+      const { data: depreciationData, error: depreciationError } = await supabase
+        .from('journal_lines')
+        .select('credit_amount')
+        .eq('account_code', '1500.1')
+        .eq('account_name', 'Accumulated Depreciation - Dairy Cows')
+        .eq('line_type', 'credit')
+        .in('journal_entry_id', depreciationJournalIds);
+
+      if (depreciationError) throw depreciationError;
+
+      // Get disposition journal entry IDs
+      const { data: dispositionJournals, error: dispositionJournalError } = await supabase
+        .from('journal_entries')
+        .select('id')
+        .eq('company_id', currentCompany.id)
+        .eq('entry_type', 'disposition');
+
+      if (dispositionJournalError) throw dispositionJournalError;
+
+      const dispositionJournalIds = dispositionJournals?.map(j => j.id) || [];
+
+      // Also get accumulated depreciation from dispositions (Accumulated Depreciation debits when removing)
+      const { data: dispositionDepreciationData, error: dispositionDepreciationError } = await supabase
+        .from('journal_lines')
+        .select('debit_amount')
+        .eq('account_code', '1500.1')
+        .eq('account_name', 'Accumulated Depreciation - Dairy Cows')
+        .eq('line_type', 'debit')
+        .in('journal_entry_id', dispositionJournalIds);
+
+      if (dispositionDepreciationError) throw dispositionDepreciationError;
+
+      // Calculate totals
+      const totalAssetValue = (assetData || []).reduce((sum, entry) => sum + (entry.debit_amount || 0), 0);
+      const totalAccumulatedDepreciation = (depreciationData || []).reduce((sum, entry) => sum + (entry.credit_amount || 0), 0);
+      const dispositionDepreciation = (dispositionDepreciationData || []).reduce((sum, entry) => sum + (entry.debit_amount || 0), 0);
+
+      // Net accumulated depreciation = credits from depreciation - debits from dispositions
+      const netAccumulatedDepreciation = totalAccumulatedDepreciation - dispositionDepreciation;
+
+      const stats = {
+        active_cow_count: cowCount?.length || 0,
+        total_asset_value: totalAssetValue,
+        total_accumulated_depreciation: netAccumulatedDepreciation
+      };
+
+      console.log('Journal-based stats calculated:', stats);
+      setJournalStats(stats);
     } catch (error) {
-      console.error('Error fetching cows:', error);
+      console.error('Error fetching journal stats:', error);
       toast({
         title: "Error",
-        description: "Failed to load cow data",
+        description: "Failed to load dashboard data",
         variant: "destructive",
       });
     } finally {
       setIsLoading(false);
-      setIsSearching(false);
     }
   };
 
-  const handleDeleteCow = async (cowId: string) => {
-    try {
-      const { error } = await supabase
-        .from('cows')
-        .update({ status: 'disposed' })
-        .eq('id', cowId);
-
-      if (error) throw error;
-
-      setCows(prev => prev.filter(cow => cow.id !== cowId));
-      toast({
-        title: "Success",
-        description: "Cow removed from active inventory",
-      });
-    } catch (error) {
-      console.error('Error deleting cow:', error);
-      toast({
-        title: "Error",
-        description: "Failed to remove cow",
-        variant: "destructive",
-      });
-    }
-  };
-
-  const handleEditCow = (cow: Cow) => {
-    setEditingCow(cow);
-    setIsEditDialogOpen(true);
-  };
-
-  const handleSaveEditedCow = async (updatedCow: Cow) => {
-    try {
-      const { error } = await supabase
-        .from('cows')
-        .update({
-          tag_number: updatedCow.tagNumber,
-          name: updatedCow.name,
-          birth_date: updatedCow.birthDate.toISOString().split('T')[0],
-          freshen_date: updatedCow.freshenDate.toISOString().split('T')[0],
-          purchase_price: updatedCow.purchasePrice,
-          salvage_value: updatedCow.salvageValue,
-          acquisition_type: updatedCow.acquisitionType,
-        })
-        .eq('id', updatedCow.id);
-
-      if (error) throw error;
-
-      // Update local state
-      setCows(prev => prev.map(cow => 
-        cow.id === updatedCow.id ? updatedCow : cow
-      ));
-
-      toast({
-        title: "Success",
-        description: "Cow details updated successfully",
-      });
-    } catch (error) {
-      console.error('Error updating cow:', error);
-      toast({
-        title: "Error",
-        description: "Failed to update cow details",
-        variant: "destructive",
-      });
-      throw error; // Re-throw to handle in dialog
-    }
-  };
-
-  const handleSearch = async (searchQuery: string) => {
-    // Prevent multiple simultaneous searches
-    if (isSearching) return;
-    
-    setCurrentSearchQuery(searchQuery);
-    
-    if (!searchQuery.trim()) {
-      // If empty search, just reload normal data without setting loading
-      await fetchCows();
-      return;
-    }
-    
-    setIsSearching(true);
-    await fetchCows(searchQuery);
-  };
-
-
-  // Use summary statistics from database queries (not local cow data)
-  const totalAssetValue = summaryStats.total_asset_value;
-  const totalCurrentValue = summaryStats.total_current_value;
-  const totalDepreciation = summaryStats.total_depreciation;
-  const activeCows = summaryStats.active_count;
+  // Calculate current value from journal data
+  const currentValue = journalStats.total_asset_value - journalStats.total_accumulated_depreciation;
 
   if (isLoading) {
     return (
@@ -258,7 +147,7 @@ const Index = () => {
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Dashboard</h1>
           <p className="text-muted-foreground">
-            Real-time overview of your dairy cow assets and depreciation
+            Overview of your dairy cow assets based on journal entries
           </p>
         </div>
       </div>
@@ -271,7 +160,7 @@ const Index = () => {
             <Calendar className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{activeCows.toLocaleString()}</div>
+            <div className="text-2xl font-bold">{journalStats.active_cow_count.toLocaleString()}</div>
             <p className="text-xs text-muted-foreground">
               Currently in herd
             </p>
@@ -285,10 +174,10 @@ const Index = () => {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              ${totalAssetValue.toLocaleString()}
+              ${journalStats.total_asset_value.toLocaleString()}
             </div>
             <p className="text-xs text-muted-foreground">
-              Original purchase value
+              From journal entries
             </p>
           </CardContent>
         </Card>
@@ -300,50 +189,32 @@ const Index = () => {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              ${totalCurrentValue.toLocaleString()}
+              ${currentValue.toLocaleString()}
             </div>
             <p className="text-xs text-muted-foreground">
-              After depreciation
+              Asset value less depreciation
             </p>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Depreciation</CardTitle>
+            <CardTitle className="text-sm font-medium">Accumulated Depreciation</CardTitle>
             <BarChart3 className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              ${totalDepreciation.toLocaleString()}
+              ${journalStats.total_accumulated_depreciation.toLocaleString()}
             </div>
             <p className="text-xs text-muted-foreground">
-              Accumulated to date
+              From journal entries
             </p>
           </CardContent>
         </Card>
       </div>
 
-      {/* Cow Inventory Table */}
-      <CowDataTable 
-        cows={cows} 
-        summaryStats={summaryStats}
-        onEditCow={handleEditCow}
-        onDeleteCow={handleDeleteCow}
-        onSearch={handleSearch}
-        isSearching={isSearching}
-      />
-
-      {/* Edit Cow Dialog */}
-      <EditCowDialog
-        cow={editingCow}
-        open={isEditDialogOpen}
-        onOpenChange={setIsEditDialogOpen}
-        onSave={handleSaveEditedCow}
-      />
-
       {/* Quick Start Guide */}
-      {cows.length === 0 && (
+      {journalStats.active_cow_count === 0 && (
         <Card>
           <CardHeader>
             <CardTitle>Getting Started</CardTitle>
