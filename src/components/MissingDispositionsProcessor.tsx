@@ -18,6 +18,7 @@ interface ProcessingResult {
     tag_number: string;
     disposition_type?: string;
     sale_amount?: number;
+    display_amount?: number; // Add the new display amount field
     status: string;
     error?: string;
   }>;
@@ -140,7 +141,7 @@ export function MissingDispositionsProcessor() {
                     .slice(0, 10)
                     .map((item, index) => (
                       <div key={index} className="text-green-700">
-                        #{item.tag_number} ({item.disposition_type}) - {formatCurrency(item.sale_amount || 0)}
+                        #{item.tag_number} ({item.disposition_type}) - {formatCurrency(item.display_amount || item.sale_amount || 0)}
                       </div>
                     ))}
                   {result.results.filter(r => r.status === 'success').length > 10 && (
