@@ -77,7 +77,12 @@ interface JournalSummary {
 }
 
 export default function CowDetail() {
+  const params = useParams();
   const { cowId } = useParams<{ cowId: string }>();
+  console.log('🔧 All URL params:', params);
+  console.log('🔧 Extracted cowId:', cowId);
+  console.log('🔧 cowId type:', typeof cowId);
+  
   const navigate = useNavigate();
   const { toast } = useToast();
   const { currentCompany } = useAuth();
