@@ -91,6 +91,10 @@ export default function CowDetail() {
   const [isLoadingJournal, setIsLoadingJournal] = useState(false);
 
   useEffect(() => {
+    console.log('🔧 CowDetail component mounted. cowId from useParams:', cowId);
+    console.log('🔧 Current URL pathname:', window.location.pathname);
+    console.log('🔧 currentCompany:', currentCompany?.id);
+    
     if (cowId && currentCompany) {
       loadCowDetails();
     }
