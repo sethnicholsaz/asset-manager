@@ -389,6 +389,12 @@ export default function DataImport() {
         });
 
         // Automatically process missing acquisition journals after successful cow upload
+        console.log('🔍 Upload completed - checking if should auto-process acquisitions:', {
+          uploadType,
+          processed: result.processed,
+          shouldProcess: uploadType === 'fresh'
+        });
+        
         if (uploadType === 'fresh') {
           try {
             console.log('🔄 Auto-processing missing acquisition journals...');
