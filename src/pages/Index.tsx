@@ -36,7 +36,17 @@ const Index = () => {
 
       if (cowError) throw cowError;
 
-      // First get acquisition journal entry IDs
+      // Get total asset value from acquisition journal entries (Dairy Cows account debits)
+      const { data: assetData, error: assetError } = await supabase
+        .from('journal_lines')
+        .select('debit_amount, journal_entry_id')
+        .eq('account_code', '1500')
+        .eq('account_name', 'Dairy Cows')
+        .eq('line_type', 'debit');
+
+      if (assetError) throw assetError;
+
+      // Filter asset data to only include acquisition journal entries
       const { data: acquisitionJournals, error: acquisitionJournalError } = await supabase
         .from('journal_entries')
         .select('id')
@@ -45,20 +55,20 @@ const Index = () => {
 
       if (acquisitionJournalError) throw acquisitionJournalError;
 
-      const acquisitionJournalIds = acquisitionJournals?.map(j => j.id) || [];
+      const acquisitionJournalIds = new Set(acquisitionJournals?.map(j => j.id) || []);
+      const filteredAssetData = assetData?.filter(entry => acquisitionJournalIds.has(entry.journal_entry_id)) || [];
 
-      // Get total asset value from acquisition journal entries (Dairy Cows account debits)
-      const { data: assetData, error: assetError } = await supabase
+      // Get total accumulated depreciation from depreciation journal entries (Accumulated Depreciation credits)
+      const { data: depreciationData, error: depreciationError } = await supabase
         .from('journal_lines')
-        .select('debit_amount')
-        .eq('account_code', '1500')
-        .eq('account_name', 'Dairy Cows')
-        .eq('line_type', 'debit')
-        .in('journal_entry_id', acquisitionJournalIds);
+        .select('credit_amount, journal_entry_id')
+        .eq('account_code', '1500.1')
+        .eq('account_name', 'Accumulated Depreciation - Dairy Cows')
+        .eq('line_type', 'credit');
 
-      if (assetError) throw assetError;
+      if (depreciationError) throw depreciationError;
 
-      // Get depreciation journal entry IDs
+      // Filter depreciation data to only include depreciation journal entries
       const { data: depreciationJournals, error: depreciationJournalError } = await supabase
         .from('journal_entries')
         .select('id')
@@ -67,20 +77,20 @@ const Index = () => {
 
       if (depreciationJournalError) throw depreciationJournalError;
 
-      const depreciationJournalIds = depreciationJournals?.map(j => j.id) || [];
+      const depreciationJournalIds = new Set(depreciationJournals?.map(j => j.id) || []);
+      const filteredDepreciationData = depreciationData?.filter(entry => depreciationJournalIds.has(entry.journal_entry_id)) || [];
 
-      // Get total accumulated depreciation from depreciation journal entries (Accumulated Depreciation credits)
-      const { data: depreciationData, error: depreciationError } = await supabase
+      // Get accumulated depreciation removed in dispositions (Accumulated Depreciation debits)
+      const { data: dispositionDepreciationData, error: dispositionDepreciationError } = await supabase
         .from('journal_lines')
-        .select('credit_amount')
+        .select('debit_amount, journal_entry_id')
         .eq('account_code', '1500.1')
         .eq('account_name', 'Accumulated Depreciation - Dairy Cows')
-        .eq('line_type', 'credit')
-        .in('journal_entry_id', depreciationJournalIds);
+        .eq('line_type', 'debit');
 
-      if (depreciationError) throw depreciationError;
+      if (dispositionDepreciationError) throw dispositionDepreciationError;
 
-      // Get disposition journal entry IDs
+      // Filter disposition depreciation data to only include disposition journal entries
       const { data: dispositionJournals, error: dispositionJournalError } = await supabase
         .from('journal_entries')
         .select('id')
@@ -89,23 +99,13 @@ const Index = () => {
 
       if (dispositionJournalError) throw dispositionJournalError;
 
-      const dispositionJournalIds = dispositionJournals?.map(j => j.id) || [];
-
-      // Also get accumulated depreciation from dispositions (Accumulated Depreciation debits when removing)
-      const { data: dispositionDepreciationData, error: dispositionDepreciationError } = await supabase
-        .from('journal_lines')
-        .select('debit_amount')
-        .eq('account_code', '1500.1')
-        .eq('account_name', 'Accumulated Depreciation - Dairy Cows')
-        .eq('line_type', 'debit')
-        .in('journal_entry_id', dispositionJournalIds);
-
-      if (dispositionDepreciationError) throw dispositionDepreciationError;
+      const dispositionJournalIds = new Set(dispositionJournals?.map(j => j.id) || []);
+      const filteredDispositionDepreciationData = dispositionDepreciationData?.filter(entry => dispositionJournalIds.has(entry.journal_entry_id)) || [];
 
       // Calculate totals
-      const totalAssetValue = (assetData || []).reduce((sum, entry) => sum + (entry.debit_amount || 0), 0);
-      const totalAccumulatedDepreciation = (depreciationData || []).reduce((sum, entry) => sum + (entry.credit_amount || 0), 0);
-      const dispositionDepreciation = (dispositionDepreciationData || []).reduce((sum, entry) => sum + (entry.debit_amount || 0), 0);
+      const totalAssetValue = filteredAssetData.reduce((sum, entry) => sum + (entry.debit_amount || 0), 0);
+      const totalAccumulatedDepreciation = filteredDepreciationData.reduce((sum, entry) => sum + (entry.credit_amount || 0), 0);
+      const dispositionDepreciation = filteredDispositionDepreciationData.reduce((sum, entry) => sum + (entry.debit_amount || 0), 0);
 
       // Net accumulated depreciation = credits from depreciation - debits from dispositions
       const netAccumulatedDepreciation = totalAccumulatedDepreciation - dispositionDepreciation;
