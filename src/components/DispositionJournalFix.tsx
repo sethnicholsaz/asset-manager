@@ -49,6 +49,7 @@ export function DispositionJournalFix() {
         .select(`
           id,
           description,
+          entry_date,
           journal_lines (
             id,
             debit_amount,
@@ -97,7 +98,10 @@ export function DispositionJournalFix() {
           }
           const cowTag = cowMatch[1];
 
-          // Get disposition data
+          // Get disposition data - find the specific disposition that matches this journal entry
+          // Since cows can have multiple dispositions, we need to match by date and type
+          const dispositionType = entry.description.match(/\((\w+)\)/)?.[1]; // Extract type from description
+          
           const { data: dispositionData, error: dispError } = await supabase
             .from('cow_dispositions')
             .select(`
@@ -106,15 +110,43 @@ export function DispositionJournalFix() {
               sale_amount,
               final_book_value,
               gain_loss,
-              disposition_type
+              disposition_type,
+              disposition_date
             `)
             .eq('company_id', currentCompany.id)
             .eq('cow_id', cowTag)
+            .eq('disposition_type', dispositionType)
+            .eq('disposition_date', entry.entry_date)
             .maybeSingle();
 
+          let finalDispositionData = dispositionData;
+          
           if (dispError || !dispositionData) {
-            results.errors.push(`Could not find disposition for cow ${cowTag}`);
-            continue;
+            // If exact match fails, try to find any disposition for this cow
+            const { data: fallbackDisposition, error: fallbackError } = await supabase
+              .from('cow_dispositions')
+              .select(`
+                id,
+                cow_id,
+                sale_amount,
+                final_book_value,
+                gain_loss,
+                disposition_type,
+                disposition_date
+              `)
+              .eq('company_id', currentCompany.id)
+              .eq('cow_id', cowTag)
+              .limit(1)
+              .maybeSingle();
+              
+            if (fallbackError || !fallbackDisposition) {
+              results.errors.push(`Could not find disposition for cow ${cowTag}`);
+              continue;
+            } else {
+              // Use fallback but log the mismatch
+              console.warn(`Using fallback disposition for cow ${cowTag}: journal date ${entry.entry_date} vs disposition date ${fallbackDisposition.disposition_date}`);
+              finalDispositionData = fallbackDisposition;
+            }
           }
 
           // Get cow data for purchase price and accumulated depreciation
@@ -145,13 +177,13 @@ export function DispositionJournalFix() {
           const newLines = [];
 
           // 1. Cash received (debit) - only if sale amount > 0
-          if (dispositionData.sale_amount > 0) {
+          if (finalDispositionData.sale_amount > 0) {
             newLines.push({
               journal_entry_id: entry.id,
               account_code: '1000',
               account_name: 'Cash',
               description: `Cash received from sale - Cow #${cowTag}`,
-              debit_amount: dispositionData.sale_amount,
+              debit_amount: finalDispositionData.sale_amount,
               credit_amount: 0,
               line_type: 'debit',
               cow_id: cowTag
@@ -187,7 +219,7 @@ export function DispositionJournalFix() {
           // 4. Calculate and record gain/loss correctly
           // Gain/Loss = Cash Received - (Purchase Price - Accumulated Depreciation)
           const bookValue = cowData.purchase_price - cowData.total_depreciation;
-          const gainLoss = dispositionData.sale_amount - bookValue;
+          const gainLoss = finalDispositionData.sale_amount - bookValue;
 
           if (Math.abs(gainLoss) > 0.01) {
             if (gainLoss > 0) {
