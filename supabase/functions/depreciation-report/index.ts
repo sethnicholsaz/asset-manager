@@ -287,6 +287,7 @@ Deno.serve(async (req) => {
         return {
           ...entry,
           cow: {
+            id: cow?.id,
             tagNumber: cow?.tag_number,
             purchasePrice: cow?.purchase_price
           }
