@@ -10,6 +10,7 @@ import { useToast } from '@/hooks/use-toast';
 import { RefreshCw, AlertTriangle } from 'lucide-react';
 
 export function DispositionJournalFix() {
+  console.log('🔧 DispositionJournalFix component is rendering');
   const [month, setMonth] = useState<number>(5);
   const [year, setYear] = useState<number>(2025);
   const [isFixing, setIsFixing] = useState(false);
