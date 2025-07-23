@@ -236,7 +236,7 @@ Deno.serve(async (req) => {
           // Get existing cow data to calculate book value
           const { data: cowData, error: cowError } = await supabase
             .from('cows')
-            .select('tag_number, purchase_price, current_value, total_depreciation, status')
+            .select('tag_number, purchase_price, current_value, total_depreciation, status, salvage_value, freshen_date')
             .eq('tag_number', tagNumber)
             .eq('company_id', companyId)
             .maybeSingle();
@@ -249,6 +249,32 @@ Deno.serve(async (req) => {
           if (!cowData) {
             throw new Error(`Cow ${tagNumber} not found in database`);
           }
+
+          // Calculate accurate depreciation up to disposition date
+          console.log(`📊 Calculating accurate depreciation for cow ${tagNumber} up to ${dispositionDate.toISOString().split('T')[0]}`);
+          
+          // Calculate months from freshen date to disposition date
+          const freshenDate = new Date(cowData.freshen_date);
+          const monthsElapsed = Math.max(0, 
+            (dispositionDate.getFullYear() - freshenDate.getFullYear()) * 12 + 
+            (dispositionDate.getMonth() - freshenDate.getMonth())
+          );
+          
+          // Calculate total depreciation using 5-year straight line
+          const depreciableAmount = cowData.purchase_price - cowData.salvage_value;
+          const monthlyDepreciation = depreciableAmount / (5 * 12);
+          const totalDepreciationToDate = Math.min(
+            monthlyDepreciation * monthsElapsed,
+            depreciableAmount
+          );
+          
+          // Calculate current book value at disposition date
+          const accurateBookValue = Math.max(
+            cowData.salvage_value,
+            cowData.purchase_price - totalDepreciationToDate
+          );
+
+          console.log(`📈 Cow ${tagNumber}: Purchase: $${cowData.purchase_price}, Salvage: $${cowData.salvage_value}, Months: ${monthsElapsed}, Total Depreciation: $${totalDepreciationToDate.toFixed(2)}, Book Value: $${accurateBookValue.toFixed(2)}`);
 
           // Determine disposition type
           let dispositionType = defaultDispositionType;
@@ -264,8 +290,8 @@ Deno.serve(async (req) => {
           // Parse sale amount
           const saleAmount = parseFloat(rowData.sale_amount || rowData.amount || '0') || 0;
           
-          // Use current_value as final book value
-          const finalBookValue = cowData.current_value || 0;
+          // Use accurately calculated book value
+          const finalBookValue = accurateBookValue;
           const gainLoss = saleAmount - finalBookValue;
 
           const dispositionData: DispositionData = {
