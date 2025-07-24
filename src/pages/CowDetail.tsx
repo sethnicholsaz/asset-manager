@@ -385,7 +385,23 @@ export default function CowDetail() {
         console.log('✅ Journal entry reversed successfully:', reversalResult);
       }
 
-      // 2. Delete the disposition record
+      // 2. Update cow status first to clear the disposition_id foreign key
+      const { error: updateCowError } = await supabase
+        .from('cows')
+        .update({
+          status: 'active',
+          disposition_id: null,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', cow.id);
+
+      if (updateCowError) {
+        console.error('Error updating cow:', updateCowError);
+        throw new Error(`Failed to update cow: ${updateCowError.message}`);
+      }
+      console.log('✅ Cow status updated to active and disposition_id cleared');
+
+      // 3. Now we can safely delete the disposition record
       const { error: deleteDispositionError } = await supabase
         .from('cow_dispositions')
         .delete()
@@ -397,7 +413,7 @@ export default function CowDetail() {
       }
       console.log('✅ Disposition record deleted');
 
-      // 3. Calculate total accumulated depreciation from journal entries
+      // 4. Calculate total accumulated depreciation from journal entries
       const { data: depreciationData, error: depreciationError } = await supabase
         .from('journal_lines')
         .select(`
@@ -424,23 +440,21 @@ export default function CowDetail() {
 
       console.log('📊 Calculated values:', { totalDepreciation, currentValue });
 
-      // 4. Update cow status back to active and update calculated values
-      const { error: updateCowError } = await supabase
+      // 5. Update cow with calculated depreciation values
+      const { error: updateValuesError } = await supabase
         .from('cows')
         .update({
-          status: 'active',
-          disposition_id: null,
           total_depreciation: totalDepreciation,
           current_value: currentValue,
           updated_at: new Date().toISOString()
         })
         .eq('id', cow.id);
 
-      if (updateCowError) {
-        console.error('Error updating cow:', updateCowError);
-        throw new Error(`Failed to update cow: ${updateCowError.message}`);
+      if (updateValuesError) {
+        console.error('Error updating cow values:', updateValuesError);
+        throw new Error(`Failed to update cow values: ${updateValuesError.message}`);
       }
-      console.log('✅ Cow status updated to active');
+      console.log('✅ Cow depreciation values updated');
 
       // 5. Catch up depreciation from disposition date to previous month
       const dispositionDate = new Date(disposition.disposition_date);
