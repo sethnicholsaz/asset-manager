@@ -370,14 +370,20 @@ export default function CowDetail() {
       const previousMonth = today.getMonth() === 0 ? 12 : today.getMonth();
       const previousYear = today.getMonth() === 0 ? today.getFullYear() - 1 : today.getFullYear();
 
-      // 1. Reverse the disposition journal entry using the existing database function
-      const { data: reversalResult, error: reversalError } = await supabase
-        .rpc('reverse_journal_entry', {
-          p_journal_entry_id: disposition.journal_entry_id,
-          p_reason: `Cow reinstatement - restoring cow #${cow.tag_number} to active status`
-        });
+      // 1. Reverse the disposition journal entry if it exists
+      if (disposition.journal_entry_id) {
+        const { data: reversalResult, error: reversalError } = await supabase
+          .rpc('reverse_journal_entry', {
+            p_journal_entry_id: disposition.journal_entry_id,
+            p_reason: `Cow reinstatement - restoring cow #${cow.tag_number} to active status`
+          });
 
-      if (reversalError) throw reversalError;
+        if (reversalError) {
+          console.error('Error reversing journal entry:', reversalError);
+          throw new Error(`Failed to reverse journal entry: ${reversalError.message}`);
+        }
+        console.log('✅ Journal entry reversed successfully:', reversalResult);
+      }
 
       // 2. Delete the disposition record
       const { error: deleteDispositionError } = await supabase
@@ -385,28 +391,70 @@ export default function CowDetail() {
         .delete()
         .eq('id', disposition.id);
 
-      if (deleteDispositionError) throw deleteDispositionError;
+      if (deleteDispositionError) {
+        console.error('Error deleting disposition:', deleteDispositionError);
+        throw new Error(`Failed to delete disposition: ${deleteDispositionError.message}`);
+      }
+      console.log('✅ Disposition record deleted');
 
-      // 3. Update cow status back to active and recalculate current value
+      // 3. Calculate total accumulated depreciation from journal entries
+      const { data: depreciationData, error: depreciationError } = await supabase
+        .from('journal_lines')
+        .select(`
+          credit_amount,
+          journal_entries!inner (
+            entry_date,
+            company_id,
+            entry_type
+          )
+        `)
+        .eq('cow_id', cow.id)
+        .eq('account_code', '1500.1')
+        .eq('account_name', 'Accumulated Depreciation - Dairy Cows')
+        .eq('line_type', 'credit')
+        .eq('journal_entries.company_id', currentCompany.id)
+        .eq('journal_entries.entry_type', 'depreciation');
+
+      if (depreciationError) {
+        console.error('Error calculating depreciation:', depreciationError);
+      }
+
+      const totalDepreciation = depreciationData?.reduce((sum, item) => sum + (item.credit_amount || 0), 0) || 0;
+      const currentValue = Math.max(0, cow.purchase_price - totalDepreciation);
+
+      console.log('📊 Calculated values:', { totalDepreciation, currentValue });
+
+      // 4. Update cow status back to active and update calculated values
       const { error: updateCowError } = await supabase
         .from('cows')
         .update({
           status: 'active',
           disposition_id: null,
+          total_depreciation: totalDepreciation,
+          current_value: currentValue,
           updated_at: new Date().toISOString()
         })
         .eq('id', cow.id);
 
-      if (updateCowError) throw updateCowError;
+      if (updateCowError) {
+        console.error('Error updating cow:', updateCowError);
+        throw new Error(`Failed to update cow: ${updateCowError.message}`);
+      }
+      console.log('✅ Cow status updated to active');
 
-      // 4. Catch up depreciation from disposition date to previous month
+      // 5. Catch up depreciation from disposition date to previous month
       const dispositionDate = new Date(disposition.disposition_date);
       let currentProcessingDate = new Date(dispositionDate.getFullYear(), dispositionDate.getMonth() + 1, 1);
+      let monthsProcessed = 0;
+
+      console.log(`🔄 Starting depreciation catch-up from ${currentProcessingDate.toISOString().slice(0,7)} to ${previousYear}-${previousMonth.toString().padStart(2, '0')}`);
 
       while (currentProcessingDate.getFullYear() < previousYear || 
              (currentProcessingDate.getFullYear() === previousYear && currentProcessingDate.getMonth() + 1 <= previousMonth)) {
         
-        const { error: depreciationError } = await supabase
+        console.log(`Processing depreciation for ${currentProcessingDate.getMonth() + 1}/${currentProcessingDate.getFullYear()}`);
+        
+        const { data: depResult, error: depreciationError } = await supabase
           .rpc('process_monthly_depreciation', {
             p_company_id: currentCompany.id,
             p_target_month: currentProcessingDate.getMonth() + 1,
@@ -415,15 +463,20 @@ export default function CowDetail() {
 
         if (depreciationError) {
           console.warn(`Warning: Could not process depreciation for ${currentProcessingDate.getMonth() + 1}/${currentProcessingDate.getFullYear()}:`, depreciationError);
+        } else {
+          console.log(`✅ Processed depreciation for ${currentProcessingDate.getMonth() + 1}/${currentProcessingDate.getFullYear()}:`, depResult);
+          monthsProcessed++;
         }
 
         // Move to next month
         currentProcessingDate = new Date(currentProcessingDate.getFullYear(), currentProcessingDate.getMonth() + 1, 1);
       }
 
+      console.log(`🎉 Depreciation catch-up complete: ${monthsProcessed} months processed`);
+
       toast({
         title: "Cow Reinstated Successfully",
-        description: `Cow #${cow.tag_number} has been restored to active status. Disposition journal has been reversed and depreciation has been caught up.`,
+        description: `Cow #${cow.tag_number} has been restored to active status. Disposition journal reversed and ${monthsProcessed} months of depreciation caught up.`,
       });
 
       // Reload the cow details to reflect changes
@@ -434,7 +487,7 @@ export default function CowDetail() {
       console.error('Error reinstating cow:', error);
       toast({
         title: "Error",
-        description: "Failed to reinstate cow. Please try again.",
+        description: error instanceof Error ? error.message : "Failed to reinstate cow. Please try again.",
         variant: "destructive",
       });
     } finally {
