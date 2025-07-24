@@ -10,7 +10,11 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
-import { ArrowLeft, Calendar, DollarSign, TrendingDown, FileText, AlertCircle, TrendingUp, Calculator, RotateCcw } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { ArrowLeft, Calendar, DollarSign, TrendingDown, FileText, AlertCircle, TrendingUp, Calculator, RotateCcw, Skull, ShoppingCart } from 'lucide-react';
 import { format } from 'date-fns';
 
 interface CowDetails {
@@ -96,6 +100,11 @@ export default function CowDetail() {
   const [isLoadingHistory, setIsLoadingHistory] = useState(false);
   const [isLoadingJournal, setIsLoadingJournal] = useState(false);
   const [isReinstating, setIsReinstating] = useState(false);
+  const [isCreatingDisposition, setIsCreatingDisposition] = useState(false);
+  const [showSaleDialog, setShowSaleDialog] = useState(false);
+  const [showDeathDialog, setShowDeathDialog] = useState(false);
+  const [saleAmount, setSaleAmount] = useState('');
+  const [dispositionNotes, setDispositionNotes] = useState('');
 
   useEffect(() => {
     console.log('🔧 CowDetail component mounted. cowId from useParams:', cowId);
@@ -509,6 +518,85 @@ export default function CowDetail() {
     }
   };
 
+  const createDisposition = async (type: 'sale' | 'death') => {
+    if (!cow || !currentCompany) return;
+
+    try {
+      setIsCreatingDisposition(true);
+
+      // First call depreciation catch-up to disposition date (today)
+      const { data: catchupResult, error: catchupError } = await supabase
+        .rpc('catch_up_cow_depreciation_to_date', {
+          p_cow_id: cow.id,
+          p_target_date: new Date().toISOString().split('T')[0]
+        });
+
+      if (catchupError) {
+        console.error("Error calling depreciation catch-up before disposal:", catchupError);
+      }
+
+      // Re-fetch cow data after depreciation catch-up to get updated values
+      const { data: updatedCow } = await supabase
+        .from('cows')
+        .select('current_value, tag_number, total_depreciation')
+        .eq('id', cow.id)
+        .single();
+
+      const saleAmountValue = type === 'sale' ? parseFloat(saleAmount) || 0 : 0;
+      const bookValue = updatedCow?.current_value || cow.current_value || 0;
+      const gainLoss = saleAmountValue - bookValue;
+
+      const dispositionData = {
+        cow_id: cow.id,
+        disposition_date: new Date().toISOString().split('T')[0],
+        disposition_type: type,
+        sale_amount: saleAmountValue,
+        final_book_value: bookValue,
+        gain_loss: gainLoss,
+        notes: dispositionNotes || null,
+        company_id: currentCompany.id
+      };
+
+      const { error: dispositionError } = await supabase.from('cow_dispositions').insert(dispositionData);
+      if (dispositionError) throw dispositionError;
+
+      const { error: cowUpdateError } = await supabase
+        .from('cows')
+        .update({ 
+          status: type === 'sale' ? 'sold' : 'deceased',
+          disposition_id: cow.id
+        })
+        .eq('id', cow.id);
+
+      if (cowUpdateError) throw cowUpdateError;
+
+      toast({
+        title: "Disposition Recorded",
+        description: `Cow #${cow.tag_number} has been marked as ${type === 'sale' ? 'sold' : 'deceased'}.`,
+      });
+
+      // Reset form and close dialogs
+      setSaleAmount('');
+      setDispositionNotes('');
+      setShowSaleDialog(false);
+      setShowDeathDialog(false);
+
+      // Reload cow details
+      loadCowDetails();
+      setJournalSummary(null); // Reset to force reload
+
+    } catch (error) {
+      console.error('Error creating disposition:', error);
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to record disposition. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsCreatingDisposition(false);
+    }
+  };
+
   const getBalanceColor = (balance: number) => {
     const absBalance = Math.abs(balance);
     if (absBalance < 1) return 'text-green-600'; // Balanced
@@ -577,26 +665,122 @@ export default function CowDetail() {
           </div>
         </div>
         
-        {/* Reinstate button for disposed cows */}
-        {disposition && (cow.status === 'sold' || cow.status === 'deceased') && (
-          <Button 
-            onClick={reinstateCow}
-            disabled={isReinstating}
-            className="bg-green-600 hover:bg-green-700 text-white"
-          >
-            {isReinstating ? (
-              <>
-                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2" />
-                Reinstating...
-              </>
-            ) : (
-              <>
-                <RotateCcw className="h-4 w-4 mr-2" />
-                Reinstate Cow
-              </>
-            )}
-          </Button>
-        )}
+        <div className="flex gap-2">
+          {/* Disposition buttons for active cows */}
+          {cow.status === 'active' && (
+            <>
+              <Dialog open={showSaleDialog} onOpenChange={setShowSaleDialog}>
+                <DialogTrigger asChild>
+                  <Button variant="outline" className="text-blue-600 border-blue-600 hover:bg-blue-50">
+                    <ShoppingCart className="h-4 w-4 mr-2" />
+                    Mark as Sold
+                  </Button>
+                </DialogTrigger>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Record Sale</DialogTitle>
+                    <DialogDescription>
+                      Record the sale of cow #{cow.tag_number}
+                    </DialogDescription>
+                  </DialogHeader>
+                  <div className="space-y-4">
+                    <div>
+                      <Label htmlFor="saleAmount">Sale Amount ($)</Label>
+                      <Input
+                        id="saleAmount"
+                        type="number"
+                        step="0.01"
+                        value={saleAmount}
+                        onChange={(e) => setSaleAmount(e.target.value)}
+                        placeholder="0.00"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="notes">Notes (optional)</Label>
+                      <Textarea
+                        id="notes"
+                        value={dispositionNotes}
+                        onChange={(e) => setDispositionNotes(e.target.value)}
+                        placeholder="Any additional notes about this sale..."
+                      />
+                    </div>
+                  </div>
+                  <DialogFooter>
+                    <Button variant="outline" onClick={() => setShowSaleDialog(false)}>
+                      Cancel
+                    </Button>
+                    <Button 
+                      onClick={() => createDisposition('sale')}
+                      disabled={isCreatingDisposition}
+                    >
+                      {isCreatingDisposition ? 'Recording...' : 'Record Sale'}
+                    </Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
+
+              <Dialog open={showDeathDialog} onOpenChange={setShowDeathDialog}>
+                <DialogTrigger asChild>
+                  <Button variant="outline" className="text-red-600 border-red-600 hover:bg-red-50">
+                    <Skull className="h-4 w-4 mr-2" />
+                    Mark as Died
+                  </Button>
+                </DialogTrigger>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Record Death</DialogTitle>
+                    <DialogDescription>
+                      Record the death of cow #{cow.tag_number}
+                    </DialogDescription>
+                  </DialogHeader>
+                  <div className="space-y-4">
+                    <div>
+                      <Label htmlFor="deathNotes">Notes (optional)</Label>
+                      <Textarea
+                        id="deathNotes"
+                        value={dispositionNotes}
+                        onChange={(e) => setDispositionNotes(e.target.value)}
+                        placeholder="Any additional notes about this death..."
+                      />
+                    </div>
+                  </div>
+                  <DialogFooter>
+                    <Button variant="outline" onClick={() => setShowDeathDialog(false)}>
+                      Cancel
+                    </Button>
+                    <Button 
+                      onClick={() => createDisposition('death')}
+                      disabled={isCreatingDisposition}
+                    >
+                      {isCreatingDisposition ? 'Recording...' : 'Record Death'}
+                    </Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
+            </>
+          )}
+
+          {/* Reinstate button for disposed cows */}
+          {disposition && (cow.status === 'sold' || cow.status === 'deceased') && (
+            <Button 
+              onClick={reinstateCow}
+              disabled={isReinstating}
+              className="bg-green-600 hover:bg-green-700 text-white"
+            >
+              {isReinstating ? (
+                <>
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2" />
+                  Reinstating...
+                </>
+              ) : (
+                <>
+                  <RotateCcw className="h-4 w-4 mr-2" />
+                  Reinstate Cow
+                </>
+              )}
+            </Button>
+          )}
+        </div>
       </div>
 
       {/* Overview Cards */}

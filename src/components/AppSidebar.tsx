@@ -50,7 +50,6 @@ export function AppSidebar() {
       icon: AlertTriangle,
       count: pendingTasksCount > 0 ? pendingTasksCount : undefined
     },
-    { title: "Dispositions", url: "/dispositions", icon: TrendingDown },
     { title: "Reports", url: "/reports", icon: FileText },
     { title: "Team", url: "/users", icon: Users },
   ];

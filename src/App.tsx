@@ -19,7 +19,6 @@ import Index from "./pages/Index";
 import DataImport from "./pages/DataImport";
 import CowsNeedingAttention from "./pages/CowsNeedingAttention";
 import CowDetail from "./pages/CowDetail";
-import Dispositions from "./pages/Dispositions";
 import Reports from "./pages/Reports";
 import Settings from "./pages/Settings";
 import UserManagement from "./pages/UserManagement";
@@ -205,7 +204,6 @@ function AppContent() {
               <Route path="/data-import" element={<DataImport />} />
               <Route path="/cows-needing-attention" element={<CowsNeedingAttention />} />
               <Route path="/cow/:cowId" element={<CowDetail />} />
-              <Route path="/dispositions" element={<Dispositions />} />
               <Route path="/reports" element={<Reports />} />
               <Route path="/users" element={<UserManagement />} />
               <Route path="/settings" element={<Settings />} />
