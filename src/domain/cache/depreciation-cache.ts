@@ -7,8 +7,8 @@ import {
   calculateCurrentDepreciation,
   type DepreciationInput,
   type DepreciationResult,
-  type Result,
 } from '../depreciation/depreciation-calculator';
+import { type Result } from '../types/result';
 import { isOk } from '../types/result';
 
 // In-memory cache with LRU eviction
@@ -93,11 +93,20 @@ export const calculateCurrentDepreciationCached = (
 /**
  * Batch depreciation calculations with caching
  */
+export const batchCalculateDepreciation = (
+  inputs: DepreciationInput[]
+): Result<DepreciationResult, Error>[] => {
+  return inputs.map(input => calculateCurrentDepreciationCached(input));
+};
+
 export const calculateBatchDepreciationCached = (
   inputs: DepreciationInput[]
 ): Result<DepreciationResult, Error>[] => {
   return inputs.map(input => calculateCurrentDepreciationCached(input));
 };
+
+// Export types for external use
+export type { DepreciationInput, DepreciationResult };
 
 /**
  * Cache price defaults to reduce database calls

@@ -50,7 +50,13 @@ export class DepreciationCalculator {
     };
     
     const result = domainGenerateDepreciationSchedule(cow.id, input, startDate, endDate);
-    return unwrapOr(result, []);
+    const schedule = unwrapOr(result, []);
+    return schedule.map((entry, index) => ({
+      ...entry,
+      id: crypto.randomUUID(),
+      cowId: cow.id,
+      journalEntryId: undefined,
+    }));
   }
 
   /**
@@ -75,7 +81,8 @@ export class DepreciationCalculator {
       totalDepreciation: 0,
       currentValue: cow.purchasePrice,
       monthlyDepreciation: 0,
-      monthsSinceFreshen: 0
+      monthsSinceFreshen: 0,
+      remainingMonths: 60,
     });
   }
 

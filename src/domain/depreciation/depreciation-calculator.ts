@@ -125,7 +125,7 @@ export const calculateMonthlyDepreciation = (
 ): Result<number, ValidationError | CalculationError> => {
   const validationResult = validateDepreciationInput(input);
   if (!validationResult.success) {
-    return validationResult;
+    return validationResult as Result<number, ValidationError | CalculationError>;
   }
   
   const { purchasePrice, salvageValue, freshenDate, depreciationMethod, currentValue } = input;
@@ -167,7 +167,7 @@ export const calculateCurrentDepreciation = (
   });
   
   if (!validationResult.success) {
-    return validationResult;
+    return validationResult as Result<DepreciationResult, ValidationError | CalculationError>;
   }
   
   const { purchasePrice, salvageValue, freshenDate } = input;
@@ -203,7 +203,7 @@ export const generateDepreciationSchedule = (
 ): Result<DepreciationEntry[], ValidationError | CalculationError> => {
   const validationResult = validateDepreciationInput(input);
   if (!validationResult.success) {
-    return validationResult;
+    return validationResult as Result<DepreciationEntry[], ValidationError | CalculationError>;
   }
   
   const { purchasePrice, salvageValue, freshenDate } = input;
@@ -220,7 +220,7 @@ export const generateDepreciationSchedule = (
     );
     
     if (!monthlyDepreciationResult.success) {
-      return monthlyDepreciationResult;
+      return monthlyDepreciationResult as Result<DepreciationEntry[], ValidationError | CalculationError>;
     }
     
     const monthlyDepreciation = monthlyDepreciationResult.data;

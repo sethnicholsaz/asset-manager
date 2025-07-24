@@ -66,13 +66,13 @@ export function DispositionReport({ cows }: DispositionReportProps) {
 
       setDispositions(transformedDispositions);
 
-      // Fetch cow data for the disposed cows using tag numbers
+      // Fetch cow data for the disposed cows using cow IDs
       if (transformedDispositions.length > 0) {
-        const cowTagNumbers = transformedDispositions.map(d => d.cowId);
+        const cowIds = transformedDispositions.map(d => d.cowId);
         const { data: cowData, error: cowError } = await supabase
           .from('cows')
           .select('*')
-          .in('tag_number', cowTagNumbers);
+          .in('id', cowIds);
 
         if (cowError) throw cowError;
 
@@ -132,7 +132,7 @@ export function DispositionReport({ cows }: DispositionReportProps) {
     console.log(`Available cow data: ${dispositionCows.length} cows`);
 
     dispositions.forEach((disposition) => {
-      const cow = dispositionCows.find(c => c.tagNumber === disposition.cowId);
+      const cow = dispositionCows.find(c => c.id === disposition.cowId);
       if (!cow) {
         console.log(`No cow data found for disposition ${disposition.id}, cow ID: ${disposition.cowId}`);
         return;
@@ -235,7 +235,7 @@ export function DispositionReport({ cows }: DispositionReportProps) {
 
   // Calculate totals using the same logic as the display table (recalculated values)
   const totals = dispositions.reduce((acc, d) => {
-    const cow = dispositionCows.find(c => c.tagNumber === d.cowId);
+    const cow = dispositionCows.find(c => c.id === d.cowId);
     if (!cow) {
       // Use stored values if no cow data available
       acc.gainLoss += d.gainLoss;
@@ -324,7 +324,7 @@ export function DispositionReport({ cows }: DispositionReportProps) {
   });
 
   const exportData = dispositions.map(d => {
-    const cow = dispositionCows.find(c => c.tagNumber === d.cowId);
+    const cow = dispositionCows.find(c => c.id === d.cowId);
     if (!cow) return {
       CowTag: d.cowId,
       DispositionDate: DepreciationCalculator.formatDate(d.dispositionDate),
@@ -534,7 +534,7 @@ export function DispositionReport({ cows }: DispositionReportProps) {
                       {dispositions
                         .slice((currentPage - 1) * pageSize, currentPage * pageSize)
                         .map((disposition) => {
-                          const cow = dispositionCows.find(c => c.tagNumber === disposition.cowId);
+                          const cow = dispositionCows.find(c => c.id === disposition.cowId);
                           console.log('🐄 Found cow for disposition:', { disposition: disposition.cowId, cow: cow, cowId: cow?.id });
                           
                           // Calculate values - use stored values if no cow data available

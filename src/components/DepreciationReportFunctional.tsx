@@ -190,10 +190,10 @@ export function DepreciationReportFunctional({ cows }: DepreciationReportFunctio
 
       if (error) throw error;
 
-      if (data?.success) {
+      if ((data as any)?.success) {
         toast({
           title: "Journal Entry Created",
-          description: `Generated journal entry for ${formatCurrency(data.total_amount)} covering ${data.cows_processed} cows`,
+          description: `Generated journal entry for ${formatCurrency((data as any).total_amount)} covering ${(data as any).cows_processed} cows`,
         });
       } else {
         toast({

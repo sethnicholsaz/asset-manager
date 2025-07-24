@@ -217,7 +217,9 @@ export function CowFormFunctional({ onAddCow, onCancel }: CowFormFunctionalProps
       });
 
       // Create cow record in database
+      const cowId = crypto.randomUUID();
       const cowData = {
+        id: cowId,
         company_id: currentCompany.id,
         tag_number: validatedData.tagNumber,
         name: validatedData.name || null,
@@ -225,7 +227,7 @@ export function CowFormFunctional({ onAddCow, onCancel }: CowFormFunctionalProps
         freshen_date: validatedData.freshenDate.toISOString().split('T')[0],
         purchase_price: validatedData.purchasePrice,
         salvage_value: validatedData.salvageValue,
-        asset_type: validatedData.assetType,
+        asset_type_id: validatedData.assetType,
         status: validatedData.status,
         depreciation_method: validatedData.depreciationMethod,
         current_value: depreciation.currentValue,
