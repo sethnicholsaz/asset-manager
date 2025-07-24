@@ -318,9 +318,9 @@ export default function CowDetail() {
       }, 0);
       
       const depreciationTotal = depreciationEntries.reduce((sum, entry) => {
-        // Sum only depreciation expense debits (6100) to avoid double-counting
-        if (entry.account_code === '6100' && entry.debit_amount > 0) {
-          return sum + entry.debit_amount;
+        // Sum accumulated depreciation credits (1500.1) to show total depreciation applied
+        if (entry.account_code === '1500.1' && entry.credit_amount > 0) {
+          return sum + entry.credit_amount;
         }
         return sum;
       }, 0);
