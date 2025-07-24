@@ -768,6 +768,10 @@ export type Database = {
         Args: { p_disposition_id: string }
         Returns: Json
       }
+      process_disposition_journal_corrected: {
+        Args: { p_disposition_id: string }
+        Returns: Json
+      }
       process_historical_depreciation: {
         Args: {
           p_company_id: string
