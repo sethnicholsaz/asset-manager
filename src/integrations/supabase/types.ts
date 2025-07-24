@@ -839,6 +839,10 @@ export type Database = {
           updated_at: string
         }[]
       }
+      update_cow_depreciation_values: {
+        Args: { p_cow_id: string }
+        Returns: Json
+      }
       upsert_depreciation_settings: {
         Args:
           | {
