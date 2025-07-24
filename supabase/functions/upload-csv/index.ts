@@ -388,6 +388,31 @@ Deno.serve(async (req) => {
           processedCows.push(...batchCows);
           console.log(`Fresh cow batch ${Math.floor(batchStart / batchSize) + 1} completed: ${batchCows.length} records`);
           
+          // SYNCHRONOUS: Create acquisition journals immediately for this batch
+          console.log(`Creating acquisition journals for ${batchCows.length} cows in batch ${Math.floor(batchStart / batchSize) + 1}`);
+          try {
+            for (const cow of batchCows) {
+              const { data: acquisitionResult, error: acquisitionError } = await supabase.rpc('process_acquisition_journal', {
+                p_cow_id: cow.id,
+                p_company_id: cow.company_id
+              });
+
+              if (acquisitionError) {
+                console.error(`Acquisition journal failed for cow ${cow.tag_number}:`, acquisitionError);
+                errors.push(`Acquisition journal failed for cow ${cow.tag_number}: ${acquisitionError.message}`);
+              } else if (acquisitionResult && typeof acquisitionResult === 'object' && 'success' in acquisitionResult && acquisitionResult.success) {
+                console.log(`✅ Acquisition journal created for cow ${cow.tag_number}`);
+              } else {
+                console.error(`Acquisition journal failed for cow ${cow.tag_number}:`, acquisitionResult);
+                errors.push(`Acquisition journal failed for cow ${cow.tag_number}: ${JSON.stringify(acquisitionResult)}`);
+              }
+            }
+            console.log(`✅ Acquisition journals completed for batch ${Math.floor(batchStart / batchSize) + 1}`);
+          } catch (acquisitionBatchError) {
+            console.error(`Batch acquisition processing error:`, acquisitionBatchError);
+            errors.push(`Batch ${Math.floor(batchStart / batchSize) + 1} acquisition processing: ${acquisitionBatchError.message}`);
+          }
+          
           // Schedule depreciation catch-up in background (non-blocking)
           const backgroundDepreciationTask = async () => {
             console.log(`Starting background depreciation processing for ${batchCows.length} cows`);
@@ -436,36 +461,13 @@ Deno.serve(async (req) => {
 
     console.log(`Successfully processed ${processedCows.length} cows for company ${company.name}`);
 
-    // Auto-process missing acquisition journals after successful upload
-    const acquisitionProcessingTask = async () => {
-      try {
-        console.log('🔄 Auto-processing missing acquisition journals...');
-        const { data: acquisitionData, error: acquisitionError } = await supabase.rpc('process_missing_acquisition_journals', {
-          p_company_id: companyId
-        });
-
-        if (acquisitionError) {
-          console.error('Error auto-processing acquisitions:', acquisitionError);
-        } else if (acquisitionData && typeof acquisitionData === 'object' && 'success' in acquisitionData && acquisitionData.success && 'total_processed' in acquisitionData && (acquisitionData.total_processed as number) > 0) {
-          console.log(`✅ Automatically created ${acquisitionData.total_processed as number} acquisition journal entries`);
-        } else {
-          console.log('ℹ️ No missing acquisition journals to process');
-        }
-      } catch (error) {
-        console.error('Error in auto-processing acquisitions:', error);
-      }
-    };
-
-    // Process acquisitions in background
-    EdgeRuntime.waitUntil(acquisitionProcessingTask());
-
     return new Response(
       JSON.stringify({
         success: true,
-        message: `Successfully imported ${processedCows.length} cows. Depreciation calculations and acquisition journals are being processed in the background.`,
+        message: `Successfully imported ${processedCows.length} cows. Acquisition journals created immediately. Depreciation calculations are being processed in the background.`,
         imported_count: processedCows.length,
         depreciation_status: 'processing_in_background',
-        acquisition_status: 'processing_in_background',
+        acquisition_status: 'completed_synchronously',
         errors: errors.length > 0 ? errors : undefined,
         company: company.name
       }),
