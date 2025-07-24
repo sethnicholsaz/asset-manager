@@ -388,26 +388,90 @@ Deno.serve(async (req) => {
           processedCows.push(...batchCows);
           console.log(`Fresh cow batch ${Math.floor(batchStart / batchSize) + 1} completed: ${batchCows.length} records`);
           
-          // SYNCHRONOUS: Create acquisition journals immediately for this batch
+          // OPTIMIZED: Create acquisition journals in batch using direct SQL
           console.log(`Creating acquisition journals for ${batchCows.length} cows in batch ${Math.floor(batchStart / batchSize) + 1}`);
           try {
+            // Prepare batch data for journal entries and lines
+            const journalEntries: any[] = [];
+            const journalLines: any[] = [];
+            
             for (const cow of batchCows) {
-              const { data: acquisitionResult, error: acquisitionError } = await supabase.rpc('process_acquisition_journal', {
-                p_cow_id: cow.id,
-                p_company_id: cow.company_id
+              const journalEntryId = crypto.randomUUID();
+              
+              // Create journal entry
+              journalEntries.push({
+                id: journalEntryId,
+                company_id: cow.company_id,
+                entry_date: cow.freshen_date,
+                month: new Date(cow.freshen_date).getMonth() + 1,
+                year: new Date(cow.freshen_date).getFullYear(),
+                entry_type: 'acquisition',
+                description: `Asset Acquisition - Cow #${cow.tag_number} (${cow.acquisition_type})`,
+                total_amount: cow.purchase_price
               });
-
-              if (acquisitionError) {
-                console.error(`Acquisition journal failed for cow ${cow.tag_number}:`, acquisitionError);
-                errors.push(`Acquisition journal failed for cow ${cow.tag_number}: ${acquisitionError.message}`);
-              } else if (acquisitionResult && typeof acquisitionResult === 'object' && 'success' in acquisitionResult && acquisitionResult.success) {
-                console.log(`✅ Acquisition journal created for cow ${cow.tag_number}`);
+              
+              // Create journal lines (debit dairy cow asset, credit based on acquisition type)
+              journalLines.push({
+                id: crypto.randomUUID(),
+                journal_entry_id: journalEntryId,
+                account_code: '1500',
+                account_name: 'Dairy Cows',
+                description: `Acquire cow asset - Cow #${cow.tag_number}`,
+                debit_amount: cow.purchase_price,
+                credit_amount: 0,
+                line_type: 'debit',
+                cow_id: cow.id
+              });
+              
+              if (cow.acquisition_type === 'purchased') {
+                // Credit cash for purchased cows
+                journalLines.push({
+                  id: crypto.randomUUID(),
+                  journal_entry_id: journalEntryId,
+                  account_code: '1000',
+                  account_name: 'Cash',
+                  description: `Payment for cow acquisition - Cow #${cow.tag_number}`,
+                  debit_amount: 0,
+                  credit_amount: cow.purchase_price,
+                  line_type: 'credit',
+                  cow_id: cow.id
+                });
               } else {
-                console.error(`Acquisition journal failed for cow ${cow.tag_number}:`, acquisitionResult);
-                errors.push(`Acquisition journal failed for cow ${cow.tag_number}: ${JSON.stringify(acquisitionResult)}`);
+                // Credit heifer asset for raised cows
+                journalLines.push({
+                  id: crypto.randomUUID(),
+                  journal_entry_id: journalEntryId,
+                  account_code: '1400',
+                  account_name: 'Heifers',
+                  description: `Transfer from heifer to dairy cow - Cow #${cow.tag_number}`,
+                  debit_amount: 0,
+                  credit_amount: cow.purchase_price,
+                  line_type: 'credit',
+                  cow_id: cow.id
+                });
               }
             }
-            console.log(`✅ Acquisition journals completed for batch ${Math.floor(batchStart / batchSize) + 1}`);
+            
+            // Batch insert journal entries and lines
+            const { error: entriesError } = await supabase
+              .from('journal_entries')
+              .insert(journalEntries);
+              
+            if (entriesError) {
+              console.error(`Journal entries batch insert error:`, entriesError);
+              errors.push(`Batch ${Math.floor(batchStart / batchSize) + 1} acquisition entries: ${entriesError.message}`);
+            } else {
+              const { error: linesError } = await supabase
+                .from('journal_lines')
+                .insert(journalLines);
+                
+              if (linesError) {
+                console.error(`Journal lines batch insert error:`, linesError);
+                errors.push(`Batch ${Math.floor(batchStart / batchSize) + 1} acquisition lines: ${linesError.message}`);
+              } else {
+                console.log(`✅ Acquisition journals created for ${batchCows.length} cows in batch ${Math.floor(batchStart / batchSize) + 1}`);
+              }
+            }
           } catch (acquisitionBatchError) {
             console.error(`Batch acquisition processing error:`, acquisitionBatchError);
             errors.push(`Batch ${Math.floor(batchStart / batchSize) + 1} acquisition processing: ${acquisitionBatchError.message}`);
