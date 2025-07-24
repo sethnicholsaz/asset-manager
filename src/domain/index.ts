@@ -110,3 +110,25 @@ export {
   type BatchProcessingOptions,
   type BatchResult,
 } from './batch/batch-processor';
+
+// Journal automation and database operations
+export {
+  createAcquisitionJournals,
+  createDispositionJournals,
+  createMonthlyDepreciationJournals,
+  processUploadJournals,
+  processJournalsInBackground,
+  type CowRecord,
+  type DispositionRecord,
+  type JournalBatch,
+} from './journal/journal-automation';
+
+export {
+  persistJournalsBatch,
+  checkDuplicateJournals,
+  createUploadJournals,
+  cleanupFailedJournals,
+  getJournalSummary,
+  type JournalPersistenceOptions,
+  type JournalPersistenceResult,
+} from './journal/journal-database';
