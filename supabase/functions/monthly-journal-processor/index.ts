@@ -72,10 +72,10 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
-    // Process starting from April 2025 (for historical catch-up processing)
-    const now = new Date();
-    const targetMonth = 4; // April
-    const targetYear = 2025;
+    // Get target month and year from request body
+    const body = await req.json();
+    const targetMonth = body.month || 4; // Default to April if not specified
+    const targetYear = body.year || 2025;
 
     console.log(`Processing monthly journal entries for ${getMonthName(targetMonth)} ${targetYear}`);
 
@@ -95,134 +95,44 @@ serve(async (req) => {
       console.log(`Processing company: ${company.name} (${company.id})`);
 
       try {
-        // Check for existing POSTED entries for this month (draft entries will be replaced)
+        // Check for existing entries for this month
         const { data: existingEntries } = await supabase
-          .from('stored_journal_entries')
-          .select('entry_type, status')
+          .from('journal_entries')
+          .select('entry_type')
           .eq('company_id', company.id)
           .eq('month', targetMonth)
-          .eq('year', targetYear)
-          .eq('status', 'posted');
+          .eq('year', targetYear);
 
-        console.log(`Found ${existingEntries?.length || 0} existing posted entries for ${company.name}`);
+        console.log(`Found ${existingEntries?.length || 0} existing entries for ${company.name}`);
 
         const hasDepreciationEntry = existingEntries?.some(e => e.entry_type === 'depreciation');
         const hasDispositionEntry = existingEntries?.some(e => e.entry_type === 'disposition');
         const hasAcquisitionEntry = existingEntries?.some(e => e.entry_type === 'acquisition');
 
-        // Delete any draft entries before creating new ones
-        const { error: deleteDraftError } = await supabase
-          .from('stored_journal_entries')
-          .delete()
-          .eq('company_id', company.id)
-          .eq('month', targetMonth)
-          .eq('year', targetYear)
-          .eq('status', 'draft');
-
-        if (deleteDraftError) {
-          console.error('Error deleting draft entries:', deleteDraftError);
-        } else {
-          console.log('Deleted existing draft entries for regeneration');
-        }
-
         // Process Depreciation Entries (if not already created)
         if (!hasDepreciationEntry) {
           console.log(`Creating depreciation entry for ${company.name}`);
           
-          // Fetch all cows with pagination to avoid limits
-          let allCows: any[] = [];
-          let offset = 0;
-          const limit = 1000;
-          
-          while (true) {
-            const { data: cowBatch, error: cowsError } = await supabase
-              .from('cows')
-              .select('*')
-              .eq('company_id', company.id)
-              .range(offset, offset + limit - 1);
-
-            if (cowsError) throw cowsError;
-            
-            if (!cowBatch || cowBatch.length === 0) break;
-            
-            allCows.push(...cowBatch);
-            console.log(`Fetched ${cowBatch.length} cows (${offset} to ${offset + cowBatch.length - 1}), total so far: ${allCows.length}`);
-            
-            if (cowBatch.length < limit) break;
-            offset += limit;
-          }
-
-          console.log(`Total cows fetched for company: ${allCows.length}`);
-
-          // Include only active cows that have freshened by the end of the target month
-          const reportDate = new Date(targetYear, targetMonth, 0); // Last day of target month
-          const activeCows = allCows.filter((cow: any) => {
-            const isActive = cow.status === 'active';
-            const isFreshened = new Date(cow.freshen_date) <= reportDate;
-            return isActive && isFreshened;
-          });
-
-          console.log(`Active cows freshened by ${reportDate.toISOString().split('T')[0]}: ${activeCows.length}`);
-
-          if (activeCows && activeCows.length > 0) {
-            // Calculate total monthly depreciation
-            let totalMonthlyDepreciation = 0;
-            
-            activeCows.forEach((cow: Cow) => {
-              const monthlyDepreciation = calculateMonthlyDepreciation(cow, reportDate);
-              totalMonthlyDepreciation += monthlyDepreciation;
+          // Use the database function to process monthly depreciation
+          const { data: result, error: depreciationError } = await supabase
+            .rpc('process_monthly_depreciation', {
+              p_company_id: company.id,
+              p_target_month: targetMonth,
+              p_target_year: targetYear
             });
 
-            if (totalMonthlyDepreciation > 0) {
-              // Create depreciation journal entry
-              const { data: journalEntry, error: journalError } = await supabase
-                .from('stored_journal_entries')
-                .insert({
-                  company_id: company.id,
-                  entry_date: new Date(targetYear, targetMonth - 1, 1),
-                  month: targetMonth,
-                  year: targetYear,
-                  entry_type: 'depreciation',
-                  description: `Dairy Cow Depreciation - ${getMonthName(targetMonth)} ${targetYear}`,
-                  total_amount: totalMonthlyDepreciation,
-                  status: 'posted'
-                })
-                .select('id')
-                .single();
+          if (depreciationError) {
+            console.error('Error processing monthly depreciation:', depreciationError);
+            throw depreciationError;
+          }
 
-              if (journalError) throw journalError;
-
-              // Create journal lines
-              const journalLines = [
-                {
-                  journal_entry_id: journalEntry.id,
-                  account_code: '6100',
-                  account_name: 'Depreciation Expense',
-                  description: 'Monthly depreciation of dairy cows',
-                  debit_amount: totalMonthlyDepreciation,
-                  credit_amount: 0,
-                  line_type: 'debit'
-                },
-                {
-                  journal_entry_id: journalEntry.id,
-                  account_code: '1500.1',
-                  account_name: 'Accumulated Depreciation - Dairy Cows',
-                  description: 'Monthly depreciation of dairy cows',
-                  debit_amount: 0,
-                  credit_amount: totalMonthlyDepreciation,
-                  line_type: 'credit'
-                }
-              ];
-
-              const { error: linesError } = await supabase
-                .from('stored_journal_lines')
-                .insert(journalLines);
-
-              if (linesError) throw linesError;
-
-              console.log(`Created depreciation entry: ${formatCurrency(totalMonthlyDepreciation)}`);
+          if (result && result.success) {
+            console.log(`Created depreciation entry: ${formatCurrency(result.total_amount)} for ${result.cows_processed} cows`);
+            if (result.total_amount > 0) {
               totalJournalEntriesCreated++;
             }
+          } else {
+            console.log('No depreciation entry created (no eligible cows or zero depreciation)');
           }
         }
 
@@ -360,16 +270,15 @@ serve(async (req) => {
             if (allJournalLines.length > 0) {
               // Create disposition journal entry
               const { data: journalEntry, error: journalError } = await supabase
-                .from('stored_journal_entries')
+                .from('journal_entries')
                 .insert({
                   company_id: company.id,
-                  entry_date: new Date(targetYear, targetMonth - 1, 1),
+                  entry_date: new Date(targetYear, targetMonth - 1, 30), // End of month
                   month: targetMonth,
                   year: targetYear,
                   entry_type: 'disposition',
                   description: `Cow Dispositions - ${getMonthName(targetMonth)} ${targetYear}`,
-                  total_amount: totalDispositionAmount,
-                  status: 'posted'
+                  total_amount: totalDispositionAmount
                 })
                 .select('id')
                 .single();
@@ -383,7 +292,7 @@ serve(async (req) => {
               }));
 
               const { error: linesError } = await supabase
-                .from('stored_journal_lines')
+                .from('journal_lines')
                 .insert(journalLinesToInsert);
 
               if (linesError) throw linesError;
