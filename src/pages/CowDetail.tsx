@@ -10,7 +10,7 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
-import { ArrowLeft, Calendar, DollarSign, TrendingDown, FileText, AlertCircle, TrendingUp, Calculator } from 'lucide-react';
+import { ArrowLeft, Calendar, DollarSign, TrendingDown, FileText, AlertCircle, TrendingUp, Calculator, RotateCcw } from 'lucide-react';
 import { format } from 'date-fns';
 
 interface CowDetails {
@@ -42,6 +42,7 @@ interface Disposition {
   final_book_value: number;
   gain_loss: number;
   notes?: string;
+  journal_entry_id?: string;
 }
 
 interface HistoricalDepreciation {
@@ -94,6 +95,7 @@ export default function CowDetail() {
   const [isLoading, setIsLoading] = useState(true);
   const [isLoadingHistory, setIsLoadingHistory] = useState(false);
   const [isLoadingJournal, setIsLoadingJournal] = useState(false);
+  const [isReinstating, setIsReinstating] = useState(false);
 
   useEffect(() => {
     console.log('🔧 CowDetail component mounted. cowId from useParams:', cowId);
@@ -357,6 +359,89 @@ export default function CowDetail() {
     }
   };
 
+  const reinstateCow = async () => {
+    if (!cow || !disposition || !currentCompany) return;
+
+    try {
+      setIsReinstating(true);
+
+      // Calculate the month we need to catch up to (previous month)
+      const today = new Date();
+      const previousMonth = today.getMonth() === 0 ? 12 : today.getMonth();
+      const previousYear = today.getMonth() === 0 ? today.getFullYear() - 1 : today.getFullYear();
+
+      // 1. Reverse the disposition journal entry using the existing database function
+      const { data: reversalResult, error: reversalError } = await supabase
+        .rpc('reverse_journal_entry', {
+          p_journal_entry_id: disposition.journal_entry_id,
+          p_reason: `Cow reinstatement - restoring cow #${cow.tag_number} to active status`
+        });
+
+      if (reversalError) throw reversalError;
+
+      // 2. Delete the disposition record
+      const { error: deleteDispositionError } = await supabase
+        .from('cow_dispositions')
+        .delete()
+        .eq('id', disposition.id);
+
+      if (deleteDispositionError) throw deleteDispositionError;
+
+      // 3. Update cow status back to active and recalculate current value
+      const { error: updateCowError } = await supabase
+        .from('cows')
+        .update({
+          status: 'active',
+          disposition_id: null,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', cow.id);
+
+      if (updateCowError) throw updateCowError;
+
+      // 4. Catch up depreciation from disposition date to previous month
+      const dispositionDate = new Date(disposition.disposition_date);
+      let currentProcessingDate = new Date(dispositionDate.getFullYear(), dispositionDate.getMonth() + 1, 1);
+
+      while (currentProcessingDate.getFullYear() < previousYear || 
+             (currentProcessingDate.getFullYear() === previousYear && currentProcessingDate.getMonth() + 1 <= previousMonth)) {
+        
+        const { error: depreciationError } = await supabase
+          .rpc('process_monthly_depreciation', {
+            p_company_id: currentCompany.id,
+            p_target_month: currentProcessingDate.getMonth() + 1,
+            p_target_year: currentProcessingDate.getFullYear()
+          });
+
+        if (depreciationError) {
+          console.warn(`Warning: Could not process depreciation for ${currentProcessingDate.getMonth() + 1}/${currentProcessingDate.getFullYear()}:`, depreciationError);
+        }
+
+        // Move to next month
+        currentProcessingDate = new Date(currentProcessingDate.getFullYear(), currentProcessingDate.getMonth() + 1, 1);
+      }
+
+      toast({
+        title: "Cow Reinstated Successfully",
+        description: `Cow #${cow.tag_number} has been restored to active status. Disposition journal has been reversed and depreciation has been caught up.`,
+      });
+
+      // Reload the cow details to reflect changes
+      loadCowDetails();
+      setJournalSummary(null); // Reset to force reload
+
+    } catch (error) {
+      console.error('Error reinstating cow:', error);
+      toast({
+        title: "Error",
+        description: "Failed to reinstate cow. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsReinstating(false);
+    }
+  };
+
   const getBalanceColor = (balance: number) => {
     const absBalance = Math.abs(balance);
     if (absBalance < 1) return 'text-green-600'; // Balanced
@@ -424,6 +509,27 @@ export default function CowDetail() {
             </div>
           </div>
         </div>
+        
+        {/* Reinstate button for disposed cows */}
+        {disposition && (cow.status === 'sold' || cow.status === 'deceased') && (
+          <Button 
+            onClick={reinstateCow}
+            disabled={isReinstating}
+            className="bg-green-600 hover:bg-green-700 text-white"
+          >
+            {isReinstating ? (
+              <>
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2" />
+                Reinstating...
+              </>
+            ) : (
+              <>
+                <RotateCcw className="h-4 w-4 mr-2" />
+                Reinstate Cow
+              </>
+            )}
+          </Button>
+        )}
       </div>
 
       {/* Overview Cards */}

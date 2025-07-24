@@ -89,12 +89,14 @@ export function GlobalSearch() {
     if (!currentCompany || !searchQuery.trim()) return [];
 
     try {
+      // Search all cows including inactive ones (sold/deceased)
       const { data, error } = await supabase
         .from('cows')
         .select('id, tag_number, name, status')
         .eq('company_id', currentCompany.id)
         .or(`tag_number.ilike.%${searchQuery}%,name.ilike.%${searchQuery}%`)
-        .limit(10);
+        .order('status', { ascending: true }) // Show active cows first
+        .limit(15); // Increased limit to show more results including inactive
 
       if (error) throw error;
 
@@ -102,13 +104,22 @@ export function GlobalSearch() {
         id: cow.id,
         type: 'cow' as const,
         title: `Cow #${cow.tag_number}`,
-        subtitle: cow.name ? `${cow.name} • ${cow.status}` : cow.status,
+        subtitle: cow.name ? `${cow.name} • ${getStatusBadge(cow.status)}` : getStatusBadge(cow.status),
         url: `/cow/${cow.id}`
       }));
     } catch (error) {
       console.error('Error searching cows:', error);
       return [];
     }
+  };
+
+  const getStatusBadge = (status: string) => {
+    const statusLabels = {
+      'active': '🟢 Active',
+      'sold': '🔴 Sold',
+      'deceased': '💀 Deceased'
+    };
+    return statusLabels[status as keyof typeof statusLabels] || status;
   };
 
   const performSearch = async (searchQuery: string) => {
