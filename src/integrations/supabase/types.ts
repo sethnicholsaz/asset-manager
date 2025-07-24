@@ -700,6 +700,10 @@ export type Database = {
         Args: { p_cow_id: string; p_target_date: string }
         Returns: Json
       }
+      cleanup_post_disposition_depreciation: {
+        Args: { p_cow_id: string }
+        Returns: Json
+      }
       fetch_depreciation_settings: {
         Args: { p_company_id: string }
         Returns: {
