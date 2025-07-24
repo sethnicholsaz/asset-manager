@@ -696,6 +696,10 @@ export type Database = {
         }
         Returns: number
       }
+      catch_up_cow_depreciation_to_date: {
+        Args: { p_cow_id: string; p_target_date: string }
+        Returns: Json
+      }
       fetch_depreciation_settings: {
         Args: { p_company_id: string }
         Returns: {
@@ -769,6 +773,10 @@ export type Database = {
         Returns: Json
       }
       process_disposition_journal_corrected: {
+        Args: { p_disposition_id: string }
+        Returns: Json
+      }
+      process_disposition_journal_with_catchup: {
         Args: { p_disposition_id: string }
         Returns: Json
       }
