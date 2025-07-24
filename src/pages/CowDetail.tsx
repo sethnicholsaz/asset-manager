@@ -323,10 +323,20 @@ export default function CowDetail() {
         return sum;
       }, 0);
       
-      const dispositionTotal = dispositionEntries.reduce((sum, entry) => 
-        sum + entry.debit_amount - entry.credit_amount, 0);
+      // Calculate disposition total - sum only loss accounts (debits) which represent the actual loss
+      const dispositionTotal = dispositionEntries.reduce((sum, entry) => {
+        // Sum loss accounts (9000 series) which are debited when there's a loss
+        if (entry.account_code.startsWith('9') && entry.debit_amount > 0) {
+          return sum + entry.debit_amount;
+        }
+        return sum;
+      }, 0);
 
-      const netBalance = acquisitionTotal - depreciationTotal + dispositionTotal;
+      // Net balance should be 0 for a complete cow lifecycle
+      // Calculate actual net balance across all accounts for this cow
+      const netBalance = allEntries.reduce((balance, entry) => {
+        return balance + (entry.debit_amount - entry.credit_amount);
+      }, 0);
 
       setJournalSummary({
         acquisition_total: acquisitionTotal,
