@@ -1,14 +1,12 @@
 project_id = "qadhrhlagitqfsyfcnnr"
 
 [api]
-enabled = true
 port = 54321
 schemas = ["public", "storage", "graphql_public"]
 extra_search_path = ["public", "extensions"]
 max_rows = 1000
 
 [db]
-enabled = true
 port = 54322
 shadow_port = 54320
 major_version = 15
@@ -21,9 +19,7 @@ default_pool_size = 20
 max_client_conn = 100
 
 [realtime]
-enabled = true
-ip_version = "ipv6"
-port = 54323
+ip_version = "IPv6"
 max_header_length = 4096
 
 [studio]
@@ -44,10 +40,6 @@ file_size_limit = "50MiB"
 image_transformation = { enabled = true }
 
 [auth]
-enabled = true
-external_anonymous_users_enabled = false
-disable_signup = false
-auto_confirm_email = true
 
 [auth.external.apple]
 enabled = false
@@ -139,10 +131,6 @@ secret = ""
 enabled = false
 client_id = ""
 secret = ""
-
-[edge-runtime]
-policy = "local"
-inspector_port = 8083
 
 [functions.upload-csv]
 verify_jwt = false
