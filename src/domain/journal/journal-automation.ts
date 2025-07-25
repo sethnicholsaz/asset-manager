@@ -40,7 +40,7 @@ export interface DispositionRecord {
   id: string;
   cow_id: string;
   company_id: string;
-  disposition_type: 'sold' | 'died' | 'other';
+  disposition_type: 'sale' | 'death' | 'culled';
   disposition_date: string;
   sale_price?: number;
   reason?: string;
@@ -66,12 +66,12 @@ export const createAcquisitionJournals = async (
 ): Promise<BatchResult<JournalEntry>> => {
   const processor = (cow: CowRecord): JournalEntry => {
     const acquisitionData: AcquisitionData = {
-      cowId: cow.id,
-      tagNumber: cow.tag_number,
       companyId: cow.company_id,
+      cowId: cow.id,
+      cowTag: cow.tag_number,
+      entryDate: new Date(cow.created_at || cow.freshen_date),
       purchasePrice: cow.purchase_price,
-      acquisitionDate: new Date(cow.created_at || cow.freshen_date),
-      description: `Acquisition of cow ${cow.tag_number}`,
+      acquisitionType: 'purchased',
     };
 
     const result = buildAcquisitionEntry(acquisitionData);
@@ -118,16 +118,15 @@ export const createDispositionJournals = async (
     }
 
     const dispositionData: DispositionData = {
-      cowId: cow.id,
-      tagNumber: cow.tag_number,
       companyId: cow.company_id,
+      cowId: cow.id,
+      cowTag: cow.tag_number,
+      entryDate: new Date(disposition.disposition_date),
       dispositionType: disposition.disposition_type,
-      dispositionDate: new Date(disposition.disposition_date),
-      originalCost: cow.purchase_price,
+      purchasePrice: cow.purchase_price,
       accumulatedDepreciation: cow.purchase_price - depreciationResult.data.currentValue,
       bookValue: depreciationResult.data.currentValue,
-      salePrice: disposition.sale_price || 0,
-      description: `Disposition of cow ${cow.tag_number} - ${disposition.disposition_type}`,
+      saleAmount: disposition.sale_price || 0,
     };
 
     const result = buildDispositionEntry(dispositionData);
@@ -198,15 +197,13 @@ export const createMonthlyDepreciationJournals = async (
       return err(new Error(`Depreciation calculation failed: ${batchResult.errors.join(', ')}`));
     }
 
-    // Create single journal entry for the month
+    // Create single journal entry for the month (using first cow as example)
     const depreciationData: DepreciationData = {
       companyId,
-      month,
-      year,
-      totalDepreciation: totalMonthlyDepreciation,
-      cowCount: activeCows.length,
-      description: `Monthly depreciation for ${month}/${year} - ${activeCows.length} cows`,
-      cowDepreciations,
+      cowId: activeCows[0]?.id || '',
+      cowTag: `Monthly for ${activeCows.length} cows`,
+      entryDate: new Date(year, month - 1, 1),
+      depreciationAmount: totalMonthlyDepreciation,
     };
 
     const journalResult = buildDepreciationEntry(depreciationData);

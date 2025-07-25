@@ -101,10 +101,10 @@ const persistJournalBatch = async (
       const { data, error } = await supabase.rpc('persist_journal_batch', {
         journal_entries: journals.map(j => ({
           company_id: j.companyId,
-          entry_date: j.date.toISOString(),
+          entry_date: j.entryDate.toISOString(),
           month: j.month,
           year: j.year,
-          entry_type: j.type,
+          entry_type: j.entryType,
           description: j.description,
           total_amount: j.totalAmount,
           status: 'posted',
@@ -159,7 +159,7 @@ export const checkDuplicateJournals = async (
         .from('journal_entries')
         .select('id')
         .eq('company_id', journal.companyId)
-        .eq('entry_type', journal.type)
+        .eq('entry_type', journal.entryType)
         .eq('month', journal.month)
         .eq('year', journal.year)
         .limit(1);
@@ -199,7 +199,7 @@ export const createUploadJournals = async (
     if (!options.skipDuplicateCheck) {
       const duplicateResult = await checkDuplicateJournals(supabase, journals);
       if (!duplicateResult.success) {
-        return duplicateResult;
+        return err(duplicateResult.error);
       }
       journalsToCreate = duplicateResult.data;
     }
@@ -289,17 +289,18 @@ export const getJournalSummary = async (
     };
 
     data.forEach(entry => {
-      summary.totalAmount += entry.total_amount || 0;
+      const totalAmount = Number(entry.total_amount) || 0;
+      summary.totalAmount += totalAmount;
       
       switch (entry.entry_type) {
         case 'acquisition':
-          summary.acquisitions += entry.total_amount || 0;
+          summary.acquisitions += totalAmount;
           break;
         case 'disposition':
-          summary.dispositions += entry.total_amount || 0;
+          summary.dispositions += totalAmount;
           break;
         case 'depreciation':
-          summary.depreciation += entry.total_amount || 0;
+          summary.depreciation += totalAmount;
           break;
       }
     });
