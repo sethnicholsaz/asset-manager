@@ -5,7 +5,7 @@
 
 import { createClient } from '@supabase/supabase-js';
 import { type JournalEntry, type JournalLine } from './journal-builder';
-import { type Result, ok, err, isErr } from '../types/result';
+import { type Result, type Err, ok, err, isErr } from '../types/result';
 
 export interface JournalPersistenceOptions {
   batchSize?: number;
