@@ -642,6 +642,30 @@ export type Database = {
           },
         ]
       }
+      system_logs: {
+        Row: {
+          created_at: string | null
+          data: Json | null
+          id: string
+          level: string
+          message: string
+        }
+        Insert: {
+          created_at?: string | null
+          data?: Json | null
+          id?: string
+          level: string
+          message: string
+        }
+        Update: {
+          created_at?: string | null
+          data?: Json | null
+          id?: string
+          level?: string
+          message?: string
+        }
+        Relationships: []
+      }
       upload_tokens: {
         Row: {
           company_id: string
@@ -696,12 +720,33 @@ export type Database = {
         }
         Returns: number
       }
+      calculate_monthly_depreciation_bulk: {
+        Args: {
+          company_id: string
+          target_month: number
+          target_year: number
+          cow_data: Json
+        }
+        Returns: Json
+      }
       catch_up_cow_depreciation_to_date: {
         Args: { p_cow_id: string; p_target_date: string }
         Returns: Json
       }
+      cleanup_incomplete_journals: {
+        Args: { company_id: string; cutoff_time: string }
+        Returns: undefined
+      }
       cleanup_post_disposition_depreciation: {
         Args: { p_cow_id: string }
+        Returns: Json
+      }
+      create_acquisition_journals_bulk: {
+        Args: { company_id: string; cow_acquisitions: Json }
+        Returns: Json
+      }
+      create_disposition_journals_bulk: {
+        Args: { company_id: string; cow_dispositions: Json }
         Returns: Json
       }
       fetch_depreciation_settings: {
@@ -767,6 +812,10 @@ export type Database = {
           ending_balance: number
           actual_active_count: number
         }[]
+      }
+      persist_journal_batch: {
+        Args: { journal_entries: Json; journal_lines: Json }
+        Returns: Json
       }
       process_acquisition_journal: {
         Args: { p_cow_id: string; p_company_id: string }
