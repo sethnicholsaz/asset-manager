@@ -5,7 +5,7 @@
 
 import { createClient } from '@supabase/supabase-js';
 import { type JournalEntry, type JournalLine } from './journal-builder';
-import { type Result, type Err, ok, err } from '../types/result';
+import { type Result, ok, err, isErr } from '../types/result';
 
 export interface JournalPersistenceOptions {
   batchSize?: number;
@@ -198,7 +198,7 @@ export const createUploadJournals = async (
     // Check for duplicates unless skipped
     if (!options.skipDuplicateCheck) {
       const duplicateResult = await checkDuplicateJournals(supabase, journals);
-      if (!duplicateResult.success) {
+      if (isErr(duplicateResult)) {
         return err((duplicateResult as Err<Error>).error);
       }
       journalsToCreate = duplicateResult.data;
