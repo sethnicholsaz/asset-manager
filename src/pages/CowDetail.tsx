@@ -530,23 +530,11 @@ export default function CowDetail() {
           throw new Error(`Failed to check existing reversals: ${reversalCheckError.message}`);
         }
 
-        // Filter out lines that already have reversals by matching account, amount, and description pattern
-        const linesToReverse = unreversedLines.filter(originalLine => {
-          // Check if this original line already has a corresponding reversal
-          const hasReversal = allReversalLines?.some(reversalLine => {
-            // Match by account code, amount (swapped), and check if description contains the original
-            const amountMatches = (
-              Math.abs(reversalLine.debit_amount - originalLine.credit_amount) < 0.01 &&
-              Math.abs(reversalLine.credit_amount - originalLine.debit_amount) < 0.01
-            );
-            const accountMatches = reversalLine.account_code === originalLine.account_code;
-            const descriptionMatches = reversalLine.description.includes(originalLine.description.substring(0, 50));
-            
-            return accountMatches && amountMatches && descriptionMatches;
-          });
-          
-          return !hasReversal;
-        });
+        // For now, let's reverse ALL disposition lines to ensure complete reversal
+        // We can optimize the filtering later once the basic reversal works correctly
+        const linesToReverse = unreversedLines;
+        
+        console.log(`Processing ${unreversedLines.length} disposition lines for reversal`);
 
         console.log(`Found ${unreversedLines.length} unreversed lines, ${linesToReverse.length} need reversal`);
 
