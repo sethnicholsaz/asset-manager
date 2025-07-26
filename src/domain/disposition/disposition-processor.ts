@@ -34,6 +34,30 @@ export async function processDisposition(input: DispositionInput): Promise<Dispo
   try {
     console.log(`Processing disposition for cow ${cowId} using database function`);
     
+    // Check if disposition already exists for this cow
+    const { data: existingDisposition, error: checkError } = await supabase
+      .from('cow_dispositions')
+      .select('*')
+      .eq('cow_id', cowId)
+      .eq('company_id', companyId)
+      .maybeSingle();
+
+    if (checkError) {
+      console.error('Error checking existing disposition:', checkError);
+      return { 
+        success: false, 
+        error: `Failed to check existing disposition: ${checkError.message}` 
+      };
+    }
+
+    if (existingDisposition) {
+      console.log('Disposition already exists for this cow:', existingDisposition);
+      return { 
+        success: false, 
+        error: 'A disposition record already exists for this cow. Please use the reinstate function to reverse the existing disposition before creating a new one.' 
+      };
+    }
+    
     // Step 1: Create disposition record first
     const dispositionData = {
       cow_id: cowId,
