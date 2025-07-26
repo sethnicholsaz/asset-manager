@@ -830,6 +830,10 @@ export type Database = {
         Args: { p_cow_id: string; p_company_id: string }
         Returns: Json
       }
+      process_cow_depreciation_with_disposition_check: {
+        Args: { p_cow_id: string; p_disposition_date: string }
+        Returns: Json
+      }
       process_disposition_journal: {
         Args: { p_disposition_id: string }
         Returns: Json
@@ -939,6 +943,10 @@ export type Database = {
       user_has_company_access: {
         Args: { company_uuid: string }
         Returns: boolean
+      }
+      validate_all_cow_depreciation_for_company: {
+        Args: { p_company_id: string }
+        Returns: Json
       }
     }
     Enums: {
