@@ -1,0 +1,1 @@
+DROP FUNCTION IF EXISTS public.catch_up_cow_depreciation_to_date;
