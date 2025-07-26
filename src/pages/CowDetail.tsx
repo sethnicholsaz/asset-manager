@@ -16,6 +16,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { ArrowLeft, Calendar, DollarSign, TrendingDown, FileText, AlertCircle, TrendingUp, Calculator, RotateCcw, Skull, ShoppingCart } from 'lucide-react';
 import { format } from 'date-fns';
+import { formatDateForDisplay, formatDateForDB, getCurrentTimestampForDB, calculateAge } from '@/lib/date-utils';
 
 interface CowDetails {
   id: string;
@@ -597,7 +598,7 @@ export default function CowDetail() {
               .from('journal_entries')
               .insert({
                 company_id: currentCompany.id,
-                entry_date: reversalDate.toISOString().split('T')[0],
+                entry_date: formatDateForDB(reversalDate),
                 month: reversalDate.getMonth() + 1,
                 year: reversalDate.getFullYear(),
                 entry_type: 'disposition_reversal',
@@ -647,7 +648,7 @@ export default function CowDetail() {
         .update({
           status: 'active',
           disposition_id: null,
-          updated_at: new Date().toISOString()
+          updated_at: getCurrentTimestampForDB()
         })
         .eq('id', cow.id);
 
@@ -703,7 +704,7 @@ export default function CowDetail() {
         .update({
           total_depreciation: totalDepreciation,
           current_value: currentValue,
-          updated_at: new Date().toISOString()
+          updated_at: getCurrentTimestampForDB()
         })
         .eq('id', cow.id);
 
@@ -800,7 +801,7 @@ export default function CowDetail() {
 
       const dispositionData = {
         cow_id: cow.id,
-        disposition_date: new Date().toISOString().split('T')[0],
+        disposition_date: formatDateForDB(new Date()),
         disposition_type: type,
         sale_amount: saleAmountValue,
         final_book_value: bookValue,
@@ -931,7 +932,7 @@ export default function CowDetail() {
                 {cow.status.charAt(0).toUpperCase() + cow.status.slice(1)}
               </Badge>
               <span className="text-sm text-muted-foreground">
-                Last updated: {format(new Date(cow.updated_at), 'PPP')}
+                Last updated: {formatDateForDisplay(cow.updated_at, 'long')}
               </span>
             </div>
           </div>
@@ -1103,10 +1104,10 @@ export default function CowDetail() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {Math.floor((new Date().getTime() - new Date(cow.birth_date).getTime()) / (365.25 * 24 * 60 * 60 * 1000))} years
+              {calculateAge(cow.birth_date)} years
             </div>
             <p className="text-xs text-muted-foreground">
-              Born {format(new Date(cow.birth_date), 'PPP')}
+              Born {formatDateForDisplay(cow.birth_date, 'long')}
             </p>
           </CardContent>
         </Card>
@@ -1145,11 +1146,11 @@ export default function CowDetail() {
                   </div>
                   <div>
                     <label className="text-sm font-medium text-muted-foreground">Birth Date</label>
-                    <p className="text-lg">{format(new Date(cow.birth_date), 'PPP')}</p>
+                    <p className="text-lg">{formatDateForDisplay(cow.birth_date, 'long')}</p>
                   </div>
                   <div>
                     <label className="text-sm font-medium text-muted-foreground">Freshen Date</label>
-                    <p className="text-lg">{format(new Date(cow.freshen_date), 'PPP')}</p>
+                    <p className="text-lg">{formatDateForDisplay(cow.freshen_date, 'long')}</p>
                   </div>
                 </div>
                 <div className="space-y-4">
@@ -1258,7 +1259,7 @@ export default function CowDetail() {
                         {historicalDepreciation.map((entry) => (
                           <TableRow key={entry.id}>
                             <TableCell>
-                              {format(new Date(entry.entry_date), 'MMM dd, yyyy')}
+                              {formatDateForDisplay(entry.entry_date)}
                             </TableCell>
                             <TableCell>
                               {format(new Date(entry.year, entry.month - 1), 'MMM yyyy')}
@@ -1482,7 +1483,7 @@ export default function CowDetail() {
                                              key={entry.id}
                                              className={isReversal ? "bg-orange-50 border-orange-200" : isOriginalDisposition ? "bg-blue-50 border-blue-200" : ""}
                                            >
-                                             <TableCell>{format(new Date(entry.entry_date), 'MMM dd, yyyy')}</TableCell>
+                                             <TableCell>{formatDateForDisplay(entry.entry_date)}</TableCell>
                                              <TableCell>
                                                <div className="flex flex-col gap-1">
                                                  <Badge 
@@ -1563,7 +1564,7 @@ export default function CowDetail() {
                     </div>
                     <div>
                       <label className="text-sm font-medium text-muted-foreground">Disposition Date</label>
-                      <p className="text-lg">{format(new Date(disposition.disposition_date), 'PPP')}</p>
+                      <p className="text-lg">{formatDateForDisplay(disposition.disposition_date, 'long')}</p>
                     </div>
                     <div>
                       <label className="text-sm font-medium text-muted-foreground">Sale Amount</label>

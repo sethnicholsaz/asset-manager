@@ -17,6 +17,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
+import { formatDateForDB, formatDateForInput } from '@/lib/date-utils';
 
 // Use new domain imports
 import { 
@@ -223,8 +224,8 @@ export function CowFormFunctional({ onAddCow, onCancel }: CowFormFunctionalProps
         company_id: currentCompany.id,
         tag_number: validatedData.tagNumber,
         name: validatedData.name || null,
-        birth_date: validatedData.birthDate.toISOString().split('T')[0],
-        freshen_date: validatedData.freshenDate.toISOString().split('T')[0],
+        birth_date: formatDateForDB(validatedData.birthDate),
+        freshen_date: formatDateForDB(validatedData.freshenDate),
         purchase_price: validatedData.purchasePrice,
         salvage_value: validatedData.salvageValue,
         asset_type_id: validatedData.assetType,
