@@ -637,9 +637,10 @@ export default function CowDetail() {
     }
   };
 
-  const getBalanceColor = (balance: number) => {
+  const getBalanceColor = (balance: number, isBalanced: boolean) => {
+    if (isBalanced) return 'text-green-600'; // Balanced - should be green regardless of amount
+    
     const absBalance = Math.abs(balance);
-    if (absBalance < 1) return 'text-green-600'; // Balanced
     if (absBalance < 100) return 'text-yellow-600'; // Minor variance
     return 'text-red-600'; // Significant variance
   };
@@ -1142,7 +1143,14 @@ export default function CowDetail() {
                         </CardTitle>
                       </CardHeader>
                       <CardContent>
-                        <div className={`text-xl font-bold ${getBalanceColor(journalSummary.net_balance)}`}>
+                        <div className={`text-xl font-bold ${getBalanceColor(journalSummary.net_balance, (() => {
+                          if (cow?.status === 'active') {
+                            const expectedBalance = journalSummary.acquisition_total - journalSummary.depreciation_total - journalSummary.disposition_total;
+                            return Math.abs(journalSummary.net_balance - expectedBalance) < 1;
+                          } else {
+                            return Math.abs(journalSummary.net_balance) < 1;
+                          }
+                        })())}`}>
                           {formatCurrency(journalSummary.net_balance)}
                         </div>
                         <p className="text-xs text-muted-foreground mt-1">
