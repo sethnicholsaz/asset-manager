@@ -4,6 +4,7 @@ import { BarChart3, TrendingUp, DollarSign, Calendar } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
+import { formatCurrency, roundToPenny } from '@/lib/currency-utils';
 
 const Index = () => {
   const [journalStats, setJournalStats] = useState({
@@ -35,7 +36,12 @@ const Index = () => {
       if (error) throw error;
 
       console.log('Journal-based stats calculated:', data);
-      setJournalStats(data);
+      // Round all currency values to pennies
+      setJournalStats({
+        active_cow_count: data.active_cow_count,
+        total_asset_value: roundToPenny(data.total_asset_value),
+        total_accumulated_depreciation: roundToPenny(data.total_accumulated_depreciation)
+      });
     } catch (error) {
       console.error('Error fetching journal stats:', error);
       toast({
@@ -49,7 +55,7 @@ const Index = () => {
   };
 
   // Calculate current value from journal data
-  const currentValue = journalStats.total_asset_value - journalStats.total_accumulated_depreciation;
+  const currentValue = roundToPenny(journalStats.total_asset_value - journalStats.total_accumulated_depreciation);
 
   if (isLoading) {
     return (
@@ -92,7 +98,7 @@ const Index = () => {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              ${journalStats.total_asset_value.toLocaleString()}
+              {formatCurrency(journalStats.total_asset_value)}
             </div>
             <p className="text-xs text-muted-foreground">
               From journal entries
@@ -107,7 +113,7 @@ const Index = () => {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              ${currentValue.toLocaleString()}
+              {formatCurrency(currentValue)}
             </div>
             <p className="text-xs text-muted-foreground">
               Asset value less depreciation
@@ -122,7 +128,7 @@ const Index = () => {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              ${journalStats.total_accumulated_depreciation.toLocaleString()}
+              {formatCurrency(journalStats.total_accumulated_depreciation)}
             </div>
             <p className="text-xs text-muted-foreground">
               From journal entries
