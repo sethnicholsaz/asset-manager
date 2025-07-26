@@ -752,6 +752,10 @@ export type Database = {
         Args: { company_id: string; cutoff_time: string }
         Returns: undefined
       }
+      cleanup_invalid_depreciation_entries: {
+        Args: { p_company_id: string }
+        Returns: Json
+      }
       cleanup_post_disposition_depreciation: {
         Args: { p_cow_id: string }
         Returns: Json
