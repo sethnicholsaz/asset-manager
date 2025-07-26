@@ -297,6 +297,7 @@ export type Database = {
           default_depreciation_years: number
           default_salvage_percentage: number
           fiscal_year_start_month: number
+          historical_processing_completed: boolean | null
           id: string
           include_partial_months: boolean
           journal_processing_day: number
@@ -313,6 +314,7 @@ export type Database = {
           default_depreciation_years?: number
           default_salvage_percentage?: number
           fiscal_year_start_month?: number
+          historical_processing_completed?: boolean | null
           id?: string
           include_partial_months?: boolean
           journal_processing_day?: number
@@ -329,6 +331,7 @@ export type Database = {
           default_depreciation_years?: number
           default_salvage_percentage?: number
           fiscal_year_start_month?: number
+          historical_processing_completed?: boolean | null
           id?: string
           include_partial_months?: boolean
           journal_processing_day?: number
