@@ -1330,26 +1330,57 @@ export default function CowDetail() {
                                     </TableRow>
                                   </TableHeader>
                                   <TableBody>
-                                    {accountGroup.entries
-                                      .sort((a, b) => new Date(a.entry_date).getTime() - new Date(b.entry_date).getTime())
-                                      .map((entry) => (
-                                        <TableRow key={entry.id}>
-                                          <TableCell>{format(new Date(entry.entry_date), 'MMM dd, yyyy')}</TableCell>
-                                          <TableCell>
-                                            <Badge variant="outline" className="text-xs">
-                                              {entry.entry_type}
-                                            </Badge>
-                                          </TableCell>
-                                          <TableCell className="max-w-xs truncate">{entry.description}</TableCell>
-                                          <TableCell className="text-right font-mono">
-                                            {entry.debit_amount > 0 ? formatCurrency(entry.debit_amount) : '-'}
-                                          </TableCell>
-                                          <TableCell className="text-right font-mono">
-                                            {entry.credit_amount > 0 ? formatCurrency(entry.credit_amount) : '-'}
-                                          </TableCell>
-                                        </TableRow>
-                                      ))}
-                                  </TableBody>
+                                     {accountGroup.entries
+                                       .sort((a, b) => new Date(a.entry_date).getTime() - new Date(b.entry_date).getTime())
+                                       .map((entry) => {
+                                         // Check if this is a reversal entry
+                                         const isReversal = entry.entry_type.includes('_reversal') || entry.description.includes('REVERSAL:');
+                                         const isOriginalDisposition = entry.entry_type === 'disposition';
+                                         
+                                         return (
+                                           <TableRow 
+                                             key={entry.id}
+                                             className={isReversal ? "bg-orange-50 border-orange-200" : isOriginalDisposition ? "bg-blue-50 border-blue-200" : ""}
+                                           >
+                                             <TableCell>{format(new Date(entry.entry_date), 'MMM dd, yyyy')}</TableCell>
+                                             <TableCell>
+                                               <div className="flex flex-col gap-1">
+                                                 <Badge 
+                                                   variant={isReversal ? "destructive" : isOriginalDisposition ? "secondary" : "outline"} 
+                                                   className="text-xs w-fit"
+                                                 >
+                                                   {entry.entry_type}
+                                                 </Badge>
+                                                 {isReversal && (
+                                                   <span className="text-xs text-orange-600 font-medium">↺ Reversal</span>
+                                                 )}
+                                                 {isOriginalDisposition && (
+                                                   <span className="text-xs text-blue-600 font-medium">⚬ Original</span>
+                                                 )}
+                                               </div>
+                                             </TableCell>
+                                             <TableCell className="max-w-xs">
+                                               <div className="space-y-1">
+                                                 <div className={`truncate ${isReversal ? 'text-orange-700' : ''}`}>
+                                                   {entry.description}
+                                                 </div>
+                                                 {isReversal && (
+                                                   <div className="text-xs text-orange-600 italic">
+                                                     Historical reversal from system corrections
+                                                   </div>
+                                                 )}
+                                               </div>
+                                             </TableCell>
+                                             <TableCell className={`text-right font-mono ${isReversal ? 'text-orange-700' : ''}`}>
+                                               {entry.debit_amount > 0 ? formatCurrency(entry.debit_amount) : '-'}
+                                             </TableCell>
+                                             <TableCell className={`text-right font-mono ${isReversal ? 'text-orange-700' : ''}`}>
+                                               {entry.credit_amount > 0 ? formatCurrency(entry.credit_amount) : '-'}
+                                             </TableCell>
+                                           </TableRow>
+                                         );
+                                       })}
+                                   </TableBody>
                                 </Table>
                                 <div className="mt-4 pt-2 border-t flex justify-between items-center text-sm">
                                   <span className="font-medium">Account Total:</span>
