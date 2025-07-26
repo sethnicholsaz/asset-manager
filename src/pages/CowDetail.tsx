@@ -476,37 +476,74 @@ export default function CowDetail() {
 
       // 1.5. Handle orphaned disposition journal entries (entries without disposition records)
       // Find any unreversed disposition journal entries for this cow
-      const { data: orphanedJournalEntries, error: orphanedError } = await supabase
-        .from('journal_entries')
-        .select('id, description')
-        .eq('company_id', currentCompany.id)
-        .eq('entry_type', 'disposition')
-        .in('id', (
-          await supabase
-            .from('journal_lines')
-            .select('journal_entry_id')
-            .eq('cow_id', cow.id)
-        ).data?.map(jl => jl.journal_entry_id) || []);
+      const { data: unreversedLines, error: unreversedError } = await supabase
+        .from('journal_lines')
+        .select(`
+          id,
+          journal_entry_id,
+          account_code,
+          account_name,
+          description,
+          debit_amount,
+          credit_amount,
+          journal_entries!inner (
+            id,
+            entry_type,
+            entry_date,
+            description
+          )
+        `)
+        .eq('cow_id', cow.id)
+        .eq('journal_entries.entry_type', 'disposition');
 
-      if (orphanedError) {
-        console.error('Error fetching orphaned journal entries:', orphanedError);
-      } else if (orphanedJournalEntries && orphanedJournalEntries.length > 0) {
-        console.log('Found orphaned disposition journal entries:', orphanedJournalEntries.length);
+      if (unreversedError) {
+        console.error('Error fetching unreversed journal lines:', unreversedError);
+      } else if (unreversedLines && unreversedLines.length > 0) {
+        console.log('Found unreversed disposition lines:', unreversedLines.length);
         
-        // Reverse each orphaned journal entry
-        for (const entry of orphanedJournalEntries) {
-          const { data: reversalResult, error: reversalError } = await supabase
-            .rpc('reverse_journal_entry', {
-              p_journal_entry_id: entry.id,
-              p_reason: `Cow reinstatement - reversing orphaned disposition journal - cow #${cow.tag_number}`
-            });
+        // Create a single manual reversal journal entry
+        const reversalDate = new Date();
+        const { data: reversalEntry, error: reversalEntryError } = await supabase
+          .from('journal_entries')
+          .insert({
+            company_id: currentCompany.id,
+            entry_date: reversalDate.toISOString().split('T')[0],
+            month: reversalDate.getMonth() + 1,
+            year: reversalDate.getFullYear(),
+            entry_type: 'manual_reversal',
+            description: `Manual Reversal - Cow #${cow.tag_number} reinstatement - correcting unreversed dispositions`,
+            total_amount: unreversedLines.reduce((sum, line) => sum + line.debit_amount - line.credit_amount, 0)
+          })
+          .select()
+          .single();
 
-          if (reversalError) {
-            console.error('Error reversing orphaned journal entry:', reversalError);
-            throw new Error(`Failed to reverse orphaned journal entry ${entry.id}: ${reversalError.message}`);
-          }
-          console.log('✅ Orphaned journal entry reversed successfully:', reversalResult);
+        if (reversalEntryError) {
+          console.error('Error creating manual reversal entry:', reversalEntryError);
+          throw new Error(`Failed to create manual reversal entry: ${reversalEntryError.message}`);
         }
+
+        // Create reversal lines for each unreversed line (swap debits/credits)
+        const reversalLines = unreversedLines.map(line => ({
+          journal_entry_id: reversalEntry.id,
+          cow_id: cow.id,
+          account_code: line.account_code,
+          account_name: line.account_name,
+          description: `MANUAL REVERSAL: ${line.description}`,
+          debit_amount: line.credit_amount,  // Swap credit to debit
+          credit_amount: line.debit_amount,  // Swap debit to credit
+          line_type: line.credit_amount > 0 ? 'debit' : 'credit'
+        }));
+
+        const { error: reversalLinesError } = await supabase
+          .from('journal_lines')
+          .insert(reversalLines);
+
+        if (reversalLinesError) {
+          console.error('Error creating manual reversal lines:', reversalLinesError);
+          throw new Error(`Failed to create manual reversal lines: ${reversalLinesError.message}`);
+        }
+
+        console.log('✅ Manual reversal completed successfully for', reversalLines.length, 'lines');
       }
 
       // 2. Update cow status first to clear the disposition_id foreign key
