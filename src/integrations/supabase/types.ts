@@ -301,6 +301,7 @@ export type Database = {
           include_partial_months: boolean
           journal_processing_day: number
           monthly_calculation_day: number
+          processing_mode: string | null
           round_to_nearest_dollar: boolean
           updated_at: string
         }
@@ -316,6 +317,7 @@ export type Database = {
           include_partial_months?: boolean
           journal_processing_day?: number
           monthly_calculation_day?: number
+          processing_mode?: string | null
           round_to_nearest_dollar?: boolean
           updated_at?: string
         }
@@ -331,6 +333,7 @@ export type Database = {
           include_partial_months?: boolean
           journal_processing_day?: number
           monthly_calculation_day?: number
+          processing_mode?: string | null
           round_to_nearest_dollar?: boolean
           updated_at?: string
         }

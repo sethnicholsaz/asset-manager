@@ -23,6 +23,7 @@ interface DepreciationSettings {
   include_partial_months: boolean;
   round_to_nearest_dollar: boolean;
   fiscal_year_start_month: number;
+  processing_mode: 'historical' | 'production';
   created_at?: string;
   updated_at?: string;
 }
@@ -39,6 +40,7 @@ export function DepreciationSettings() {
     include_partial_months: true,
     round_to_nearest_dollar: true,
     fiscal_year_start_month: 1,
+    processing_mode: 'historical',
   });
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
@@ -148,9 +150,10 @@ export function DepreciationSettings() {
         }));
 
         const { data: yearResult, error: yearError } = await supabase
-          .rpc('process_historical_depreciation_by_year', { 
+          .rpc('process_historical_depreciation_by_year_with_mode', { 
             p_company_id: currentCompany.id,
-            p_target_year: year
+            p_target_year: year,
+            p_processing_mode: 'historical'
           });
 
         if (yearError) {
@@ -173,9 +176,13 @@ export function DepreciationSettings() {
 
       setHistoricalProcessingStatus('completed');
       setProcessingProgress({});
+      
+      // Switch to production mode after historical processing is complete
+      setSettings(prev => ({ ...prev, processing_mode: 'production' }));
+      
       toast({
         title: "Historical Processing Complete",
-        description: `Successfully processed ${yearsToProcess.length} years with ${totalEntriesProcessed} total entries and $${totalAmount.toFixed(2)} total depreciation.`,
+        description: `Successfully processed ${yearsToProcess.length} years with ${totalEntriesProcessed} total entries and $${totalAmount.toFixed(2)} total depreciation. System switched to production mode.`,
       });
 
     } catch (error) {
@@ -215,6 +222,7 @@ export function DepreciationSettings() {
           include_partial_months: dbSettings.include_partial_months,
           round_to_nearest_dollar: dbSettings.round_to_nearest_dollar,
           fiscal_year_start_month: dbSettings.fiscal_year_start_month,
+          processing_mode: dbSettings.processing_mode || 'historical',
           created_at: dbSettings.created_at,
           updated_at: dbSettings.updated_at
         });
