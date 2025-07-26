@@ -68,15 +68,18 @@ export function DepreciationSettings() {
       // Check if any journal entries exist for this company
       const { data: journalEntries, error } = await supabase
         .from('journal_entries')
-        .select('id')
+        .select('id, description, entry_date, entry_type')
         .eq('company_id', currentCompany.id)
         .eq('entry_type', 'depreciation')
-        .limit(1);
+        .limit(5);
 
       if (error) {
         console.error('Error checking historical processing status:', error);
         return;
       }
+
+      console.log('Found depreciation journal entries:', journalEntries);
+      console.log('Company ID:', currentCompany.id);
 
       if (journalEntries && journalEntries.length > 0) {
         setHistoricalProcessingStatus('completed');
