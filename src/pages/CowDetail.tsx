@@ -254,7 +254,7 @@ export default function CowDetail() {
   };
 
   const loadJournalSummary = async () => {
-    if (!cowId || !currentCompany || journalSummary) return;
+    if (!cowId || !currentCompany) return;
 
     try {
       setIsLoadingJournal(true);
@@ -519,6 +519,8 @@ export default function CowDetail() {
       // Reload the cow details to reflect changes
       loadCowDetails();
       setJournalSummary(null); // Reset to force reload
+      // Force reload journal summary if it was loaded before
+      loadJournalSummary();
 
     } catch (error) {
       console.error('Error reinstating cow:', error);
@@ -603,6 +605,8 @@ export default function CowDetail() {
       // Reload cow details
       loadCowDetails();
       setJournalSummary(null); // Reset to force reload
+      // Force reload journal summary if it was loaded before
+      loadJournalSummary();
 
     } catch (error) {
       console.error('Error creating disposition:', error);
