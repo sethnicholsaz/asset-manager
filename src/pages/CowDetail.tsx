@@ -822,7 +822,9 @@ export default function CowDetail() {
         .from('cows')
         .update({ 
           status: type === 'sale' ? 'sold' : 'deceased',
-          disposition_id: dispositionRecord.id
+          disposition_id: dispositionRecord.id,
+          // Set current_value to 0 for deceased cows since the asset no longer exists
+          current_value: type === 'death' ? 0.00 : undefined
         })
         .eq('id', cow.id);
 
