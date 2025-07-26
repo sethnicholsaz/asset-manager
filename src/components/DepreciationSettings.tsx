@@ -65,22 +65,22 @@ export function DepreciationSettings() {
     if (!currentCompany) return;
 
     try {
-      // Check if any journal entries exist for this company
-      const { data: journalEntries, error } = await supabase
-        .from('journal_entries')
-        .select('id')
-        .eq('company_id', currentCompany.id)
-        .eq('entry_type', 'depreciation')
-        .limit(1);
+      // Always show the button - comment out the check for existing entries
+      // const { data: journalEntries, error } = await supabase
+      //   .from('journal_entries')
+      //   .select('id')
+      //   .eq('company_id', currentCompany.id)
+      //   .eq('entry_type', 'depreciation')
+      //   .limit(1);
 
-      if (error) {
-        console.error('Error checking historical processing status:', error);
-        return;
-      }
+      // if (error) {
+      //   console.error('Error checking historical processing status:', error);
+      //   return;
+      // }
 
-      if (journalEntries && journalEntries.length > 0) {
-        setHistoricalProcessingStatus('completed');
-      }
+      // if (journalEntries && journalEntries.length > 0) {
+      //   setHistoricalProcessingStatus('completed');
+      // }
     } catch (error) {
       console.error('Error checking historical processing status:', error);
     }
