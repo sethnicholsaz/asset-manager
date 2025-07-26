@@ -15,6 +15,7 @@ interface DepreciationRequest {
   month?: number
   year?: number
   force_recreate?: boolean
+  processing_mode?: 'historical' | 'production'
 }
 
 interface DepreciationResult {
@@ -132,38 +133,38 @@ Deno.serve(async (req) => {
         result.errors.push('No eligible cows found for depreciation calculation (all disposed before target month)');
         result.success = false;
       } else {
-        // Step 3: Calculate total monthly depreciation using database function
+        // Step 3: Calculate depreciation using new mode-aware function
+        const processingMode = requestData.processing_mode || 'historical';
+        const currentMonth = currentDate.getMonth() + 1;
+        const currentYear = currentDate.getFullYear();
+        
         const { data: depreciationResult, error: calcError } = await supabase
-          .rpc('calculate_monthly_depreciation_bulk', {
-            company_id: requestData.company_id,
-            target_month: targetMonth,
-            target_year: targetYear,
-            cow_data: eligibleCows.map(cow => ({
-              id: cow.id,
-              tag_number: cow.tag_number,
-              purchase_price: cow.purchase_price,
-              salvage_value: cow.salvage_value,
-              freshen_date: cow.freshen_date,
-              depreciation_method: cow.depreciation_method || 'straight_line'
-            }))
+          .rpc('process_monthly_depreciation_with_mode', {
+            p_company_id: requestData.company_id,
+            p_target_month: targetMonth,
+            p_target_year: targetYear,
+            p_processing_mode: processingMode,
+            p_current_month: processingMode === 'production' ? currentMonth : null,
+            p_current_year: processingMode === 'production' ? currentYear : null
           });
 
         if (calcError) {
           result.errors.push(`Depreciation calculation failed: ${calcError.message}`);
           result.success = false;
         } else if (depreciationResult?.success) {
-          result.total_depreciation = roundToPenny(depreciationResult.total_depreciation || 0);
-          result.cow_count = depreciationResult.cow_count || 0;
+          result.total_depreciation = roundToPenny(depreciationResult.total_amount || 0);
+          result.cow_count = depreciationResult.cows_processed || 0;
           result.journal_created = true;
 
           // Log the depreciation processing
           await supabase.from('system_logs').insert({
             level: 'INFO',
-            message: 'Monthly depreciation journal created',
+            message: `Monthly depreciation journal created (${processingMode} mode)`,
             data: {
               company_id: requestData.company_id,
-              month: targetMonth,
-              year: targetYear,
+              processing_mode: processingMode,
+              target_period: `${targetMonth}/${targetYear}`,
+              posted_to_period: depreciationResult.posted_to_period,
               total_depreciation: result.total_depreciation,
               cow_count: result.cow_count,
               processing_time: Date.now() - startTime

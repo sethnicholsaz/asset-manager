@@ -862,6 +862,14 @@ export type Database = {
         Args: { p_company_id: string; p_target_year: number }
         Returns: Json
       }
+      process_historical_depreciation_by_year_with_mode: {
+        Args: {
+          p_company_id: string
+          p_target_year: number
+          p_processing_mode?: string
+        }
+        Returns: Json
+      }
       process_missing_acquisition_journals: {
         Args: { p_company_id: string }
         Returns: Json
@@ -875,6 +883,17 @@ export type Database = {
           p_company_id: string
           p_target_month: number
           p_target_year: number
+        }
+        Returns: Json
+      }
+      process_monthly_depreciation_with_mode: {
+        Args: {
+          p_company_id: string
+          p_target_month: number
+          p_target_year: number
+          p_processing_mode?: string
+          p_current_month?: number
+          p_current_year?: number
         }
         Returns: Json
       }
