@@ -909,6 +909,14 @@ export type Database = {
         }
         Returns: Json
       }
+      process_reinstatement_catchup_depreciation: {
+        Args: {
+          p_cow_id: string
+          p_disposition_date: string
+          p_reinstatement_date?: string
+        }
+        Returns: Json
+      }
       reverse_journal_entry: {
         Args: { p_journal_entry_id: string; p_reason?: string }
         Returns: Json
