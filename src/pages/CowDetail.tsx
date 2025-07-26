@@ -501,37 +501,60 @@ export default function CowDetail() {
       } else if (unreversedLines && unreversedLines.length > 0) {
         console.log('Found unreversed disposition lines:', unreversedLines.length);
         
-        // Create a manual reversal journal entry using disposition_reversal type
-        // Use current timestamp in description to avoid unique constraint issues
+        // Find existing disposition_reversal journal entry for this period
         const reversalDate = new Date();
-        const timestampSuffix = reversalDate.getTime();
-        
-        const { data: reversalEntry, error: reversalEntryError } = await supabase
+        const { data: existingReversalEntry, error: findReversalError } = await supabase
           .from('journal_entries')
-          .insert({
-            company_id: currentCompany.id,
-            entry_date: reversalDate.toISOString().split('T')[0],
-            month: reversalDate.getMonth() + 1,
-            year: reversalDate.getFullYear(),
-            entry_type: 'disposition_reversal',
-            description: `Manual Disposition Reversal ${timestampSuffix} - Cow #${cow.tag_number} reinstatement`,
-            total_amount: Math.abs(unreversedLines.reduce((sum, line) => sum + line.debit_amount - line.credit_amount, 0))
-          })
-          .select()
-          .single();
+          .select('id')
+          .eq('company_id', currentCompany.id)
+          .eq('month', reversalDate.getMonth() + 1)
+          .eq('year', reversalDate.getFullYear())
+          .eq('entry_type', 'disposition_reversal')
+          .maybeSingle();
 
-        if (reversalEntryError) {
-          console.error('Error creating manual reversal entry:', reversalEntryError);
-          throw new Error(`Failed to create manual reversal entry: ${reversalEntryError.message}`);
+        if (findReversalError) {
+          console.error('Error finding existing reversal entry:', findReversalError);
+          throw new Error(`Failed to find existing reversal entry: ${findReversalError.message}`);
+        }
+
+        let reversalEntryId;
+        
+        if (existingReversalEntry) {
+          // Use existing reversal entry
+          reversalEntryId = existingReversalEntry.id;
+          console.log('Using existing disposition_reversal entry:', reversalEntryId);
+        } else {
+          // Create new reversal entry (this should work if none exists)
+          const { data: reversalEntry, error: reversalEntryError } = await supabase
+            .from('journal_entries')
+            .insert({
+              company_id: currentCompany.id,
+              entry_date: reversalDate.toISOString().split('T')[0],
+              month: reversalDate.getMonth() + 1,
+              year: reversalDate.getFullYear(),
+              entry_type: 'disposition_reversal',
+              description: `Disposition Reversal - Cow #${cow.tag_number} reinstatement`,
+              total_amount: Math.abs(unreversedLines.reduce((sum, line) => sum + line.debit_amount - line.credit_amount, 0))
+            })
+            .select()
+            .single();
+
+          if (reversalEntryError) {
+            console.error('Error creating reversal entry:', reversalEntryError);
+            throw new Error(`Failed to create reversal entry: ${reversalEntryError.message}`);
+          }
+          
+          reversalEntryId = reversalEntry.id;
+          console.log('Created new disposition_reversal entry:', reversalEntryId);
         }
 
         // Create reversal lines for each unreversed line (swap debits/credits)
         const reversalLines = unreversedLines.map(line => ({
-          journal_entry_id: reversalEntry.id,
+          journal_entry_id: reversalEntryId,
           cow_id: cow.id,
           account_code: line.account_code,
           account_name: line.account_name,
-          description: `MANUAL REVERSAL: ${line.description}`,
+          description: `REVERSAL: ${line.description}`,
           debit_amount: line.credit_amount,  // Swap credit to debit
           credit_amount: line.debit_amount,  // Swap debit to credit
           line_type: line.credit_amount > 0 ? 'debit' : 'credit'
