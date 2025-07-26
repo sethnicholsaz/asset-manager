@@ -788,6 +788,10 @@ export type Database = {
           updated_at: string
         }[]
       }
+      fix_all_missing_depreciation_comprehensive: {
+        Args: Record<PropertyKey, never>
+        Returns: Json
+      }
       fix_all_missing_may_june_depreciation: {
         Args: Record<PropertyKey, never>
         Returns: Json
