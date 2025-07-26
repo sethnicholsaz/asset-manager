@@ -505,14 +505,22 @@ export default function CowDetail() {
         throw new Error(`Failed to fetch unreversed journal lines: ${unreversedError.message}`);
       }
 
-      // Filter out lines that already have reversals
+      // Filter out lines that already have reversals more precisely
       if (unreversedLines && unreversedLines.length > 0) {
-        // Check which lines already have reversals by looking for matching reversal entries
-        const { data: existingReversals, error: reversalCheckError } = await supabase
+        // Get ALL reversal lines for this cow to check what's already been reversed
+        const { data: allReversalLines, error: reversalCheckError } = await supabase
           .from('journal_lines')
           .select(`
+            id,
+            account_code,
+            account_name,
             description,
-            journal_entries!inner (entry_type)
+            debit_amount,
+            credit_amount,
+            journal_entries!inner (
+              entry_type,
+              entry_date
+            )
           `)
           .eq('cow_id', cow.id)
           .eq('journal_entries.entry_type', 'disposition_reversal');
@@ -522,19 +530,31 @@ export default function CowDetail() {
           throw new Error(`Failed to check existing reversals: ${reversalCheckError.message}`);
         }
 
-        // Filter out lines that already have reversals (based on description matching)
-        const linesToReverse = unreversedLines.filter(line => {
-          const hasReversal = existingReversals?.some(reversal => 
-            reversal.description.includes(line.description.replace('REVERSAL: ', ''))
-          );
+        // Filter out lines that already have reversals by matching account, amount, and description pattern
+        const linesToReverse = unreversedLines.filter(originalLine => {
+          // Check if this original line already has a corresponding reversal
+          const hasReversal = allReversalLines?.some(reversalLine => {
+            // Match by account code, amount (swapped), and check if description contains the original
+            const amountMatches = (
+              Math.abs(reversalLine.debit_amount - originalLine.credit_amount) < 0.01 &&
+              Math.abs(reversalLine.credit_amount - originalLine.debit_amount) < 0.01
+            );
+            const accountMatches = reversalLine.account_code === originalLine.account_code;
+            const descriptionMatches = reversalLine.description.includes(originalLine.description.substring(0, 50));
+            
+            return accountMatches && amountMatches && descriptionMatches;
+          });
+          
           return !hasReversal;
         });
 
+        console.log(`Found ${unreversedLines.length} unreversed lines, ${linesToReverse.length} need reversal`);
+
         if (linesToReverse.length > 0) {
-          console.log('Creating manual reversal for', linesToReverse.length, 'unreversed lines');
-          
-          // Create a single reversal journal entry
+          // Create a unique reversal journal entry with timestamp to avoid duplicates
           const reversalDate = new Date();
+          const uniqueTimestamp = reversalDate.getTime();
+          
           const { data: reversalEntry, error: reversalEntryError } = await supabase
             .from('journal_entries')
             .insert({
@@ -543,7 +563,7 @@ export default function CowDetail() {
               month: reversalDate.getMonth() + 1,
               year: reversalDate.getFullYear(),
               entry_type: 'disposition_reversal',
-              description: `Cow Reinstatement Reversal - Cow #${cow.tag_number}`,
+              description: `Cow Reinstatement Reversal ${uniqueTimestamp} - Cow #${cow.tag_number}`,
               total_amount: Math.abs(linesToReverse.reduce((sum, line) => sum + line.debit_amount - line.credit_amount, 0))
             })
             .select()
