@@ -88,7 +88,9 @@ Deno.serve(async (req) => {
       }
     }
 
-    // Step 2: Get all active cows for the company
+    // Step 2: Get all active cows for the company that were not disposed before the target month
+    const targetDate = new Date(targetYear, targetMonth - 1, 1); // First day of target month
+    
     const { data: activeCows, error: cowsError } = await supabase
       .from('cows')
       .select(`
@@ -97,12 +99,13 @@ Deno.serve(async (req) => {
         purchase_price,
         salvage_value,
         freshen_date,
-        depreciation_method
+        depreciation_method,
+        cow_dispositions!inner(disposition_date)
       `)
       .eq('company_id', requestData.company_id)
-      .eq('status', 'active')
       .not('purchase_price', 'is', null)
-      .not('salvage_value', 'is', null);
+      .not('salvage_value', 'is', null)
+      .or(`status.eq.active,and(status.neq.active,cow_dispositions.disposition_date.gte.${targetDate.toISOString().split('T')[0]})`);
 
     if (cowsError) {
       result.errors.push(`Failed to fetch active cows: ${cowsError.message}`);
