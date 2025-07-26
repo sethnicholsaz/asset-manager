@@ -775,6 +775,7 @@ export type Database = {
           include_partial_months: boolean
           round_to_nearest_dollar: boolean
           fiscal_year_start_month: number
+          processing_mode: string
           created_at: string
           updated_at: string
         }[]
@@ -958,7 +959,8 @@ export type Database = {
               p_include_partial_months: boolean
               p_round_to_nearest_dollar: boolean
               p_fiscal_year_start_month: number
-              p_journal_processing_day?: number
+              p_journal_processing_day: number
+              p_processing_mode?: string
             }
         Returns: string
       }

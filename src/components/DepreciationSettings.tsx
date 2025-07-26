@@ -222,7 +222,7 @@ export function DepreciationSettings() {
           include_partial_months: dbSettings.include_partial_months,
           round_to_nearest_dollar: dbSettings.round_to_nearest_dollar,
           fiscal_year_start_month: dbSettings.fiscal_year_start_month,
-          processing_mode: dbSettings.processing_mode || 'historical',
+          processing_mode: (dbSettings.processing_mode as 'historical' | 'production') || 'historical',
           created_at: dbSettings.created_at,
           updated_at: dbSettings.updated_at
         });
@@ -260,7 +260,8 @@ export function DepreciationSettings() {
           p_include_partial_months: settings.include_partial_months,
           p_round_to_nearest_dollar: settings.round_to_nearest_dollar,
           p_fiscal_year_start_month: settings.fiscal_year_start_month,
-          p_journal_processing_day: settings.journal_processing_day
+          p_journal_processing_day: settings.journal_processing_day,
+          p_processing_mode: settings.processing_mode
         });
 
       if (error) {
@@ -559,6 +560,38 @@ export function DepreciationSettings() {
                   </>
                 )}
               </Button>
+            </div>
+          </div>
+        </div>
+
+        <Separator />
+
+        {/* Processing Mode Status */}
+        <div className="space-y-4">
+          <h4 className="text-sm font-medium flex items-center gap-2">
+            <Settings className="h-4 w-4" />
+            Current Processing Mode
+          </h4>
+          <div className="p-4 rounded-lg border bg-muted/50">
+            <div className="flex items-center justify-between">
+              <div className="space-y-1">
+                <div className="flex items-center gap-2">
+                  <div className={`h-2 w-2 rounded-full ${settings.processing_mode === 'production' ? 'bg-green-500' : 'bg-yellow-500'}`} />
+                  <Label className="text-sm font-medium capitalize">
+                    {settings.processing_mode} Mode
+                  </Label>
+                </div>
+                <p className="text-sm text-muted-foreground">
+                  {settings.processing_mode === 'production' ? (
+                    "All depreciation journal entries are posted to the current period."
+                  ) : (
+                    "Journal entries are posted to their historical periods. Run 'Process History' to switch to production mode."
+                  )}
+                </p>
+              </div>
+              {settings.processing_mode === 'production' && (
+                <CheckCircle className="h-5 w-5 text-green-600" />
+              )}
             </div>
           </div>
         </div>
