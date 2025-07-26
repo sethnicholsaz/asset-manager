@@ -22,19 +22,39 @@ export function formatDateForDB(date: Date | string): string {
 export function formatDateForDisplay(dateString: string | Date, format: 'short' | 'long' | 'medium' = 'medium'): string {
   if (!dateString) return '';
   
-  // Parse date as local date to avoid timezone shifts
-  const date = typeof dateString === 'string' 
-    ? new Date(dateString + 'T00:00:00') // Add time to prevent timezone interpretation
-    : dateString;
-  
-  const options: Intl.DateTimeFormatOptions = {
-    timeZone: 'UTC', // Force UTC to prevent local timezone conversion
-    year: 'numeric',
-    month: format === 'short' ? '2-digit' : format === 'long' ? 'long' : 'short',
-    day: '2-digit'
-  };
-  
-  return date.toLocaleDateString('en-US', options);
+  try {
+    // Handle different date input formats more robustly
+    let date: Date;
+    
+    if (typeof dateString === 'string') {
+      // Check if it's already an ISO string with time
+      if (dateString.includes('T')) {
+        date = new Date(dateString);
+      } else {
+        // For date-only strings, parse as local date to avoid timezone shifts
+        const [year, month, day] = dateString.split('-').map(Number);
+        date = new Date(year, month - 1, day); // month is 0-indexed
+      }
+    } else {
+      date = dateString;
+    }
+    
+    // Check if date is valid
+    if (isNaN(date.getTime())) {
+      return 'Invalid Date';
+    }
+    
+    const options: Intl.DateTimeFormatOptions = {
+      year: 'numeric',
+      month: format === 'short' ? '2-digit' : format === 'long' ? 'long' : 'short',
+      day: '2-digit'
+    };
+    
+    return date.toLocaleDateString('en-US', options);
+  } catch (error) {
+    console.error('Date formatting error:', error, 'Input:', dateString);
+    return 'Invalid Date';
+  }
 }
 
 /**
