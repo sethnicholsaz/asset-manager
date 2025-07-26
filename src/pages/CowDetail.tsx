@@ -410,19 +410,34 @@ export default function CowDetail() {
       const previousMonth = today.getMonth() === 0 ? 12 : today.getMonth();
       const previousYear = today.getMonth() === 0 ? today.getFullYear() - 1 : today.getFullYear();
 
-      // 1. Reverse the disposition journal entry if it exists
-      if (disposition.journal_entry_id) {
-        const { data: reversalResult, error: reversalError } = await supabase
-          .rpc('reverse_journal_entry', {
-            p_journal_entry_id: disposition.journal_entry_id,
-            p_reason: `Cow reinstatement - restoring cow #${cow.tag_number} to active status`
-          });
+      // 1. Find and reverse ALL disposition journal entries that haven't been reversed
+      const { data: allDispositions, error: dispositionsError } = await supabase
+        .from('cow_dispositions')
+        .select('*')
+        .eq('cow_id', cow.id)
+        .eq('company_id', currentCompany.id)
+        .order('created_at', { ascending: false });
 
-        if (reversalError) {
-          console.error('Error reversing journal entry:', reversalError);
-          throw new Error(`Failed to reverse journal entry: ${reversalError.message}`);
+      if (dispositionsError) {
+        console.error('Error fetching dispositions:', dispositionsError);
+        throw new Error(`Failed to fetch disposition records: ${dispositionsError.message}`);
+      }
+
+      // Reverse each disposition's journal entry if it exists
+      for (const disp of allDispositions || []) {
+        if (disp.journal_entry_id) {
+          const { data: reversalResult, error: reversalError } = await supabase
+            .rpc('reverse_journal_entry', {
+              p_journal_entry_id: disp.journal_entry_id,
+              p_reason: `Cow reinstatement - restoring cow #${cow.tag_number} to active status`
+            });
+
+          if (reversalError) {
+            console.error('Error reversing journal entry:', reversalError);
+            throw new Error(`Failed to reverse journal entry ${disp.journal_entry_id}: ${reversalError.message}`);
+          }
+          console.log('✅ Journal entry reversed successfully:', reversalResult);
         }
-        console.log('✅ Journal entry reversed successfully:', reversalResult);
       }
 
       // 2. Update cow status first to clear the disposition_id foreign key
@@ -441,11 +456,12 @@ export default function CowDetail() {
       }
       console.log('✅ Cow status updated to active and disposition_id cleared');
 
-      // 3. Now we can safely delete the disposition record
+      // 3. Delete ALL disposition records for this cow
       const { error: deleteDispositionError } = await supabase
         .from('cow_dispositions')
         .delete()
-        .eq('id', disposition.id);
+        .eq('cow_id', cow.id)
+        .eq('company_id', currentCompany.id);
 
       if (deleteDispositionError) {
         console.error('Error deleting disposition:', deleteDispositionError);
@@ -496,9 +512,11 @@ export default function CowDetail() {
       }
       console.log('✅ Cow depreciation values updated');
 
-      // 5. Catch up depreciation from disposition date to previous month
-      const dispositionDate = new Date(disposition.disposition_date);
-      let currentProcessingDate = new Date(dispositionDate.getFullYear(), dispositionDate.getMonth() + 1, 1);
+      // 5. Catch up depreciation from the earliest disposition date to previous month
+      const earliestDispositionDate = allDispositions.length > 0 
+        ? new Date(Math.min(...allDispositions.map(d => new Date(d.disposition_date).getTime())))
+        : new Date();
+      let currentProcessingDate = new Date(earliestDispositionDate.getFullYear(), earliestDispositionDate.getMonth() + 1, 1);
       let monthsProcessed = 0;
 
       console.log(`🔄 Starting depreciation catch-up from ${currentProcessingDate.toISOString().slice(0,7)} to ${previousYear}-${previousMonth.toString().padStart(2, '0')}`);
