@@ -132,3 +132,11 @@ export {
   type JournalPersistenceOptions,
   type JournalPersistenceResult,
 } from './journal/journal-database';
+
+// Disposition processing
+export {
+  processDisposition,
+  processDispositionBatch,
+  type DispositionInput,
+  type DispositionResult,
+} from './disposition/disposition-processor';

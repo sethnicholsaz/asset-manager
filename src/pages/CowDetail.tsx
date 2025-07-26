@@ -777,58 +777,23 @@ export default function CowDetail() {
     try {
       setIsCreatingDisposition(true);
 
-      // First call depreciation catch-up to disposition date (today)
-      const { data: catchupResult, error: catchupError } = await supabase
-        .rpc('catch_up_cow_depreciation_to_date', {
-          p_cow_id: cow.id,
-          p_target_date: new Date().toISOString().split('T')[0]
-        });
-
-      if (catchupError) {
-        console.error("Error calling depreciation catch-up before disposal:", catchupError);
-      }
-
-      // Re-fetch cow data after depreciation catch-up to get updated values
-      const { data: updatedCow } = await supabase
-        .from('cows')
-        .select('current_value, tag_number, total_depreciation')
-        .eq('id', cow.id)
-        .single();
-
       const saleAmountValue = type === 'sale' ? parseFloat(saleAmount) || 0 : 0;
-      const bookValue = updatedCow?.current_value || cow.current_value || 0;
-      const gainLoss = saleAmountValue - bookValue;
 
-      const dispositionData = {
-        cow_id: cow.id,
-        disposition_date: formatDateForDB(new Date()),
-        disposition_type: type,
-        sale_amount: saleAmountValue,
-        final_book_value: bookValue,
-        gain_loss: gainLoss,
-        notes: dispositionNotes || null,
-        company_id: currentCompany.id
-      };
-
-      const { data: dispositionRecord, error: dispositionError } = await supabase
-        .from('cow_dispositions')
-        .insert(dispositionData)
-        .select()
-        .single();
+      // Use the standardized disposition processor
+      const { processDisposition } = await import('@/domain/disposition/disposition-processor');
       
-      if (dispositionError) throw dispositionError;
+      const result = await processDisposition({
+        cowId: cow.id,
+        companyId: currentCompany.id,
+        dispositionDate: new Date(),
+        dispositionType: type,
+        saleAmount: saleAmountValue,
+        notes: dispositionNotes || undefined
+      });
 
-      const { error: cowUpdateError } = await supabase
-        .from('cows')
-        .update({ 
-          status: type === 'sale' ? 'sold' : 'deceased',
-          disposition_id: dispositionRecord.id,
-          // Set current_value to 0 for deceased cows since the asset no longer exists
-          current_value: type === 'death' ? 0.00 : undefined
-        })
-        .eq('id', cow.id);
-
-      if (cowUpdateError) throw cowUpdateError;
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to process disposition');
+      }
 
       toast({
         title: "Disposition Recorded",
