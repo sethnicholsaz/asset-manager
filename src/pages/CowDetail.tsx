@@ -501,8 +501,11 @@ export default function CowDetail() {
       } else if (unreversedLines && unreversedLines.length > 0) {
         console.log('Found unreversed disposition lines:', unreversedLines.length);
         
-        // Create a single manual reversal journal entry
+        // Create a manual reversal journal entry using disposition_reversal type
+        // Use current timestamp in description to avoid unique constraint issues
         const reversalDate = new Date();
+        const timestampSuffix = reversalDate.getTime();
+        
         const { data: reversalEntry, error: reversalEntryError } = await supabase
           .from('journal_entries')
           .insert({
@@ -510,9 +513,9 @@ export default function CowDetail() {
             entry_date: reversalDate.toISOString().split('T')[0],
             month: reversalDate.getMonth() + 1,
             year: reversalDate.getFullYear(),
-            entry_type: 'manual_reversal',
-            description: `Manual Reversal - Cow #${cow.tag_number} reinstatement - correcting unreversed dispositions`,
-            total_amount: unreversedLines.reduce((sum, line) => sum + line.debit_amount - line.credit_amount, 0)
+            entry_type: 'disposition_reversal',
+            description: `Manual Disposition Reversal ${timestampSuffix} - Cow #${cow.tag_number} reinstatement`,
+            total_amount: Math.abs(unreversedLines.reduce((sum, line) => sum + line.debit_amount - line.credit_amount, 0))
           })
           .select()
           .single();
