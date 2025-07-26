@@ -383,6 +383,34 @@ Deno.serve(async (req) => {
         } else {
           console.log('ℹ️ No missing disposition journals to process');
         }
+        
+        // CRITICAL FIX: Clean up any depreciation entries created after disposition dates
+        // This prevents race conditions between monthly processing and disposition uploads
+        console.log('🧹 Cleaning up invalid depreciation entries after disposition upload...');
+        try {
+          const { data: cleanupData, error: cleanupError } = await supabase.rpc('exec_sql', {
+            query: `
+              DELETE FROM public.journal_lines 
+              WHERE journal_entry_id IN (
+                SELECT je.id FROM public.journal_entries je
+                JOIN public.journal_lines jl ON jl.journal_entry_id = je.id
+                JOIN public.cow_dispositions cd ON cd.cow_id = jl.cow_id
+                WHERE je.entry_type = 'depreciation'
+                  AND je.entry_date > cd.disposition_date
+                  AND jl.cow_id IS NOT NULL
+              );
+              DELETE FROM public.journal_entries 
+              WHERE entry_type = 'depreciation'
+                AND NOT EXISTS (SELECT 1 FROM public.journal_lines WHERE journal_entry_id = journal_entries.id);
+            `
+          });
+          
+          if (!cleanupError) {
+            console.log('✅ Successfully cleaned up invalid depreciation entries');
+          }
+        } catch (cleanupErr) {
+          console.warn('Warning: Could not run cleanup query:', cleanupErr);
+        }
       } catch (error) {
         console.error('Error in auto-processing dispositions:', error);
       }
