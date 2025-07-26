@@ -557,14 +557,19 @@ export default function CowDetail() {
         company_id: currentCompany.id
       };
 
-      const { error: dispositionError } = await supabase.from('cow_dispositions').insert(dispositionData);
+      const { data: dispositionRecord, error: dispositionError } = await supabase
+        .from('cow_dispositions')
+        .insert(dispositionData)
+        .select()
+        .single();
+      
       if (dispositionError) throw dispositionError;
 
       const { error: cowUpdateError } = await supabase
         .from('cows')
         .update({ 
           status: type === 'sale' ? 'sold' : 'deceased',
-          disposition_id: cow.id
+          disposition_id: dispositionRecord.id
         })
         .eq('id', cow.id);
 
