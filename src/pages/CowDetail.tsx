@@ -357,11 +357,28 @@ export default function CowDetail() {
       
       const netDispositionTotal = dispositionTotal - dispositionReversalTotal;
 
-      // Net balance should be 0 for a complete cow lifecycle
-      // Calculate actual net balance across all accounts for this cow
-      const netBalance = allEntries.reduce((balance, entry) => {
-        return balance + (entry.debit_amount - entry.credit_amount);
-      }, 0);
+      // Net balance calculation for reinstated cows
+      // For active cows, calculate based on current asset position rather than including
+      // disposition/reversal entries that cancel each other out
+      let netBalance = 0;
+      
+      if (cow?.status === 'active') {
+        // For active cows, calculate net as: Asset value - Accumulated depreciation
+        const assetBalance = allEntries
+          .filter(entry => entry.account_code === '1500') // Dairy Cows asset account
+          .reduce((sum, entry) => sum + (entry.debit_amount - entry.credit_amount), 0);
+        
+        const accumulatedDepreciation = allEntries
+          .filter(entry => entry.account_code === '1500.1') // Accumulated Depreciation
+          .reduce((sum, entry) => sum + (entry.credit_amount - entry.debit_amount), 0);
+        
+        netBalance = assetBalance - accumulatedDepreciation;
+      } else {
+        // For disposed cows, include all entries in the calculation
+        netBalance = allEntries.reduce((balance, entry) => {
+          return balance + (entry.debit_amount - entry.credit_amount);
+        }, 0);
+      }
 
       setJournalSummary({
         acquisition_total: acquisitionTotal,
