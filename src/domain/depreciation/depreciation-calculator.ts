@@ -5,6 +5,7 @@
 
 import { DEPRECIATION_CONFIG, type DepreciationMethod } from '../config/depreciation-config';
 import { Result, ok, err, ValidationError, CalculationError } from '../types/result';
+import { roundToPenny, roundCurrencyAmounts } from '../../lib/currency-utils';
 
 /**
  * Input data for depreciation calculations
@@ -86,7 +87,7 @@ const calculateStraightLineDepreciation = (
   depreciableAmount: number,
   depreciationYears: number = DEPRECIATION_CONFIG.DEFAULT_YEARS
 ): number => {
-  return depreciableAmount / (depreciationYears * 12);
+  return roundToPenny(depreciableAmount / (depreciationYears * 12));
 };
 
 /**
@@ -98,7 +99,7 @@ const calculateDecliningBalanceDepreciation = (
 ): number => {
   const annualRate = 2 / depreciationYears;
   const monthlyRate = annualRate / 12;
-  return currentValue * monthlyRate;
+  return roundToPenny(currentValue * monthlyRate);
 };
 
 /**
@@ -113,7 +114,7 @@ const calculateSumOfYearsDepreciation = (
   const remainingMonths = Math.max(0, totalMonths - monthsSinceStart);
   const sumOfDigits = (totalMonths * (totalMonths + 1)) / 2;
   
-  return remainingMonths > 0 ? (depreciableAmount * remainingMonths) / sumOfDigits : 0;
+  return remainingMonths > 0 ? roundToPenny((depreciableAmount * remainingMonths) / sumOfDigits) : 0;
 };
 
 /**
@@ -133,22 +134,29 @@ export const calculateMonthlyDepreciation = (
   const monthsSinceStart = calculateMonthsBetween(freshenDate, currentDate);
   
   try {
+    let monthlyDepreciation: number;
+    
     switch (depreciationMethod) {
       case DEPRECIATION_CONFIG.DEPRECIATION_METHODS.STRAIGHT_LINE:
-        return ok(calculateStraightLineDepreciation(depreciableAmount));
+        monthlyDepreciation = calculateStraightLineDepreciation(depreciableAmount);
+        break;
       
       case DEPRECIATION_CONFIG.DEPRECIATION_METHODS.DECLINING_BALANCE:
         if (currentValue === undefined) {
           return err(new CalculationError('Current value required for declining balance method'));
         }
-        return ok(calculateDecliningBalanceDepreciation(currentValue));
+        monthlyDepreciation = calculateDecliningBalanceDepreciation(currentValue);
+        break;
       
       case DEPRECIATION_CONFIG.DEPRECIATION_METHODS.SUM_OF_YEARS:
-        return ok(calculateSumOfYearsDepreciation(depreciableAmount, monthsSinceStart));
+        monthlyDepreciation = calculateSumOfYearsDepreciation(depreciableAmount, monthsSinceStart);
+        break;
       
       default:
-        return ok(calculateStraightLineDepreciation(depreciableAmount));
+        monthlyDepreciation = calculateStraightLineDepreciation(depreciableAmount);
     }
+    
+    return ok(roundToPenny(monthlyDepreciation));
   } catch (error) {
     return err(new CalculationError(`Error calculating depreciation: ${error instanceof Error ? error.message : 'Unknown error'}`));
   }
@@ -176,20 +184,20 @@ export const calculateCurrentDepreciation = (
   );
   
   const monthsSinceFreshen = calculateMonthsBetween(freshenDate, currentDate);
-  const maxDepreciation = purchasePrice - salvageValue;
-  const totalDepreciation = Math.min(monthlyDepreciation * monthsSinceFreshen, maxDepreciation);
-  const currentValue = Math.max(salvageValue, purchasePrice - totalDepreciation);
+  const maxDepreciation = roundToPenny(purchasePrice - salvageValue);
+  const totalDepreciation = roundToPenny(Math.min(monthlyDepreciation * monthsSinceFreshen, maxDepreciation));
+  const currentValue = roundToPenny(Math.max(salvageValue, purchasePrice - totalDepreciation));
   
   const totalDepreciationMonths = DEPRECIATION_CONFIG.DEFAULT_YEARS * 12;
   const remainingMonths = Math.max(0, totalDepreciationMonths - monthsSinceFreshen);
   
-  return ok({
+  return ok(roundCurrencyAmounts({
     monthlyDepreciation,
     totalDepreciation,
     currentValue,
     monthsSinceFreshen,
     remainingMonths,
-  });
+  }));
 };
 
 /**
@@ -224,16 +232,16 @@ export const generateDepreciationSchedule = (
     }
     
     const monthlyDepreciation = monthlyDepreciationResult.data;
-    accumulatedDepreciation += monthlyDepreciation;
-    const bookValue = Math.max(salvageValue, purchasePrice - accumulatedDepreciation);
+    accumulatedDepreciation = roundToPenny(accumulatedDepreciation + monthlyDepreciation);
+    const bookValue = roundToPenny(Math.max(salvageValue, purchasePrice - accumulatedDepreciation));
     
     entries.push({
       cowId,
       year: currentDate.getFullYear(),
       month: currentDate.getMonth() + 1,
-      depreciationAmount: monthlyDepreciation,
-      accumulatedDepreciation,
-      bookValue,
+      depreciationAmount: roundToPenny(monthlyDepreciation),
+      accumulatedDepreciation: roundToPenny(accumulatedDepreciation),
+      bookValue: roundToPenny(bookValue),
     });
     
     // Move to next month
@@ -250,10 +258,13 @@ export const generateDepreciationSchedule = (
  * Format currency amount
  */
 export const formatCurrency = (amount: number): string => {
+  const rounded = roundToPenny(amount);
   return new Intl.NumberFormat('en-US', {
     style: 'currency',
     currency: 'USD',
-  }).format(amount);
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(rounded);
 };
 
 /**
