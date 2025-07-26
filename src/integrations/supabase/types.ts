@@ -729,6 +729,15 @@ export type Database = {
         }
         Returns: Json
       }
+      calculate_partial_month_depreciation: {
+        Args: {
+          p_purchase_price: number
+          p_salvage_value: number
+          p_start_date: string
+          p_end_date: string
+        }
+        Returns: number
+      }
       catch_up_cow_depreciation_to_date: {
         Args: { p_cow_id: string; p_target_date: string }
         Returns: Json
@@ -830,6 +839,10 @@ export type Database = {
         Returns: Json
       }
       process_disposition_journal_with_catchup: {
+        Args: { p_disposition_id: string }
+        Returns: Json
+      }
+      process_disposition_with_partial_depreciation: {
         Args: { p_disposition_id: string }
         Returns: Json
       }
