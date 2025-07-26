@@ -27,11 +27,15 @@ import {
   DEPRECIATION_CONFIG,
   isOk,
   unwrapOr,
-  formatCurrency,
   type CreateCowData,
   type Result,
   ValidationError,
 } from '@/domain';
+
+import {
+  formatCurrency,
+  roundToPenny,
+} from '@/lib/currency-utils';
 
 interface CowFormFunctionalProps {
   onAddCow: (cow: any) => void;
@@ -232,7 +236,7 @@ export function CowFormFunctional({ onAddCow, onCancel }: CowFormFunctionalProps
         status: validatedData.status,
         depreciation_method: validatedData.depreciationMethod,
         current_value: depreciation.currentValue,
-        total_depreciation: depreciation.totalDepreciation,
+        total_depreciation: roundToPenny(depreciation.totalDepreciation),
         acquisition_type: validatedData.acquisitionType,
       };
 

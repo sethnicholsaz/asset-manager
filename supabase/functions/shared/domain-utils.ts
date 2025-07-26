@@ -3,6 +3,11 @@
  * Provides functional domain logic in Deno/TypeScript environment
  */
 
+// Round currency to the nearest penny
+export const roundToPenny = (amount: number): number => {
+  return Math.round(amount * 100) / 100;
+};
+
 // Configuration constants (mirrored from domain config)
 export const DEPRECIATION_CONFIG = {
   DEFAULT_YEARS: 5,
@@ -84,10 +89,13 @@ export interface DispositionData {
 
 // Pure utility functions
 export const formatCurrency = (amount: number): string => {
+  const rounded = Math.round(amount * 100) / 100;
   return new Intl.NumberFormat('en-US', {
     style: 'currency',
     currency: 'USD',
-  }).format(amount);
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(rounded);
 };
 
 export const getAccountName = (code: string): string => {
@@ -259,7 +267,7 @@ export const calculateMonthlyDepreciation = (
   depreciationYears = DEPRECIATION_CONFIG.DEFAULT_YEARS
 ): number => {
   const depreciableAmount = purchasePrice - salvageValue;
-  return depreciableAmount / (depreciationYears * 12);
+  return roundToPenny(depreciableAmount / (depreciationYears * 12));
 };
 
 export const calculateMonthsSinceStart = (startDate: Date, currentDate: Date): number => {

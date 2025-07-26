@@ -5,6 +5,11 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
+// Round currency to the nearest penny
+const roundToPenny = (amount: number): number => {
+  return Math.round(amount * 100) / 100;
+}
+
 interface DepreciationRequest {
   company_id: string
   month?: number
@@ -75,7 +80,7 @@ Deno.serve(async (req) => {
 
       if (existingJournal && existingJournal.length > 0) {
         result.journal_created = false;
-        result.total_depreciation = existingJournal[0].total_amount || 0;
+        result.total_depreciation = roundToPenny(existingJournal[0].total_amount || 0);
         result.processing_time = Date.now() - startTime;
         
         return new Response(
@@ -147,7 +152,7 @@ Deno.serve(async (req) => {
           result.errors.push(`Depreciation calculation failed: ${calcError.message}`);
           result.success = false;
         } else if (depreciationResult?.success) {
-          result.total_depreciation = depreciationResult.total_depreciation || 0;
+          result.total_depreciation = roundToPenny(depreciationResult.total_depreciation || 0);
           result.cow_count = depreciationResult.cow_count || 0;
           result.journal_created = true;
 
