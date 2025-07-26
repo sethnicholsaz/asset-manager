@@ -105,6 +105,7 @@ export default function CowDetail() {
   const [showDeathDialog, setShowDeathDialog] = useState(false);
   const [saleAmount, setSaleAmount] = useState('');
   const [dispositionNotes, setDispositionNotes] = useState('');
+  const [hasUnreversedDispositions, setHasUnreversedDispositions] = useState(false);
 
   useEffect(() => {
     console.log('🔧 CowDetail component mounted. cowId from useParams:', cowId);
@@ -174,7 +175,11 @@ export default function CowDetail() {
         setDisposition(dispositionData);
       } else {
         console.log('ℹ️ No disposition found for this cow (this is normal for active cows)');
+        setDisposition(null);
       }
+
+      // Check for unreversed disposition journal entries (orphaned entries)
+      await checkForUnreversedDispositions();
 
     } catch (error) {
       console.error('Error loading cow details:', error);
@@ -250,6 +255,35 @@ export default function CowDetail() {
       });
     } finally {
       setIsLoadingHistory(false);
+    }
+  };
+
+  const checkForUnreversedDispositions = async () => {
+    if (!cowId || !currentCompany) return;
+
+    try {
+      // Check for any unreversed disposition journal entries for this cow
+      const { data: dispositionJournalEntries, error } = await supabase
+        .from('journal_entries')
+        .select('id, description')
+        .eq('company_id', currentCompany.id)
+        .eq('entry_type', 'disposition')
+        .in('id', (
+          await supabase
+            .from('journal_lines')
+            .select('journal_entry_id')
+            .eq('cow_id', cowId)
+        ).data?.map(jl => jl.journal_entry_id) || []);
+
+      if (error) {
+        console.error('Error checking for unreversed dispositions:', error);
+        return;
+      }
+
+      setHasUnreversedDispositions((dispositionJournalEntries?.length || 0) > 0);
+      console.log('Unreversed disposition entries found:', dispositionJournalEntries?.length || 0);
+    } catch (error) {
+      console.error('Error in checkForUnreversedDispositions:', error);
     }
   };
 
@@ -437,6 +471,41 @@ export default function CowDetail() {
             throw new Error(`Failed to reverse journal entry ${disp.journal_entry_id}: ${reversalError.message}`);
           }
           console.log('✅ Journal entry reversed successfully:', reversalResult);
+        }
+      }
+
+      // 1.5. Handle orphaned disposition journal entries (entries without disposition records)
+      // Find any unreversed disposition journal entries for this cow
+      const { data: orphanedJournalEntries, error: orphanedError } = await supabase
+        .from('journal_entries')
+        .select('id, description')
+        .eq('company_id', currentCompany.id)
+        .eq('entry_type', 'disposition')
+        .in('id', (
+          await supabase
+            .from('journal_lines')
+            .select('journal_entry_id')
+            .eq('cow_id', cow.id)
+        ).data?.map(jl => jl.journal_entry_id) || []);
+
+      if (orphanedError) {
+        console.error('Error fetching orphaned journal entries:', orphanedError);
+      } else if (orphanedJournalEntries && orphanedJournalEntries.length > 0) {
+        console.log('Found orphaned disposition journal entries:', orphanedJournalEntries.length);
+        
+        // Reverse each orphaned journal entry
+        for (const entry of orphanedJournalEntries) {
+          const { data: reversalResult, error: reversalError } = await supabase
+            .rpc('reverse_journal_entry', {
+              p_journal_entry_id: entry.id,
+              p_reason: `Cow reinstatement - reversing orphaned disposition journal - cow #${cow.tag_number}`
+            });
+
+          if (reversalError) {
+            console.error('Error reversing orphaned journal entry:', reversalError);
+            throw new Error(`Failed to reverse orphaned journal entry ${entry.id}: ${reversalError.message}`);
+          }
+          console.log('✅ Orphaned journal entry reversed successfully:', reversalResult);
         }
       }
 
@@ -831,8 +900,8 @@ export default function CowDetail() {
             </>
           )}
 
-          {/* Reinstate button for disposed cows */}
-          {disposition && (cow.status === 'sold' || cow.status === 'deceased') && (
+          {/* Reinstate button for disposed cows OR cows with unreversed disposition entries */}
+          {((disposition && (cow.status === 'sold' || cow.status === 'deceased')) || hasUnreversedDispositions) && (
             <Button 
               onClick={reinstateCow}
               disabled={isReinstating}
