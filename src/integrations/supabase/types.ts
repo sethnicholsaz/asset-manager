@@ -779,6 +779,7 @@ export type Database = {
           round_to_nearest_dollar: boolean
           fiscal_year_start_month: number
           processing_mode: string
+          historical_processing_completed: boolean
           created_at: string
           updated_at: string
         }[]
@@ -964,6 +965,7 @@ export type Database = {
               p_fiscal_year_start_month: number
               p_journal_processing_day: number
               p_processing_mode?: string
+              p_historical_processing_completed?: boolean
             }
         Returns: string
       }

@@ -24,6 +24,7 @@ interface DepreciationSettings {
   round_to_nearest_dollar: boolean;
   fiscal_year_start_month: number;
   processing_mode: 'historical' | 'production';
+  historical_processing_completed: boolean;
   created_at?: string;
   updated_at?: string;
 }
@@ -41,6 +42,7 @@ export function DepreciationSettings() {
     round_to_nearest_dollar: true,
     fiscal_year_start_month: 1,
     processing_mode: 'historical',
+    historical_processing_completed: false,
   });
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
@@ -65,24 +67,20 @@ export function DepreciationSettings() {
     if (!currentCompany) return;
 
     try {
-      // Check if any journal entries exist for this company
-      const { data: journalEntries, error } = await supabase
-        .from('journal_entries')
-        .select('id, description, entry_date, entry_type')
-        .eq('company_id', currentCompany.id)
-        .eq('entry_type', 'depreciation')
-        .limit(5);
+      // Check the historical_processing_completed flag in settings
+      const { data: settingsData, error } = await supabase
+        .rpc('fetch_depreciation_settings', { p_company_id: currentCompany.id });
 
       if (error) {
         console.error('Error checking historical processing status:', error);
         return;
       }
 
-      console.log('Found depreciation journal entries:', journalEntries);
-      console.log('Company ID:', currentCompany.id);
-
-      if (journalEntries && journalEntries.length > 0) {
-        setHistoricalProcessingStatus('completed');
+      if (settingsData && settingsData.length > 0) {
+        const dbSettings = settingsData[0];
+        if (dbSettings.historical_processing_completed) {
+          setHistoricalProcessingStatus('completed');
+        }
       }
     } catch (error) {
       console.error('Error checking historical processing status:', error);
@@ -180,8 +178,12 @@ export function DepreciationSettings() {
       setHistoricalProcessingStatus('completed');
       setProcessingProgress({});
       
-      // Switch to production mode after historical processing is complete
-      setSettings(prev => ({ ...prev, processing_mode: 'production' }));
+      // Mark historical processing as completed and switch to production mode
+      setSettings(prev => ({ 
+        ...prev, 
+        processing_mode: 'production',
+        historical_processing_completed: true
+      }));
       
       toast({
         title: "Historical Processing Complete",
@@ -226,6 +228,7 @@ export function DepreciationSettings() {
           round_to_nearest_dollar: dbSettings.round_to_nearest_dollar,
           fiscal_year_start_month: dbSettings.fiscal_year_start_month,
           processing_mode: (dbSettings.processing_mode as 'historical' | 'production') || 'historical',
+          historical_processing_completed: dbSettings.historical_processing_completed || false,
           created_at: dbSettings.created_at,
           updated_at: dbSettings.updated_at
         });
@@ -264,7 +267,8 @@ export function DepreciationSettings() {
           p_round_to_nearest_dollar: settings.round_to_nearest_dollar,
           p_fiscal_year_start_month: settings.fiscal_year_start_month,
           p_journal_processing_day: settings.journal_processing_day,
-          p_processing_mode: settings.processing_mode
+          p_processing_mode: settings.processing_mode,
+          p_historical_processing_completed: settings.historical_processing_completed
         });
 
       if (error) {
