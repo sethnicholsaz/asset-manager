@@ -1146,7 +1146,16 @@ export default function CowDetail() {
                           {formatCurrency(journalSummary.net_balance)}
                         </div>
                         <p className="text-xs text-muted-foreground mt-1">
-                          {Math.abs(journalSummary.net_balance) < 1 ? 'Balanced' : 'Variance detected'}
+                          {(() => {
+                            if (cow?.status === 'active') {
+                              // For active cows, check if net balance equals acquisition - depreciation
+                              const expectedBalance = journalSummary.acquisition_total - journalSummary.depreciation_total - journalSummary.disposition_total;
+                              return Math.abs(journalSummary.net_balance - expectedBalance) < 1 ? 'Balanced' : 'Variance detected';
+                            } else {
+                              // For disposed cows, net balance should be close to 0
+                              return Math.abs(journalSummary.net_balance) < 1 ? 'Balanced' : 'Variance detected';
+                            }
+                          })()}
                         </p>
                       </CardContent>
                     </Card>
