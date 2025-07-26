@@ -18,6 +18,7 @@ export function CowUpload({ onUpload }: CowUploadProps) {
   const [errorMessage, setErrorMessage] = useState('');
   const [priceDefaults, setPriceDefaults] = useState<PurchasePriceDefault[]>([]);
   const [defaultAcquisitionType, setDefaultAcquisitionType] = useState<'purchased' | 'raised'>('purchased');
+  const [defaultSalvagePercentage, setDefaultSalvagePercentage] = useState(10);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
   const { currentCompany } = useAuth();
@@ -55,6 +56,19 @@ export function CowUpload({ onUpload }: CowUploadProps) {
         console.error('Error fetching acquisition settings:', acquisitionError);
       } else if (acquisitionData) {
         setDefaultAcquisitionType(acquisitionData.default_acquisition_type as 'purchased' | 'raised');
+      }
+
+      // Fetch depreciation settings for salvage percentage
+      const { data: depreciationData, error: depreciationError } = await supabase
+        .from('depreciation_settings')
+        .select('default_salvage_percentage')
+        .eq('company_id', currentCompany.id)
+        .maybeSingle();
+      
+      if (depreciationError) {
+        console.error('Error fetching depreciation settings:', depreciationError);
+      } else if (depreciationData) {
+        setDefaultSalvagePercentage(depreciationData.default_salvage_percentage);
       }
     };
 
@@ -193,7 +207,7 @@ export function CowUpload({ onUpload }: CowUploadProps) {
             }
             
             if (!cow.salvageValue && cow.purchasePrice) {
-              cow.salvageValue = cow.purchasePrice * 0.1; // Default 10% salvage value
+              cow.salvageValue = cow.purchasePrice * (defaultSalvagePercentage / 100);
             }
             
             cow.currentValue = cow.purchasePrice;
@@ -315,7 +329,7 @@ export function CowUpload({ onUpload }: CowUploadProps) {
           <ul className="list-disc list-inside space-y-1">
             <li>name - Cow name</li>
             <li>purchasePrice - Initial cost/value (auto-calculated if not provided)</li>
-            <li>salvageValue - End-of-life value (defaults to 10% of purchase price)</li>
+            <li>salvageValue - End-of-life value (defaults to configured salvage percentage)</li>
             <li>acquisitionType - "purchased" or "raised" (defaults to configured setting)</li>
           </ul>
           <p className="text-xs text-muted-foreground mt-2">
