@@ -143,30 +143,31 @@ Deno.serve(async (req) => {
             }))
           });
 
-      if (calcError) {
-        result.errors.push(`Depreciation calculation failed: ${calcError.message}`);
-        result.success = false;
-      } else if (depreciationResult?.success) {
-        result.total_depreciation = depreciationResult.total_depreciation || 0;
-        result.cow_count = depreciationResult.cow_count || 0;
-        result.journal_created = true;
+        if (calcError) {
+          result.errors.push(`Depreciation calculation failed: ${calcError.message}`);
+          result.success = false;
+        } else if (depreciationResult?.success) {
+          result.total_depreciation = depreciationResult.total_depreciation || 0;
+          result.cow_count = depreciationResult.cow_count || 0;
+          result.journal_created = true;
 
-        // Log the depreciation processing
-        await supabase.from('system_logs').insert({
-          level: 'INFO',
-          message: 'Monthly depreciation journal created',
-          data: {
-            company_id: requestData.company_id,
-            month: targetMonth,
-            year: targetYear,
-            total_depreciation: result.total_depreciation,
-            cow_count: result.cow_count,
-            processing_time: Date.now() - startTime
-          }
-        });
-      } else {
-        result.errors.push('Depreciation calculation returned no results');
-        result.success = false;
+          // Log the depreciation processing
+          await supabase.from('system_logs').insert({
+            level: 'INFO',
+            message: 'Monthly depreciation journal created',
+            data: {
+              company_id: requestData.company_id,
+              month: targetMonth,
+              year: targetYear,
+              total_depreciation: result.total_depreciation,
+              cow_count: result.cow_count,
+              processing_time: Date.now() - startTime
+            }
+          });
+        } else {
+          result.errors.push('Depreciation calculation returned no results');
+          result.success = false;
+        }
       }
     }
 
