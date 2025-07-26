@@ -457,119 +457,48 @@ export default function CowDetail() {
         throw new Error(`Failed to fetch disposition records: ${dispositionsError.message}`);
       }
 
-      // Reverse each disposition's journal entry if it exists
-      for (const disp of allDispositions || []) {
-        if (disp.journal_entry_id) {
-          const { data: reversalResult, error: reversalError } = await supabase
-            .rpc('reverse_journal_entry', {
-              p_journal_entry_id: disp.journal_entry_id,
-              p_reason: `Cow reinstatement - restoring cow #${cow.tag_number} to active status`
-            });
+      // Instead of complex reversal logic that creates duplicates,
+      // let's simply delete all disposition-related journal entries for this cow
+      // and clean up the mess
+      
+      // First, get all journal entry IDs for this cow that are disposition-related
+      const { data: dispositionJournalEntries, error: fetchJournalError } = await supabase
+        .from('journal_lines')
+        .select('journal_entry_id, journal_entries!inner(entry_type)')
+        .eq('cow_id', cow.id)
+        .in('journal_entries.entry_type', ['disposition', 'disposition_reversal']);
 
-          if (reversalError) {
-            console.error('Error reversing journal entry:', reversalError);
-            throw new Error(`Failed to reverse journal entry ${disp.journal_entry_id}: ${reversalError.message}`);
-          }
-          console.log('✅ Journal entry reversed successfully:', reversalResult);
-        }
+      if (fetchJournalError) {
+        console.error('Error fetching disposition journal entries:', fetchJournalError);
+        throw new Error(`Failed to fetch disposition journal entries: ${fetchJournalError.message}`);
       }
 
-      // 1.5. Handle orphaned disposition journal entries (entries without disposition records)
-      // Find any unreversed disposition journal entries for this cow
-      const { data: unreversedLines, error: unreversedError } = await supabase
-        .from('journal_lines')
-        .select(`
-          id,
-          journal_entry_id,
-          account_code,
-          account_name,
-          description,
-          debit_amount,
-          credit_amount,
-          journal_entries!inner (
-            id,
-            entry_type,
-            entry_date,
-            description
-          )
-        `)
-        .eq('cow_id', cow.id)
-        .eq('journal_entries.entry_type', 'disposition');
-
-      if (unreversedError) {
-        console.error('Error fetching unreversed journal lines:', unreversedError);
-      } else if (unreversedLines && unreversedLines.length > 0) {
-        console.log('Found unreversed disposition lines:', unreversedLines.length);
+      if (dispositionJournalEntries && dispositionJournalEntries.length > 0) {
+        const journalEntryIds = [...new Set(dispositionJournalEntries.map(je => je.journal_entry_id))];
         
-        // Find existing disposition_reversal journal entry for this period
-        const reversalDate = new Date();
-        const { data: existingReversalEntry, error: findReversalError } = await supabase
-          .from('journal_entries')
-          .select('id')
-          .eq('company_id', currentCompany.id)
-          .eq('month', reversalDate.getMonth() + 1)
-          .eq('year', reversalDate.getFullYear())
-          .eq('entry_type', 'disposition_reversal')
-          .maybeSingle();
-
-        if (findReversalError) {
-          console.error('Error finding existing reversal entry:', findReversalError);
-          throw new Error(`Failed to find existing reversal entry: ${findReversalError.message}`);
-        }
-
-        let reversalEntryId;
-        
-        if (existingReversalEntry) {
-          // Use existing reversal entry
-          reversalEntryId = existingReversalEntry.id;
-          console.log('Using existing disposition_reversal entry:', reversalEntryId);
-        } else {
-          // Create new reversal entry (this should work if none exists)
-          const { data: reversalEntry, error: reversalEntryError } = await supabase
-            .from('journal_entries')
-            .insert({
-              company_id: currentCompany.id,
-              entry_date: reversalDate.toISOString().split('T')[0],
-              month: reversalDate.getMonth() + 1,
-              year: reversalDate.getFullYear(),
-              entry_type: 'disposition_reversal',
-              description: `Disposition Reversal - Cow #${cow.tag_number} reinstatement`,
-              total_amount: Math.abs(unreversedLines.reduce((sum, line) => sum + line.debit_amount - line.credit_amount, 0))
-            })
-            .select()
-            .single();
-
-          if (reversalEntryError) {
-            console.error('Error creating reversal entry:', reversalEntryError);
-            throw new Error(`Failed to create reversal entry: ${reversalEntryError.message}`);
-          }
-          
-          reversalEntryId = reversalEntry.id;
-          console.log('Created new disposition_reversal entry:', reversalEntryId);
-        }
-
-        // Create reversal lines for each unreversed line (swap debits/credits)
-        const reversalLines = unreversedLines.map(line => ({
-          journal_entry_id: reversalEntryId,
-          cow_id: cow.id,
-          account_code: line.account_code,
-          account_name: line.account_name,
-          description: `REVERSAL: ${line.description}`,
-          debit_amount: line.credit_amount,  // Swap credit to debit
-          credit_amount: line.debit_amount,  // Swap debit to credit
-          line_type: line.credit_amount > 0 ? 'debit' : 'credit'
-        }));
-
-        const { error: reversalLinesError } = await supabase
+        // Delete all journal lines for these entries
+        const { error: deleteLinesError } = await supabase
           .from('journal_lines')
-          .insert(reversalLines);
+          .delete()
+          .in('journal_entry_id', journalEntryIds);
 
-        if (reversalLinesError) {
-          console.error('Error creating manual reversal lines:', reversalLinesError);
-          throw new Error(`Failed to create manual reversal lines: ${reversalLinesError.message}`);
+        if (deleteLinesError) {
+          console.error('Error deleting journal lines:', deleteLinesError);
+          throw new Error(`Failed to delete journal lines: ${deleteLinesError.message}`);
         }
 
-        console.log('✅ Manual reversal completed successfully for', reversalLines.length, 'lines');
+        // Delete the journal entries themselves
+        const { error: deleteEntriesError } = await supabase
+          .from('journal_entries')
+          .delete()
+          .in('id', journalEntryIds);
+
+        if (deleteEntriesError) {
+          console.error('Error deleting journal entries:', deleteEntriesError);
+          throw new Error(`Failed to delete journal entries: ${deleteEntriesError.message}`);
+        }
+
+        console.log('✅ Cleaned up', journalEntryIds.length, 'disposition journal entries');
       }
 
       // 2. Update cow status first to clear the disposition_id foreign key
