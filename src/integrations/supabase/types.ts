@@ -726,6 +726,15 @@ export type Database = {
         }
         Returns: number
       }
+      calculate_cow_monthly_depreciation_fixed: {
+        Args: {
+          p_purchase_price: number
+          p_salvage_value: number
+          p_freshen_date: string
+          p_target_date: string
+        }
+        Returns: number
+      }
       calculate_monthly_depreciation_bulk: {
         Args: {
           company_id: string
