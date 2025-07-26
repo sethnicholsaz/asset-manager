@@ -551,32 +551,56 @@ export default function CowDetail() {
         console.log(`Found ${unreversedLines.length} unreversed lines, ${linesToReverse.length} need reversal`);
 
         if (linesToReverse.length > 0) {
-          // Create a unique reversal journal entry with timestamp to avoid duplicates
+          // Check if a disposition_reversal entry already exists for this month/year
           const reversalDate = new Date();
-          const uniqueTimestamp = reversalDate.getTime();
-          
-          const { data: reversalEntry, error: reversalEntryError } = await supabase
+          const { data: existingReversalEntry, error: findExistingError } = await supabase
             .from('journal_entries')
-            .insert({
-              company_id: currentCompany.id,
-              entry_date: reversalDate.toISOString().split('T')[0],
-              month: reversalDate.getMonth() + 1,
-              year: reversalDate.getFullYear(),
-              entry_type: 'disposition_reversal',
-              description: `Cow Reinstatement Reversal ${uniqueTimestamp} - Cow #${cow.tag_number}`,
-              total_amount: Math.abs(linesToReverse.reduce((sum, line) => sum + line.debit_amount - line.credit_amount, 0))
-            })
-            .select()
-            .single();
+            .select('id')
+            .eq('company_id', currentCompany.id)
+            .eq('month', reversalDate.getMonth() + 1)
+            .eq('year', reversalDate.getFullYear())
+            .eq('entry_type', 'disposition_reversal')
+            .maybeSingle();
 
-          if (reversalEntryError) {
-            console.error('Error creating reversal entry:', reversalEntryError);
-            throw new Error(`Failed to create reversal entry: ${reversalEntryError.message}`);
+          if (findExistingError) {
+            console.error('Error finding existing reversal entry:', findExistingError);
+            throw new Error(`Failed to find existing reversal entry: ${findExistingError.message}`);
           }
 
-          // Create reversal lines (swap debits/credits)
+          let reversalEntryId;
+          
+          if (existingReversalEntry) {
+            // Use the existing reversal entry
+            reversalEntryId = existingReversalEntry.id;
+            console.log('Using existing disposition_reversal entry:', reversalEntryId);
+          } else {
+            // Create a new reversal entry only if none exists
+            const { data: reversalEntry, error: reversalEntryError } = await supabase
+              .from('journal_entries')
+              .insert({
+                company_id: currentCompany.id,
+                entry_date: reversalDate.toISOString().split('T')[0],
+                month: reversalDate.getMonth() + 1,
+                year: reversalDate.getFullYear(),
+                entry_type: 'disposition_reversal',
+                description: `Disposition Reversals - ${reversalDate.toLocaleString('default', { month: 'long', year: 'numeric' })}`,
+                total_amount: Math.abs(linesToReverse.reduce((sum, line) => sum + line.debit_amount - line.credit_amount, 0))
+              })
+              .select()
+              .single();
+
+            if (reversalEntryError) {
+              console.error('Error creating reversal entry:', reversalEntryError);
+              throw new Error(`Failed to create reversal entry: ${reversalEntryError.message}`);
+            }
+            
+            reversalEntryId = reversalEntry.id;
+            console.log('Created new disposition_reversal entry:', reversalEntryId);
+          }
+
+          // Create reversal lines using the reversal entry (new or existing)
           const reversalLines = linesToReverse.map(line => ({
-            journal_entry_id: reversalEntry.id,
+            journal_entry_id: reversalEntryId,
             cow_id: cow.id,
             account_code: line.account_code,
             account_name: line.account_name,
