@@ -88,8 +88,8 @@ Deno.serve(async (req) => {
       }
     }
 
-    // Step 2: Get all active cows for the company that were not disposed before the target month
-    const targetDate = new Date(targetYear, targetMonth - 1, 1); // First day of target month
+    // Step 2: Get all cows for the company, excluding those disposed before the target month
+    const targetEndDate = new Date(targetYear, targetMonth, 0); // Last day of target month
     
     const { data: activeCows, error: cowsError } = await supabase
       .from('cows')
@@ -100,12 +100,11 @@ Deno.serve(async (req) => {
         salvage_value,
         freshen_date,
         depreciation_method,
-        cow_dispositions!inner(disposition_date)
+        cow_dispositions(disposition_date)
       `)
       .eq('company_id', requestData.company_id)
       .not('purchase_price', 'is', null)
-      .not('salvage_value', 'is', null)
-      .or(`status.eq.active,and(status.neq.active,cow_dispositions.disposition_date.gte.${targetDate.toISOString().split('T')[0]})`);
+      .not('salvage_value', 'is', null);
 
     if (cowsError) {
       result.errors.push(`Failed to fetch active cows: ${cowsError.message}`);
@@ -114,21 +113,35 @@ Deno.serve(async (req) => {
       result.errors.push('No active cows found for depreciation calculation');
       result.success = false;
     } else {
-      // Step 3: Calculate total monthly depreciation using database function
-      const { data: depreciationResult, error: calcError } = await supabase
-        .rpc('calculate_monthly_depreciation_bulk', {
-          company_id: requestData.company_id,
-          target_month: targetMonth,
-          target_year: targetYear,
-          cow_data: activeCows.map(cow => ({
-            id: cow.id,
-            tag_number: cow.tag_number,
-            purchase_price: cow.purchase_price,
-            salvage_value: cow.salvage_value,
-            freshen_date: cow.freshen_date,
-            depreciation_method: cow.depreciation_method || 'straight_line'
-          }))
-        });
+      // Filter out cows that were disposed before the end of the target month
+      const eligibleCows = activeCows.filter(cow => {
+        if (!cow.cow_dispositions || cow.cow_dispositions.length === 0) {
+          return true; // No disposition, cow is eligible
+        }
+        
+        const dispositionDate = new Date(cow.cow_dispositions[0].disposition_date);
+        return dispositionDate > targetEndDate; // Only include if disposed after target month
+      });
+
+      if (eligibleCows.length === 0) {
+        result.errors.push('No eligible cows found for depreciation calculation (all disposed before target month)');
+        result.success = false;
+      } else {
+        // Step 3: Calculate total monthly depreciation using database function
+        const { data: depreciationResult, error: calcError } = await supabase
+          .rpc('calculate_monthly_depreciation_bulk', {
+            company_id: requestData.company_id,
+            target_month: targetMonth,
+            target_year: targetYear,
+            cow_data: eligibleCows.map(cow => ({
+              id: cow.id,
+              tag_number: cow.tag_number,
+              purchase_price: cow.purchase_price,
+              salvage_value: cow.salvage_value,
+              freshen_date: cow.freshen_date,
+              depreciation_method: cow.depreciation_method || 'straight_line'
+            }))
+          });
 
       if (calcError) {
         result.errors.push(`Depreciation calculation failed: ${calcError.message}`);
