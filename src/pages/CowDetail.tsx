@@ -650,7 +650,19 @@ export default function CowDetail() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center space-x-4">
-          <Button variant="outline" size="sm" onClick={() => navigate(-1)}>
+          <Button 
+            variant="outline" 
+            size="sm" 
+            onClick={() => {
+              console.log('Back button clicked');
+              // Try to go back in history, but fallback to dashboard if no history
+              if (window.history.length > 1) {
+                navigate(-1);
+              } else {
+                navigate('/');
+              }
+            }}
+          >
             <ArrowLeft className="h-4 w-4 mr-2" />
             Back
           </Button>
