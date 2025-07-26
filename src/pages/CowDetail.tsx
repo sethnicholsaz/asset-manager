@@ -335,6 +335,9 @@ export default function CowDetail() {
       }, 0);
       
       // Calculate disposition total - sum only loss accounts (debits) which represent the actual loss
+      // Also include reversal entries to properly net out reversed dispositions
+      const dispositionReversalEntries = allEntries.filter(entry => entry.entry_type === 'disposition_reversal');
+      
       const dispositionTotal = dispositionEntries.reduce((sum, entry) => {
         // Sum loss accounts (9000 series) which are debited when there's a loss
         if (entry.account_code.startsWith('9') && entry.debit_amount > 0) {
@@ -342,6 +345,17 @@ export default function CowDetail() {
         }
         return sum;
       }, 0);
+      
+      // Subtract any disposition reversals to get the net disposition impact
+      const dispositionReversalTotal = dispositionReversalEntries.reduce((sum, entry) => {
+        // Sum loss accounts (9000 series) which are credited in reversals
+        if (entry.account_code.startsWith('9') && entry.credit_amount > 0) {
+          return sum + entry.credit_amount;
+        }
+        return sum;
+      }, 0);
+      
+      const netDispositionTotal = dispositionTotal - dispositionReversalTotal;
 
       // Net balance should be 0 for a complete cow lifecycle
       // Calculate actual net balance across all accounts for this cow
@@ -352,7 +366,7 @@ export default function CowDetail() {
       setJournalSummary({
         acquisition_total: acquisitionTotal,
         depreciation_total: depreciationTotal,
-        disposition_total: dispositionTotal,
+        disposition_total: netDispositionTotal,
         net_balance: netBalance,
         journal_entries: allEntries
       });
