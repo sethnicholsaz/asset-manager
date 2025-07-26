@@ -530,11 +530,41 @@ export default function CowDetail() {
           throw new Error(`Failed to check existing reversals: ${reversalCheckError.message}`);
         }
 
-        // For now, let's reverse ALL disposition lines to ensure complete reversal
-        // We can optimize the filtering later once the basic reversal works correctly
-        const linesToReverse = unreversedLines;
+        // Fix: Only reverse disposition lines that don't have a corresponding reversal entry
+        // Group by journal_entry_id to see which disposition entries have been reversed
+        const dispositionsByEntry = unreversedLines.reduce((groups, line) => {
+          const key = line.journal_entry_id;
+          if (!groups[key]) groups[key] = [];
+          groups[key].push(line);
+          return groups;
+        }, {} as Record<string, any[]>);
+
+        // For each disposition journal entry, check if ALL its lines have been reversed
+        const linesToReverse = [];
+        for (const [entryId, entryLines] of Object.entries(dispositionsByEntry)) {
+          // Check if this entire journal entry has been reversed
+          const entryHasCompleteReversal = entryLines.every(originalLine => {
+            return allReversalLines?.some(reversalLine => {
+              const accountMatches = reversalLine.account_code === originalLine.account_code;
+              const amountMatches = (
+                Math.abs(reversalLine.debit_amount - originalLine.credit_amount) < 0.01 &&
+                Math.abs(reversalLine.credit_amount - originalLine.debit_amount) < 0.01
+              );
+              const descPattern = reversalLine.description.includes(originalLine.description.replace('REVERSAL: ', ''));
+              return accountMatches && amountMatches && descPattern;
+            });
+          });
+
+          // If this journal entry hasn't been completely reversed, add its lines for reversal
+          if (!entryHasCompleteReversal) {
+            console.log(`Journal entry ${entryId} needs reversal (${entryLines.length} lines)`);
+            linesToReverse.push(...entryLines);
+          } else {
+            console.log(`Journal entry ${entryId} already reversed, skipping`);
+          }
+        }
         
-        console.log(`Processing ${unreversedLines.length} disposition lines for reversal`);
+        console.log(`Processing ${linesToReverse.length} of ${unreversedLines.length} disposition lines for reversal`);
 
         console.log(`Found ${unreversedLines.length} unreversed lines, ${linesToReverse.length} need reversal`);
 
