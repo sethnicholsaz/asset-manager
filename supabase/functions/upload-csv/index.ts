@@ -477,38 +477,7 @@ Deno.serve(async (req) => {
             errors.push(`Batch ${Math.floor(batchStart / batchSize) + 1} acquisition processing: ${acquisitionBatchError.message}`);
           }
           
-          // Schedule depreciation catch-up in background (non-blocking)
-          const backgroundDepreciationTask = async () => {
-            console.log(`Starting background depreciation processing for ${batchCows.length} cows`);
-            for (const cow of batchCows) {
-              try {
-                const catchupResponse = await fetch(`${Deno.env.get('SUPABASE_URL')}/functions/v1/cow-depreciation-catchup`, {
-                  method: 'POST',
-                  headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')}`
-                  },
-                  body: JSON.stringify({
-                    cow_id: cow.id,
-                    company_id: cow.company_id
-                  })
-                });
-                
-                if (!catchupResponse.ok) {
-                  console.error(`Depreciation catch-up failed for cow ${cow.tag_number}:`, await catchupResponse.text());
-                } else {
-                  const catchupResult = await catchupResponse.json();
-                  console.log(`Depreciation catch-up completed for cow ${cow.tag_number}:`, catchupResult.entries_created, 'entries created');
-                }
-              } catch (catchupError) {
-                console.error(`Error calling depreciation catch-up for cow ${cow.tag_number}:`, catchupError);
-              }
-            }
-            console.log(`Background depreciation processing completed for batch`);
-          };
-          
-          // Use EdgeRuntime.waitUntil to process depreciation in background
-          EdgeRuntime.waitUntil(backgroundDepreciationTask());
+          // Skip background depreciation scheduling - handled by monthly processing
         }
       }
     }

@@ -187,9 +187,7 @@ async function processCowUpload(
       }
     }
 
-    // Step 3: Schedule monthly depreciation catch-up in background
-    // This runs after response is sent to avoid blocking upload
-    scheduleDepreciationCatchup(supabase, companyId, newCows);
+    // Skip background depreciation scheduling - handled by monthly processing
 
     return cowData.length;
 
@@ -255,51 +253,4 @@ async function processDispositionUpload(
   }
 }
 
-/**
- * Schedule background depreciation catch-up without blocking upload response
- */
-function scheduleDepreciationCatchup(supabase: any, companyId: string, newCows: CowData[]) {
-  // Use setTimeout to run after response is sent
-  setTimeout(async () => {
-    try {
-      const currentDate = new Date();
-      const currentMonth = currentDate.getMonth() + 1;
-      const currentYear = currentDate.getFullYear();
-
-      // Check if monthly depreciation journal exists for current period
-      const { data: existingJournal } = await supabase
-        .from('journal_entries')
-        .select('id')
-        .eq('company_id', companyId)
-        .eq('entry_type', 'depreciation')
-        .eq('month', currentMonth)
-        .eq('year', currentYear)
-        .limit(1);
-
-      // If no depreciation journal exists for current month, create it
-      if (!existingJournal || existingJournal.length === 0) {
-        // Get all active cows for depreciation calculation
-        const { data: activeCows } = await supabase
-          .from('cows')
-          .select('id, tag_number, purchase_price, salvage_value, freshen_date')
-          .eq('company_id', companyId)
-          .eq('status', 'active');
-
-        if (activeCows && activeCows.length > 0) {
-          // Call monthly depreciation processor
-          await supabase.functions.invoke('monthly-journal-processor', {
-            body: {
-              company_id: companyId,
-              month: currentMonth,
-              year: currentYear,
-              force_recreate: false
-            }
-          });
-        }
-      }
-
-    } catch (error) {
-      console.error('Background depreciation catch-up failed:', error);
-    }
-  }, 100); // Run after 100ms to allow response to complete
-}
+// Removed scheduleDepreciationCatchup function - depreciation handled by monthly processing
