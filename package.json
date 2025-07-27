@@ -19,7 +19,7 @@
     "audit:fix": "npm audit fix",
     "format": "prettier --write \"src/**/*.{ts,tsx,js,jsx,json,css,md}\"",
     "format:check": "prettier --check \"src/**/*.{ts,tsx,js,jsx,json,css,md}\"",
-    "prepare": "husky install"
+    "prepare": "if [ -d .git ]; then husky install; fi"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.9.0",
@@ -96,6 +96,7 @@
     "typescript": "^5.5.3",
     "typescript-eslint": "^8.0.1",
     "vite": "^5.4.1",
-    "vitest": "^3.2.4"
+    "vitest": "^3.2.4",
+    "husky": "^9.0.11"
   }
 }
