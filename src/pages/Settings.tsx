@@ -10,6 +10,7 @@ import { UploadTokenManager } from '@/components/UploadTokenManager';
 import { AcquisitionSettings } from '@/components/AcquisitionSettings';
 import { MissingAcquisitionsProcessor } from '@/components/MissingAcquisitionsProcessor';
 import { MissingDispositionsProcessor } from '@/components/MissingDispositionsProcessor';
+import { DispositionJournalProcessor } from '@/components/DispositionJournalProcessor';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
@@ -201,6 +202,7 @@ export default function Settings() {
           </div>
           <MissingAcquisitionsProcessor />
           <MissingDispositionsProcessor />
+          <DispositionJournalProcessor />
         </TabsContent>
       </Tabs>
     </div>
