@@ -3,7 +3,8 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Loader2, RefreshCw, CheckCircle, AlertCircle } from 'lucide-react';
-import { createClient } from '@/integrations/supabase/client';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface ProcessingResult {
   success: boolean;
@@ -15,44 +16,33 @@ interface ProcessingResult {
 export function DispositionJournalProcessor() {
   const [isProcessing, setIsProcessing] = useState(false);
   const [result, setResult] = useState<ProcessingResult | null>(null);
-  const [companyId, setCompanyId] = useState<string>('');
-
-  const supabase = createClient();
+  const { currentCompany } = useAuth();
 
   const processMissingJournals = async () => {
+    if (!currentCompany) {
+      setResult({
+        success: false,
+        total_processed: 0,
+        total_errors: 1,
+        error_messages: ['No company selected']
+      });
+      return;
+    }
+
     setIsProcessing(true);
     setResult(null);
 
     try {
-      // Get current user's company ID
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-        throw new Error('User not authenticated');
-      }
-
-      // Get user's company
-      const { data: userProfile } = await supabase
-        .from('user_profiles')
-        .select('company_id')
-        .eq('user_id', user.id)
-        .single();
-
-      if (!userProfile?.company_id) {
-        throw new Error('User not associated with a company');
-      }
-
-      setCompanyId(userProfile.company_id);
-
       // Call the function to process missing disposition journals
       const { data, error } = await supabase.rpc('process_missing_disposition_journals', {
-        p_company_id: userProfile.company_id
+        p_company_id: currentCompany.id
       });
 
       if (error) {
         throw error;
       }
 
-      setResult(data as ProcessingResult);
+      setResult(data as unknown as ProcessingResult);
 
     } catch (error) {
       console.error('Error processing missing disposition journals:', error);
@@ -68,23 +58,22 @@ export function DispositionJournalProcessor() {
   };
 
   const checkMissingJournals = async () => {
+    if (!currentCompany) {
+      setResult({
+        success: false,
+        total_processed: 0,
+        total_errors: 1,
+        error_messages: ['No company selected']
+      });
+      return;
+    }
+
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-
-      const { data: userProfile } = await supabase
-        .from('user_profiles')
-        .select('company_id')
-        .eq('user_id', user.id)
-        .single();
-
-      if (!userProfile?.company_id) return;
-
       // Check for dispositions without journal entries
       const { data: missingJournals, error } = await supabase
         .from('cow_dispositions')
         .select('id, disposition_date, disposition_type, cow_id')
-        .eq('company_id', userProfile.company_id)
+        .eq('company_id', currentCompany.id)
         .is('journal_entry_id', null);
 
       if (error) {

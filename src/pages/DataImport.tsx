@@ -107,6 +107,35 @@ export default function DataImport() {
         }
       }
 
+      // Create historical depreciation entries for each cow
+      console.log('Creating historical depreciation entries for', cowData.length, 'cows...');
+      const currentDate = new Date();
+      let depreciationEntriesCreated = 0;
+      
+      for (const cow of cowData) {
+        try {
+          const { data: depreciationResult, error: depreciationError } = await supabase
+            .rpc('catch_up_cow_depreciation_to_date', {
+              p_cow_id: cow.id,
+              p_end_date: currentDate.toISOString().split('T')[0]
+            });
+
+          if (depreciationError) {
+            console.error('Depreciation catchup failed for cow', cow.tag_number, ':', depreciationError);
+          } else if (depreciationResult && typeof depreciationResult === 'object' && 'success' in depreciationResult) {
+            const result = depreciationResult as { success: boolean; entries_created?: number };
+            if (result.success) {
+              depreciationEntriesCreated += result.entries_created || 0;
+              console.log('Created', result.entries_created || 0, 'depreciation entries for cow', cow.tag_number);
+            }
+          }
+        } catch (err) {
+          console.error('Error creating depreciation entries for cow', cow.tag_number, ':', err);
+        }
+      }
+
+      console.log('Total depreciation entries created:', depreciationEntriesCreated);
+
       setCows(prev => [...prev, ...uploadedCows]);
       
       toast({

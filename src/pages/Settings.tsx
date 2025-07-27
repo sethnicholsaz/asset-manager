@@ -11,6 +11,7 @@ import { AcquisitionSettings } from '@/components/AcquisitionSettings';
 import { MissingAcquisitionsProcessor } from '@/components/MissingAcquisitionsProcessor';
 import { MissingDispositionsProcessor } from '@/components/MissingDispositionsProcessor';
 import { DispositionJournalProcessor } from '@/components/DispositionJournalProcessor';
+import { DepreciationCatchupProcessor } from '@/components/DepreciationCatchupProcessor';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
@@ -203,6 +204,7 @@ export default function Settings() {
           <MissingAcquisitionsProcessor />
           <MissingDispositionsProcessor />
           <DispositionJournalProcessor />
+          <DepreciationCatchupProcessor />
         </TabsContent>
       </Tabs>
     </div>

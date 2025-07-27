@@ -185,9 +185,39 @@ async function processCowUpload(
       } else if (journalResult?.success) {
         result.journalsSummary.acquisitions = journalResult.journal_entries_created || 0;
       }
-    }
 
-    // Skip background depreciation scheduling - handled by monthly processing
+      // Step 3: Create historical depreciation entries for each cow
+      console.log(`Creating historical depreciation entries for ${newCows.length} cows...`);
+      const currentDate = new Date();
+      let depreciationEntriesCreated = 0;
+      
+      for (const cow of newCows) {
+        try {
+          const { data: depreciationResult, error: depreciationError } = await supabase
+            .rpc('catch_up_cow_depreciation_to_date', {
+              p_cow_id: cow.id,
+              p_end_date: currentDate.toISOString().split('T')[0]
+            });
+
+          if (depreciationError) {
+            console.error(`Depreciation catchup failed for cow ${cow.tag_number}:`, depreciationError);
+            result.errors.push(`Depreciation catchup failed for cow ${cow.tag_number}: ${depreciationError.message}`);
+          } else if (depreciationResult && typeof depreciationResult === 'object' && 'success' in depreciationResult) {
+            const result = depreciationResult as { success: boolean; entries_created?: number };
+            if (result.success) {
+              depreciationEntriesCreated += result.entries_created || 0;
+              console.log(`Created ${result.entries_created || 0} depreciation entries for cow ${cow.tag_number}`);
+            }
+          }
+        } catch (err) {
+          console.error(`Error creating depreciation entries for cow ${cow.tag_number}:`, err);
+          result.errors.push(`Error creating depreciation entries for cow ${cow.tag_number}: ${err instanceof Error ? err.message : 'Unknown error'}`);
+        }
+      }
+
+      result.journalsSummary.monthlyDepreciation = depreciationEntriesCreated;
+      console.log(`Total depreciation entries created: ${depreciationEntriesCreated}`);
+    }
 
     return cowData.length;
 

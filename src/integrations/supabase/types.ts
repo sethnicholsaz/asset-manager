@@ -757,6 +757,10 @@ export type Database = {
         Args: { p_cow_id: string; p_end_date: string }
         Returns: Json
       }
+      catch_up_cows_depreciation_batch: {
+        Args: { p_company_id: string; p_batch_size: number; p_offset: number }
+        Returns: Json
+      }
       cleanup_incomplete_journals: {
         Args: { company_id: string; cutoff_time: string }
         Returns: undefined

@@ -118,11 +118,8 @@ export function DepreciationSettings() {
       const yearsToProcess = [];
       
       // Determine which years need processing
-      for (let year = startYear; year <= currentYear; year++) {
-        if (!status.years_with_entries.includes(year)) {
-          yearsToProcess.push(year);
-        }
-      }
+      // The backend now returns years_with_entries as the years that need processing
+      yearsToProcess.push(...status.years_with_entries);
 
       if (yearsToProcess.length === 0) {
         setHistoricalProcessingStatus('completed');
