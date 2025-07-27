@@ -46,33 +46,49 @@ export function AccountSummaryReport() {
     try {
       console.log(`Generating account summary for ${month}/${year}, company: ${currentCompany.id}`);
 
-      // Fetch all journal lines for the selected month/year directly
-      const { data: journalLines, error: linesError } = await supabase
-        .from('journal_lines')
-        .select(`
-          account_code,
-          account_name,
-          debit_amount,
-          credit_amount,
-          journal_entries!inner (
-            company_id,
-            month,
-            year
-          )
-        `)
-        .eq('journal_entries.company_id', currentCompany.id)
-        .eq('journal_entries.month', month)
-        .eq('journal_entries.year', year);
+      // Fetch all journal lines for the selected month/year directly with pagination
+      let allJournalLines: any[] = [];
+      let page = 0;
+      const pageSize = 1000;
+      let hasMore = true;
 
-      if (linesError) {
-        console.error('Error fetching journal lines:', linesError);
-        throw linesError;
+      while (hasMore) {
+        const { data: journalLines, error: linesError } = await supabase
+          .from('journal_lines')
+          .select(`
+            account_code,
+            account_name,
+            debit_amount,
+            credit_amount,
+            journal_entries!inner (
+              company_id,
+              month,
+              year
+            )
+          `)
+          .eq('journal_entries.company_id', currentCompany.id)
+          .eq('journal_entries.month', month)
+          .eq('journal_entries.year', year)
+          .range(page * pageSize, (page + 1) * pageSize - 1);
+
+        if (linesError) {
+          console.error('Error fetching journal lines:', linesError);
+          throw linesError;
+        }
+
+        if (journalLines && journalLines.length > 0) {
+          allJournalLines = allJournalLines.concat(journalLines);
+          page++;
+          console.log(`Fetched page ${page}: ${journalLines.length} lines (total: ${allJournalLines.length})`);
+        } else {
+          hasMore = false;
+        }
       }
 
-      console.log(`Found ${journalLines?.length || 0} journal lines`);
+      console.log(`Found ${allJournalLines.length} total journal lines`);
 
       // Process journal lines directly
-      const allLines: JournalLine[] = journalLines || [];
+      const allLines: JournalLine[] = allJournalLines;
 
       console.log(`Processing ${allLines.length} journal lines`);
 
