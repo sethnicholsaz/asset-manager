@@ -1,73 +1,151 @@
-# Welcome to your Lovable project
+# Dairy Depreciation Dashboard
 
-## Project info
+A comprehensive React/TypeScript application for managing dairy cow depreciation and financial tracking with Supabase backend.
 
-**URL**: https://lovable.dev/projects/579ef76d-bb3d-4686-b167-e788850c72e9
+## 🚀 Features
 
-## How can I edit this code?
+- **Cow Asset Management**: Track individual cows with detailed depreciation calculations
+- **Journal Entry Automation**: Automatic creation of acquisition, depreciation, and disposition journals
+- **Multi-Company Support**: Manage multiple dairy operations
+- **Real-time Dashboard**: Live statistics and financial overview
+- **Batch Processing**: Efficient handling of large datasets
+- **Performance Optimized**: Caching and optimized database queries
 
-There are several ways of editing your application.
+## 🛠️ Tech Stack
 
-**Use Lovable**
+- **Frontend**: React 18, TypeScript, Vite
+- **UI Components**: shadcn/ui, Tailwind CSS, Radix UI
+- **Backend**: Supabase (PostgreSQL, Auth, Edge Functions)
+- **State Management**: React Query, Context API
+- **Testing**: Vitest, Testing Library
+- **Code Quality**: ESLint, Prettier, TypeScript strict mode
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/579ef76d-bb3d-4686-b167-e788850c72e9) and start prompting.
+## 📋 Prerequisites
 
-Changes made via Lovable will be committed automatically to this repo.
+- Node.js 18+ and npm
+- Supabase account and project
+- Git
 
-**Use your preferred IDE**
+## 🚀 Quick Start
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
+### 1. Clone and Install
 
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
+```bash
+git clone <your-repo-url>
+cd dairy-depreciation-dashboard
+npm install
+```
 
-Follow these steps:
+### 2. Environment Setup
 
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
+Copy the example environment file and configure your Supabase credentials:
 
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
+```bash
+cp env.example .env.local
+```
 
-# Step 3: Install the necessary dependencies.
-npm i
+Edit `.env.local` with your Supabase project details:
 
-# Step 4: Start the development server with auto-reloading and an instant preview.
+```env
+VITE_SUPABASE_URL=your_supabase_url_here
+VITE_SUPABASE_ANON_KEY=your_supabase_anon_key_here
+```
+
+### 3. Database Setup
+
+Run the Supabase migrations to set up your database schema:
+
+```bash
+npx supabase db push
+```
+
+### 4. Start Development
+
+```bash
 npm run dev
 ```
 
-**Edit a file directly in GitHub**
+Visit `http://localhost:8080` to see your application.
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+## 📚 Available Scripts
 
-**Use GitHub Codespaces**
+- `npm run dev` - Start development server
+- `npm run build` - Build for production
+- `npm run lint` - Run ESLint
+- `npm run lint:fix` - Fix ESLint issues
+- `npm run type-check` - Run TypeScript type checking
+- `npm run test` - Run tests
+- `npm run test:coverage` - Run tests with coverage
+- `npm run audit` - Check for security vulnerabilities
+- `npm run format` - Format code with Prettier
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+## 🏗️ Project Structure
 
-## What technologies are used for this project?
+```
+src/
+├── components/          # Reusable UI components
+├── contexts/           # React contexts (Auth, etc.)
+├── domain/            # Business logic and domain layer
+│   ├── batch/         # Batch processing utilities
+│   ├── cache/         # Performance caching
+│   ├── config/        # Configuration constants
+│   ├── depreciation/  # Depreciation calculations
+│   ├── journal/       # Journal entry management
+│   ├── validation/    # Data validation schemas
+│   └── types/         # Type definitions
+├── hooks/             # Custom React hooks
+├── integrations/      # External service integrations
+├── lib/              # Utility functions
+├── pages/            # Page components
+└── types/            # Global type definitions
+```
 
-This project is built with:
+## 🔧 Development Guidelines
 
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
+### Code Quality
+- Use TypeScript strict mode
+- Follow ESLint rules
+- Format code with Prettier
+- Write tests for new features
 
-## How can I deploy this project?
+### Performance
+- Use the caching layer for expensive calculations
+- Implement batch processing for large datasets
+- Optimize database queries with proper indexes
 
-Simply open [Lovable](https://lovable.dev/projects/579ef76d-bb3d-4686-b167-e788850c72e9) and click on Share -> Publish.
+### Security
+- Never commit environment variables
+- Use proper authentication and authorization
+- Validate all user inputs
+- Keep dependencies updated
 
-## Can I connect a custom domain to my Lovable project?
+## 🐛 Troubleshooting
 
-Yes, you can!
+### Common Issues
 
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
+1. **ESLint errors**: Run `npm run lint:fix` to auto-fix issues
+2. **TypeScript errors**: Run `npm run type-check` to see type issues
+3. **Build failures**: Check that all environment variables are set
+4. **Database connection**: Verify Supabase credentials in `.env.local`
 
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/tips-tricks/custom-domain#step-by-step-guide)
+### Getting Help
+
+- Check the [MIGRATION-GUIDE.md](./MIGRATION-GUIDE.md) for database changes
+- Review [JOURNAL_SYSTEM_SOLUTION.md](./JOURNAL_SYSTEM_SOLUTION.md) for journal automation details
+- Open an issue for bugs or feature requests
+
+## 📄 License
+
+This project is proprietary software. All rights reserved.
+
+## 🤝 Contributing
+
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Run tests and linting
+5. Submit a pull request
+
+---
+
+**Note**: This is a production application for dairy farm management. Please ensure all changes are thoroughly tested before deployment.

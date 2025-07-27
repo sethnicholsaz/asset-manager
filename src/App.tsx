@@ -39,15 +39,20 @@ function CreateCompanyForm() {
     
     setIsLoading(true);
     try {
-      console.log('Creating company for user:', user.id);
+      // Validate input
+      if (companyName.trim().length < 2) {
+        throw new Error('Company name must be at least 2 characters long');
+      }
+
+      if (companyName.trim().length > 100) {
+        throw new Error('Company name must be less than 100 characters');
+      }
       
       // Create company
       const companySlug = companyName.toLowerCase()
         .replace(/[^a-z0-9]+/g, '-')
         .replace(/^-+|-+$/g, '');
 
-      console.log('Inserting company:', { name: companyName.trim(), slug: companySlug });
-      
       const { data: company, error: companyError } = await supabase
         .from('companies')
         .insert({
@@ -58,14 +63,10 @@ function CreateCompanyForm() {
         .single();
 
       if (companyError) {
-        console.error('Company creation error:', companyError);
         throw new Error(`Failed to create company: ${companyError.message}`);
       }
 
-      console.log('Company created:', company);
-
       // Create profile if it doesn't exist
-      console.log('Creating/updating profile...');
       const { error: profileError } = await supabase
         .from('profiles')
         .upsert({
@@ -78,14 +79,10 @@ function CreateCompanyForm() {
         });
 
       if (profileError) {
-        console.error('Profile creation error:', profileError);
         throw new Error(`Failed to create profile: ${profileError.message}`);
       }
 
-      console.log('Profile created/updated');
-
       // Create company membership
-      console.log('Creating membership...');
       const { error: membershipError } = await supabase
         .from('company_memberships')
         .insert({
@@ -96,7 +93,6 @@ function CreateCompanyForm() {
         });
 
       if (membershipError) {
-        console.error('Membership creation error:', membershipError);
         throw new Error(`Failed to create membership: ${membershipError.message}`);
       }
 
