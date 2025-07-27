@@ -46,46 +46,45 @@ export function AccountSummaryReport() {
     try {
       console.log(`Generating account summary for ${month}/${year}, company: ${currentCompany.id}`);
 
-      // Fetch all journal entries for the selected month/year
-      const { data: journalEntries, error: entriesError } = await supabase
-        .from('journal_entries')
+      // Fetch all journal lines for the selected month/year directly
+      const { data: journalLines, error: linesError } = await supabase
+        .from('journal_lines')
         .select(`
-          id,
-          journal_lines (
-            account_code,
-            account_name,
-            debit_amount,
-            credit_amount
+          account_code,
+          account_name,
+          debit_amount,
+          credit_amount,
+          journal_entries!inner (
+            company_id,
+            month,
+            year
           )
         `)
-        .eq('company_id', currentCompany.id)
-        .eq('month', month)
-        .eq('year', year);
+        .eq('journal_entries.company_id', currentCompany.id)
+        .eq('journal_entries.month', month)
+        .eq('journal_entries.year', year);
 
-      if (entriesError) {
-        console.error('Error fetching journal entries:', entriesError);
-        throw entriesError;
+      if (linesError) {
+        console.error('Error fetching journal lines:', linesError);
+        throw linesError;
       }
 
-      console.log(`Found ${journalEntries?.length || 0} journal entries`);
+      console.log(`Found ${journalLines?.length || 0} journal lines`);
 
-      // Flatten all journal lines
-      const allLines: JournalLine[] = [];
-      journalEntries?.forEach(entry => {
-        if (entry.journal_lines) {
-          entry.journal_lines.forEach(line => {
-            allLines.push(line as JournalLine);
-          });
-        }
-      });
+      // Process journal lines directly
+      const allLines: JournalLine[] = journalLines || [];
 
       console.log(`Processing ${allLines.length} journal lines`);
 
       // Group by account and sum debits/credits
       const accountMap = new Map<string, AccountSummary>();
+      const accountLineCounts = new Map<string, number>();
 
-      allLines.forEach(line => {
+      allLines.forEach((line, index) => {
         const key = `${line.account_code}-${line.account_name}`;
+        
+        // Track line counts per account
+        accountLineCounts.set(key, (accountLineCounts.get(key) || 0) + 1);
         
         if (!accountMap.has(key)) {
           accountMap.set(key, {
@@ -101,12 +100,31 @@ export function AccountSummaryReport() {
         account.totalDebits += line.debit_amount || 0;
         account.totalCredits += line.credit_amount || 0;
         account.netBalance = account.totalDebits - account.totalCredits;
+        
+        // Log first few lines being processed
+        if (index < 10) {
+          console.log(`Processing line ${index + 1}: ${line.account_code} - Debit: ${line.debit_amount} - Credit: ${line.credit_amount}`);
+        }
+      });
+
+      console.log('Account line counts:');
+      accountLineCounts.forEach((count, key) => {
+        console.log(`${key}: ${count} lines`);
       });
 
       // Convert to array and sort by account code
       const summaries = Array.from(accountMap.values()).sort((a, b) => 
         a.accountCode.localeCompare(b.accountCode)
       );
+
+      console.log('Final account summaries:');
+      summaries.forEach(summary => {
+        console.log(`${summary.accountCode} - ${summary.accountName}: Debits: ${summary.totalDebits}, Credits: ${summary.totalCredits}, Net: ${summary.netBalance}`);
+      });
+
+      const totalDebits = summaries.reduce((sum, account) => sum + account.totalDebits, 0);
+      const totalCredits = summaries.reduce((sum, account) => sum + account.totalCredits, 0);
+      console.log(`TOTALS: Debits: ${totalDebits}, Credits: ${totalCredits}, Net: ${totalDebits - totalCredits}`);
 
       setAccountSummaries(summaries);
 
